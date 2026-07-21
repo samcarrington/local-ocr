@@ -1,0 +1,293 @@
+:root {
+  color-scheme: light;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  line-height: 1.5;
+  background: #f5f7fb;
+  color: #162033;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+}
+
+button,
+select {
+  font: inherit;
+}
+
+button {
+  border: 1px solid #98a4ba;
+  background: #fff;
+  color: #162033;
+  border-radius: 0.65rem;
+  padding: 0.65rem 1rem;
+  cursor: pointer;
+}
+
+button:hover:enabled,
+button:focus-visible,
+select:focus-visible {
+  outline: 2px solid #2f6fed;
+  outline-offset: 2px;
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+button.primary {
+  background: #2f6fed;
+  border-color: #2f6fed;
+  color: #fff;
+}
+
+button.danger {
+  border-color: #c44040;
+  color: #8a2020;
+}
+
+select {
+  border: 1px solid #98a4ba;
+  border-radius: 0.65rem;
+  padding: 0.65rem 0.8rem;
+  background: #fff;
+}
+
+.app-shell {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 1.25rem;
+}
+
+.topbar,
+.panel,
+.preview-panel,
+.markdown-panel {
+  background: #fff;
+  border: 1px solid #d6ddea;
+  border-radius: 1rem;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.05);
+}
+
+.topbar,
+.panel {
+  padding: 1rem 1.1rem;
+}
+
+.topbar {
+  display: flex;
+  gap: 1rem;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 1rem;
+}
+
+.subtitle,
+.muted {
+  color: #4d5c75;
+}
+
+.status-banner {
+  margin: 0;
+  max-width: 28rem;
+  text-align: right;
+}
+
+.layout {
+  display: grid;
+  grid-template-columns: minmax(240px, 320px) minmax(0, 1fr);
+  gap: 1rem;
+}
+
+.panel-header,
+.review-header,
+.toolbar,
+.progress-row,
+.section-header,
+.page-nav,
+.action-row {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.sidebar,
+.reviewer {
+  min-height: 18rem;
+}
+
+.pdf-list,
+.page-list {
+  list-style: none;
+  padding: 0;
+  margin: 1rem 0 0;
+}
+
+.pdf-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.pdf-list button,
+.page-list button {
+  width: 100%;
+  text-align: left;
+}
+
+.pdf-list button.active,
+.page-list button.active {
+  border-color: #2f6fed;
+  background: #ebf2ff;
+}
+
+.field {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.content-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.05fr);
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.preview-panel,
+.markdown-panel {
+  padding: 1rem;
+}
+
+#page-preview {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: 0.75rem;
+  border: 1px solid #d6ddea;
+  background: #eff3f9;
+}
+
+.markdown-render {
+  min-height: 16rem;
+  max-height: 42rem;
+  overflow: auto;
+  padding: 1rem;
+  border: 1px solid #d6ddea;
+  border-radius: 0.75rem;
+  background: #fbfcfe;
+}
+
+.warning-panel {
+  margin-bottom: 1rem;
+  padding: 0.9rem 1rem;
+  border: 1px solid #e0b34d;
+  border-radius: 0.75rem;
+  background: #fff8e7;
+}
+
+.warning-panel h4,
+.warning-panel p,
+.warning-panel ul {
+  margin-top: 0;
+}
+
+.warning-message {
+  color: #6f5200;
+}
+
+.warning-snippets {
+  margin-bottom: 0;
+  padding-left: 1.2rem;
+}
+
+.markdown-render p,
+.markdown-render ul,
+.markdown-render ol,
+.markdown-render pre,
+.markdown-render blockquote,
+.markdown-render h1,
+.markdown-render h2,
+.markdown-render h3,
+.markdown-render h4 {
+  margin-top: 0;
+}
+
+pre {
+  white-space: pre-wrap;
+  word-break: break-word;
+  background: #f5f7fb;
+  padding: 1rem;
+  border-radius: 0.75rem;
+  border: 1px solid #d6ddea;
+}
+
+.page-nav {
+  margin-top: 1rem;
+  align-items: flex-start;
+}
+
+.page-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(3.5rem, 1fr));
+  gap: 0.5rem;
+  flex: 1;
+  margin: 0;
+}
+
+.page-list button.accepted {
+  background: #ebfff1;
+  border-color: #3ea96f;
+}
+
+.page-list button.pending {
+  background: #fff8e7;
+  border-color: #d0ae59;
+}
+
+.empty-state {
+  padding: 3rem 1rem;
+  text-align: center;
+  color: #4d5c75;
+}
+
+details {
+  margin-top: 1rem;
+}
+
+@media (max-width: 960px) {
+  .layout,
+  .content-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .page-nav {
+    flex-direction: column;
+  }
+}
+
+@media (max-width: 640px) {
+  .app-shell {
+    padding: 0.75rem;
+  }
+
+  .topbar,
+  .panel-header,
+  .review-header,
+  .toolbar,
+  .section-header,
+  .progress-row,
+  .action-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .status-banner {
+    text-align: left;
+  }
+}

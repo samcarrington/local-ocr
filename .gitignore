@@ -1,0 +1,7 @@
+node_modules/
+dist/
+.ocrtool/
+inbox/
+ocrtool.config.yaml
+coverage/
+tessdata/

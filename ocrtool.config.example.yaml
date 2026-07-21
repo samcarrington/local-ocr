@@ -1,0 +1,18 @@
+inboxPath: ./inbox
+jobStorePath: ./.ocrtool/jobs
+host: 127.0.0.1
+port: 4312
+defaultEngine: tesseract
+nativeTextMinChars: 24
+textExtractionMode: auto # auto skips OCR when native text is good; ocr forces rendered-image OCR for every page
+engines:
+  tesseract:
+    kind: tesseract
+    lang: eng
+    trainedDataPath: ./tessdata
+  deepseek-ocr:
+    kind: deepseek-ocr
+    ollamaHost: http://127.0.0.1:11434
+    model: deepseek-ocr
+    chatTimeoutMs: 180000
+    maxOutputTokens: 4096
