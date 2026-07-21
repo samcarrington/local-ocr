@@ -84,7 +84,9 @@ export function createApiRouter(config: AppConfig, dependencies: Partial<ApiDepe
 
     page.markdown = result.markdown.trim();
     page.confidence = result.confidence;
-    page.figures = result.figures;
+    // Figures come from the PDF page, not the engine; keep them when the
+    // reran adapter (e.g. nuextract3-ocr) does not supply its own.
+    page.figures = result.figures ?? page.figures;
     page.layoutBlocks = result.layoutBlocks;
     page.engine = engine;
     page.accepted = false;

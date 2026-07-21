@@ -4,6 +4,7 @@ import os from 'node:os';
 import path from 'node:path';
 
 import { PDFDocument, createCanvas, loadImage } from '@napi-rs/canvas';
+import type { SKRSContext2D } from '@napi-rs/canvas';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { extractPdfPages } from './pdf.js';
@@ -59,6 +60,23 @@ function createTinyPdfBuffer(text: string): Buffer {
   context.fillStyle = 'black';
   context.font = '24px sans-serif';
   context.fillText(text, 24, 64);
+  document.endPage();
+
+  return document.close();
+}
+
+async function createPdfWithImageBuffer(): Promise<Buffer> {
+  const imageCanvas = createCanvas(160, 100);
+  const imageContext = imageCanvas.getContext('2d');
+  imageContext.fillStyle = 'red';
+  imageContext.fillRect(0, 0, 160, 100);
+  const embedded = await loadImage(imageCanvas.toBuffer('image/png'));
+
+  const document = new PDFDocument();
+  const context = document.beginPage(360, 240) as unknown as SKRSContext2D;
+  context.fillStyle = 'white';
+  context.fillRect(0, 0, 360, 240);
+  context.drawImage(embedded, 60, 50, 160, 100);
   document.endPage();
 
   return document.close();
@@ -293,6 +311,36 @@ describe('createDraftJob', () => {
     }).some(Boolean);
 
     expect(hasNonWhitePixel).toBe(true);
+  });
+
+  it('extracts embedded page images as cropped figure files', async () => {
+    const rootDir = makeTempDir();
+    const pdfPath = createInboxPdf(rootDir, 'with-image.pdf', await createPdfWithImageBuffer());
+    const previewDir = path.join(rootDir, 'previews');
+
+    const pages = await extractPdfPages(pdfPath, { previewDir });
+
+    expect(pages).toHaveLength(1);
+    expect(pages[0]!.images.length).toBeGreaterThanOrEqual(1);
+
+    const figure = pages[0]!.images[0]!;
+    await access(figure.imagePath);
+    const cropBuffer = await readFile(figure.imagePath);
+    expect(cropBuffer.byteLength).toBeGreaterThan(0);
+
+    const [x0, y0, x1, y1] = figure.bbox;
+    expect(x1).toBeGreaterThan(x0);
+    expect(y1).toBeGreaterThan(y0);
+  });
+
+  it('skips image extraction when disabled', async () => {
+    const rootDir = makeTempDir();
+    const pdfPath = createInboxPdf(rootDir, 'no-extract.pdf', await createPdfWithImageBuffer());
+    const previewDir = path.join(rootDir, 'previews');
+
+    const pages = await extractPdfPages(pdfPath, { previewDir, extractImages: false });
+
+    expect(pages[0]!.images).toEqual([]);
   });
 
   it('rejects pdf paths outside inbox', async () => {

@@ -68,6 +68,9 @@ async function createDraftPage(
   adapter: OcrAdapter
 ): Promise<DraftPage> {
   const nativeText = extractedPage.nativeText.trim();
+  // Images are a property of the PDF page, not the OCR engine, so they are
+  // available regardless of engine (and survive engine reruns).
+  const pageFigures = extractedPage.images && extractedPage.images.length > 0 ? extractedPage.images : undefined;
 
   if (config.textExtractionMode === 'auto' && nativeText.length >= config.nativeTextMinChars) {
     return {
@@ -77,7 +80,8 @@ async function createDraftPage(
       markdown: nativeText,
       accepted: false,
       status: 'pending',
-      engine: 'native'
+      engine: 'native',
+      figures: pageFigures
     };
   }
 
@@ -94,6 +98,7 @@ async function createDraftPage(
       accepted: false,
       status: 'failed',
       engine: adapter.name,
+      figures: pageFigures,
       qualityWarnings: [
         {
           type: 'ocr-failed',
@@ -115,7 +120,7 @@ async function createDraftPage(
     status: 'pending',
     engine: adapter.name,
     confidence: ocrResult.confidence,
-    figures: ocrResult.figures,
+    figures: ocrResult.figures ?? pageFigures,
     layoutBlocks: ocrResult.layoutBlocks
   };
 }

@@ -210,6 +210,86 @@ Second page accepted.
     expect((await readFile(result.markdownPath, 'utf8')).match(/!\[\]\(images\/page-001-figure-001\.png\)/g)).toHaveLength(1);
   });
 
+  it('rewrites inline placeholder image srcs to committed crop files in order', async () => {
+    const rootDir = makeTempDir();
+    const config = makeConfig(rootDir);
+    const sourcePdfPath = createPdf(rootDir, 'figures.pdf');
+    const cropOne = path.join(rootDir, 'crop-1.png');
+    const cropTwo = path.join(rootDir, 'crop-2.png');
+    writeFileSync(cropOne, 'crop-one');
+    writeFileSync(cropTwo, 'crop-two');
+    const job: DraftJob = {
+      id: 'job-fig',
+      sourcePdfPath,
+      status: 'pending_review',
+      createdAt: '2026-07-13T00:00:00.000Z',
+      updatedAt: '2026-07-13T00:00:00.000Z',
+      pages: [
+        {
+          pageNumber: 1,
+          imagePath: 'page-1.png',
+          nativeText: '',
+          markdown:
+            '# Report\n\n<figure data-type="image" data-id="img_1"><img src="img_1.png" alt="A logo"/></figure>\n\nBody\n\n<figure data-type="image" data-id="img_2"><img src="img_2.png" alt="A chart"/></figure>',
+          accepted: true,
+          status: 'accepted',
+          engine: 'nuextract3-ocr',
+          figures: [
+            { bbox: [0, 0, 10, 10], imagePath: cropOne },
+            { bbox: [0, 0, 10, 10], imagePath: cropTwo }
+          ]
+        }
+      ]
+    };
+
+    const result = await commitJob(config, job);
+    const markdown = await readFile(result.markdownPath, 'utf8');
+    const imagesDir = path.join(path.dirname(result.markdownPath), 'images');
+
+    expect(markdown).toContain('<img src="images/page-001-figure-001.png" alt="A logo"/>');
+    expect(markdown).toContain('<img src="images/page-001-figure-002.png" alt="A chart"/>');
+    expect(markdown).not.toContain('img_1.png');
+    expect(markdown).not.toContain('img_2.png');
+    // No duplicate appended links when rewriting inline refs.
+    expect(markdown).not.toContain('![](images/');
+    expect(existsSync(path.join(imagesDir, 'page-001-figure-001.png'))).toBe(true);
+    expect(await readFile(path.join(imagesDir, 'page-001-figure-001.png'), 'utf8')).toBe('crop-one');
+    expect(await readFile(path.join(imagesDir, 'page-001-figure-002.png'), 'utf8')).toBe('crop-two');
+  });
+
+  it('leaves surplus inline image placeholders untouched when fewer crops exist', async () => {
+    const rootDir = makeTempDir();
+    const config = makeConfig(rootDir);
+    const sourcePdfPath = createPdf(rootDir, 'mismatch.pdf');
+    const cropOne = path.join(rootDir, 'only-crop.png');
+    writeFileSync(cropOne, 'only');
+    const job: DraftJob = {
+      id: 'job-mismatch',
+      sourcePdfPath,
+      status: 'pending_review',
+      createdAt: '2026-07-13T00:00:00.000Z',
+      updatedAt: '2026-07-13T00:00:00.000Z',
+      pages: [
+        {
+          pageNumber: 1,
+          imagePath: 'page-1.png',
+          nativeText: '',
+          markdown: '<img src="img_1.png" alt="one"/>\n<img src="img_2.png" alt="two"/>',
+          accepted: true,
+          status: 'accepted',
+          engine: 'nuextract3-ocr',
+          figures: [{ bbox: [0, 0, 10, 10], imagePath: cropOne }]
+        }
+      ]
+    };
+
+    const result = await commitJob(config, job);
+    const markdown = await readFile(result.markdownPath, 'utf8');
+
+    expect(markdown).toContain('<img src="images/page-001-figure-001.png" alt="one"/>');
+    expect(markdown).toContain('<img src="img_2.png" alt="two"/>');
+  });
+
   it('marks all-native documents as native provenance', async () => {
     const rootDir = makeTempDir();
     const config = makeConfig(rootDir);

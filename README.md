@@ -130,7 +130,7 @@ Server stays local-only by config. Allowed bind hosts: `127.0.0.1`, `localhost`,
 - PDF intake from configured inbox.
 - Native-text extraction + OCR fallback.
 - Per-page review and rerun before commit.
-- Markdown output into vault-friendly folder structure, with adapter-provided figure images copied into `<inbox>/<name>/images/` and linked as relative markdown images.
+- Markdown output into vault-friendly folder structure, with figure images extracted from source PDF pages copied into `<inbox>/<name>/images/` and linked as relative markdown images.
 
 ## PDF pipeline notes
 
@@ -142,14 +142,19 @@ Server stays local-only by config. Allowed bind hosts: `127.0.0.1`, `localhost`,
 - Review jobs stay `pending_review` until final full commit.
 - Draft pages stay `pending` by default, including pages with native text.
 - Commit frontmatter reports provenance as `native`, engine name, or `mixed`.
-- Commit creates `<inbox>/<pdf-name>/images/` on every write and preserves OCR adapter figure files there as stable names like `page-001-figure-001.png`.
-- Commit appends relative `![](images/...)` links near page content when adapter figures exist and page markdown does not already include that exact link.
+- Commit creates `<inbox>/<pdf-name>/images/` on every write and preserves figure files there as stable names like `page-001-figure-001.png`.
+- Commit appends relative `![](images/...)` links near page content when figures exist and page markdown does not already include that exact link.
+
+## Page images
+
+- Embedded page images are extracted at job creation: `pdf.ts` reads each page's image draw operations, computes their bounding boxes, and crops them from the rendered page. This runs for every engine (disable with `extractImages: false`), and the crops survive engine reruns since they belong to the page, not the engine.
+- On commit, engines that emit inline image placeholders (`nuextract3-ocr` outputs `<figure><img src="img_N.png">`) have those `src` values rewritten in document order to the saved crop files, so the committed markdown references real images. Engines with no inline image refs fall back to appended `![](images/...)` links.
+- NuExtract3 itself provides no pixel data or bounding boxes for the images it identifies (only a description and a placeholder filename); the actual pixels come from the source-PDF crops described above.
 
 ### Limitation
 
 - Node ESM `pdfjs-dist` + canvas rendering can be brittle across environments/fonts. Current implementation is best-effort and covered mainly at orchestration level in tests; preview rendering should be smoke-tested in target runtime if issues appear.
-- Native PDF embedded-image extraction is not implemented yet. Current commit step preserves only figure image files provided by OCR adapters via `page.figures`; embedded-image extraction from source PDFs is deferred.
-- `nuextract3-ocr` returns Markdown only in v1 — no figure or layout-block extraction. NuExtract3's Markdown mode emits inline `<figure>`/`<table>` HTML and LaTeX rather than bounding boxes or cropped image files, so it provides no `figures`/`layoutBlocks` metadata (unlike `deepseek-ocr`).
+- Image extraction captures raster image draw operations only; purely vector graphics (e.g. logos drawn as paths) are not captured as discrete figures. Inline placeholders are mapped to crops by document order, so a count mismatch between what the engine identified and what the PDF exposes can leave a surplus placeholder unresolved.
 
 ## Commands
 

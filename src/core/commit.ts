@@ -62,28 +62,71 @@ function getFigureFileName(pageNumber: number, figureIndex: number, imagePath: s
   return `page-${String(pageNumber).padStart(3, '0')}-figure-${String(figureIndex).padStart(3, '0')}${extension}`;
 }
 
-function getFigureMarkdown(pageNumber: number, figures: OcrFigure[] | undefined): string[] {
-  if (!figures || figures.length === 0) {
-    return [];
-  }
-
-  return figures.map((figure, index) => `![](images/${getFigureFileName(pageNumber, index + 1, figure.imagePath)})`);
+function getFigureFileNames(pageNumber: number, figures: OcrFigure[]): string[] {
+  return figures.map((figure, index) => `images/${getFigureFileName(pageNumber, index + 1, figure.imagePath)}`);
 }
 
-function appendFigureLinks(markdown: string, pageNumber: number, figures: OcrFigure[] | undefined): string {
-  const figureMarkdown = getFigureMarkdown(pageNumber, figures);
-
-  if (figureMarkdown.length === 0) {
+/**
+ * Wires committed figure files into a page's markdown. Engines like
+ * nuextract3-ocr embed inline `<figure><img src="img_1.png">` placeholders that
+ * point at files it never produced; those get rewritten in document order to
+ * the saved crops. Engines with no inline image refs fall back to appending
+ * `![](images/...)` links (deepseek-ocr / grounded output).
+ */
+function applyFigureImages(markdown: string, pageNumber: number, figures: OcrFigure[] | undefined): string {
+  if (!figures || figures.length === 0) {
     return markdown;
   }
 
-  const missingFigureMarkdown = figureMarkdown.filter((entry) => !markdown.includes(entry));
+  const files = getFigureFileNames(pageNumber, figures);
+  const rewritten = rewriteInlineImageSrcs(markdown, files);
 
-  if (missingFigureMarkdown.length === 0) {
+  if (rewritten.count > 0) {
+    return rewritten.markdown;
+  }
+
+  return appendFigureLinks(markdown, files);
+}
+
+function rewriteInlineImageSrcs(markdown: string, files: string[]): { markdown: string; count: number } {
+  let index = 0;
+
+  const result = markdown.replace(/<img\b[^>]*>/gi, (tag) => {
+    if (index >= files.length) {
+      return tag;
+    }
+
+    const srcMatch = /(\ssrc\s*=\s*")([^"]*)(")/i.exec(tag);
+    if (!srcMatch) {
+      return tag;
+    }
+
+    // Leave already-resolved or external references untouched.
+    if (/^(images\/|https?:|\/|data:|#)/i.test(srcMatch[2])) {
+      return tag;
+    }
+
+    const replaced =
+      tag.slice(0, srcMatch.index) +
+      srcMatch[1] +
+      files[index] +
+      srcMatch[3] +
+      tag.slice(srcMatch.index + srcMatch[0].length);
+    index += 1;
+    return replaced;
+  });
+
+  return { markdown: result, count: index };
+}
+
+function appendFigureLinks(markdown: string, files: string[]): string {
+  const missingLinks = files.map((file) => `![](${file})`).filter((link) => !markdown.includes(link));
+
+  if (missingLinks.length === 0) {
     return markdown;
   }
 
-  return `${markdown.trimEnd()}\n\n${missingFigureMarkdown.join('\n')}`;
+  return `${markdown.trimEnd()}\n\n${missingLinks.join('\n')}`;
 }
 
 async function copyPageFigures(outputDir: string, pages: DraftPage[]): Promise<void> {
@@ -104,7 +147,7 @@ function renderMarkdown(job: DraftJob, convertedAt: string): string {
   const body = job.pages
     .slice()
     .sort((left, right) => left.pageNumber - right.pageNumber)
-    .map((page) => appendFigureLinks(getPageMarkdown(page), page.pageNumber, page.figures).trim())
+    .map((page) => applyFigureImages(getPageMarkdown(page), page.pageNumber, page.figures).trim())
     .join('\n\n');
 
   return [
