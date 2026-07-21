@@ -16,3 +16,12 @@ engines:
     model: deepseek-ocr
     chatTimeoutMs: 180000
     maxOutputTokens: 4096
+  # NuExtract3 document-to-Markdown via a local mlx-vlm OpenAI-compatible server.
+  # Prerequisite: pip install mlx-vlm && python -m mlx_vlm.server --model numind/NuExtract3-mlx-nvfp4
+  # serverHost must stay local (localhost, 127.0.0.1, or ::1). mlx-vlm defaults to port 8080.
+  # nuextract3-ocr:
+  #   kind: nuextract3-ocr
+  #   serverHost: http://127.0.0.1:8080
+  #   model: numind/NuExtract3-mlx-nvfp4
+  #   chatTimeoutMs: 180000
+  #   maxOutputTokens: 4096

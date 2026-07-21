@@ -1,6 +1,7 @@
 import { readFile } from 'node:fs/promises';
 
 import type { DeepseekOcrEngineConfig, OcrAdapter, OcrLayoutBlock, OcrResult } from '../core/types.js';
+import { assertLocalHost, isLocalHost } from './local-host.js';
 
 const AVAILABILITY_TIMEOUT_MS = 1_500;
 const DEFAULT_CHAT_TIMEOUT_MS = 180_000;
@@ -25,7 +26,7 @@ export class DeepseekOcrAdapter implements OcrAdapter {
   constructor(private readonly config: DeepseekOcrEngineConfig) {}
 
   async isAvailable(): Promise<boolean> {
-    if (!isLocalOllamaHost(this.config.ollamaHost)) {
+    if (!isLocalHost(this.config.ollamaHost)) {
       return false;
     }
 
@@ -57,7 +58,7 @@ export class DeepseekOcrAdapter implements OcrAdapter {
       mode?: 'markdown' | 'plain' | 'layout';
     }
   ): Promise<OcrResult> {
-    assertLocalOllamaHost(this.config.ollamaHost);
+    assertLocalHost(this.config.ollamaHost, 'DeepSeek OCR requires local Ollama host');
 
     const imageBase64 = await readFile(imagePath, { encoding: 'base64' });
     const controller = new AbortController();
@@ -226,23 +227,6 @@ function cleanOcrMarkdown(content: string | undefined): string {
   }
 
   return markdown.trim();
-}
-
-function assertLocalOllamaHost(ollamaHost: string): void {
-  if (!isLocalOllamaHost(ollamaHost)) {
-    throw new Error(
-      `DeepSeek OCR requires local Ollama host (localhost, 127.0.0.1, or ::1). Received: ${ollamaHost}`
-    );
-  }
-}
-
-function isLocalOllamaHost(ollamaHost: string): boolean {
-  try {
-    const hostname = new URL(ollamaHost).hostname.toLowerCase();
-    return hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '::1';
-  } catch {
-    return false;
-  }
 }
 
 function listAvailableModelNames(payload: OllamaTagsResponse): string[] {

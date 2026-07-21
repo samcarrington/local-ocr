@@ -100,6 +100,32 @@ describe('loadConfig', () => {
     });
   });
 
+  it('parses a nuextract3-ocr engine and applies schema defaults', () => {
+    const dir = makeTempDir();
+    const configPath = path.join(dir, DEFAULT_CONFIG_FILE);
+
+    writeFileSync(
+      configPath,
+      [
+        'defaultEngine: nuextract3-ocr',
+        'engines:',
+        '  nuextract3-ocr:',
+        '    kind: nuextract3-ocr'
+      ].join('\n')
+    );
+
+    const config = loadConfig(configPath);
+
+    expect(config.defaultEngine).toBe('nuextract3-ocr');
+    expect(config.engines['nuextract3-ocr']).toEqual({
+      kind: 'nuextract3-ocr',
+      serverHost: 'http://127.0.0.1:8080',
+      model: 'numind/NuExtract3-mlx-nvfp4',
+      chatTimeoutMs: 180000,
+      maxOutputTokens: 4096
+    });
+  });
+
   it('loads the shipped example config', () => {
     const config = loadConfig(path.join(repoRoot, 'ocrtool.config.example.yaml'));
 

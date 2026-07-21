@@ -197,7 +197,12 @@ function readRequiredString(value: unknown, field: string): string {
 
 function readEngine(value: unknown): EngineName {
   const engine = readRequiredString(value, 'engine');
-  if (engine !== 'tesseract' && engine !== 'deepseek-ocr' && engine !== 'glm-ocr') {
+  if (
+    engine !== 'tesseract' &&
+    engine !== 'deepseek-ocr' &&
+    engine !== 'glm-ocr' &&
+    engine !== 'nuextract3-ocr'
+  ) {
     throw createError(400, `Unsupported engine: ${engine}`);
   }
 

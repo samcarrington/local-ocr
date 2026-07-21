@@ -83,10 +83,19 @@ export interface GlmOcrEngineConfig {
   model?: string;
 }
 
+export interface Nuextract3OcrEngineConfig {
+  kind: 'nuextract3-ocr';
+  serverHost: string;
+  model: string;
+  chatTimeoutMs?: number;
+  maxOutputTokens?: number;
+}
+
 export type EngineConfig =
   | TesseractEngineConfig
   | DeepseekOcrEngineConfig
-  | GlmOcrEngineConfig;
+  | GlmOcrEngineConfig
+  | Nuextract3OcrEngineConfig;
 
 export type EngineName = EngineConfig['kind'];
 

@@ -30,11 +30,20 @@ const glmEngineSchema = z.object({
   model: z.string().min(1).optional()
 }).strict();
 
+const nuextract3EngineSchema = z.object({
+  kind: z.literal('nuextract3-ocr'),
+  serverHost: z.string().min(1).default('http://127.0.0.1:8080'),
+  model: z.string().min(1).default('numind/NuExtract3-mlx-nvfp4'),
+  chatTimeoutMs: z.number().int().min(1_000).default(180_000),
+  maxOutputTokens: z.number().int().min(128).max(16_384).default(4096)
+}).strict();
+
 const enginesSchema = z
   .object({
     tesseract: tesseractEngineSchema.optional(),
     'deepseek-ocr': deepseekEngineSchema.optional(),
-    'glm-ocr': glmEngineSchema.optional()
+    'glm-ocr': glmEngineSchema.optional(),
+    'nuextract3-ocr': nuextract3EngineSchema.optional()
   })
   .strict()
   .default({
@@ -50,7 +59,7 @@ const rawConfigSchema = z
     jobStorePath: z.string().min(1).default('./.ocrtool/jobs'),
     host: z.string().min(1).default('127.0.0.1'),
     port: z.number().int().min(1).max(65535).default(4312),
-    defaultEngine: z.enum(['tesseract', 'deepseek-ocr', 'glm-ocr']).default('tesseract'),
+    defaultEngine: z.enum(['tesseract', 'deepseek-ocr', 'glm-ocr', 'nuextract3-ocr']).default('tesseract'),
     nativeTextMinChars: z.number().int().min(0).default(24),
     textExtractionMode: z.enum(['auto', 'ocr']).default('auto'),
     engines: enginesSchema

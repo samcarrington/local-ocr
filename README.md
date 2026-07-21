@@ -25,6 +25,7 @@ Localhost-only PDF-to-Markdown OCR review app for Obsidian inbox workflows.
 2. Edit paths if needed.
    - `engines.tesseract.trainedDataPath` must point at local Tesseract `*.traineddata` files.
    - `engines.deepseek-ocr.ollamaHost` must stay local (`localhost`, `127.0.0.1`, or `::1`).
+   - `engines.nuextract3-ocr.serverHost` must stay local (`localhost`, `127.0.0.1`, or `::1`).
 3. Install deps:
 
    ```bash
@@ -61,10 +62,37 @@ engines:
     model: deepseek-ocr
     chatTimeoutMs: 180000
     maxOutputTokens: 4096
+  nuextract3-ocr:
+    kind: nuextract3-ocr
+    serverHost: http://127.0.0.1:8080
+    model: numind/NuExtract3-mlx-nvfp4
+    chatTimeoutMs: 180000
+    maxOutputTokens: 4096
 ```
 
 - Tesseract adapter does not download language assets. Put `eng.traineddata` (or chosen language file) in `trainedDataPath` first.
 - DeepSeek adapter rejects non-local Ollama hosts before any image leaves process.
+- NuExtract3 adapter rejects non-local mlx-vlm hosts before any image leaves process.
+
+### `nuextract3-ocr` config keys
+
+| Key | Default | Notes |
+|-----|---------|-------|
+| `serverHost` | `http://127.0.0.1:8080` | Local mlx-vlm server base URL. Must be loopback. mlx-vlm defaults to port `8080`. |
+| `model` | `numind/NuExtract3-mlx-nvfp4` | Model id as loaded by the server; must match `--model`. |
+| `chatTimeoutMs` | `180000` | Per-page request timeout. |
+| `maxOutputTokens` | `4096` | Maps to OpenAI `max_tokens`. |
+
+### NuExtract3 (mlx-vlm) prerequisite
+
+The `nuextract3-ocr` engine targets a local [mlx-vlm](https://github.com/Blaizzy/mlx-vlm) OpenAI-compatible server (Apple Silicon), the same way `deepseek-ocr` targets local Ollama. Install and run it before selecting the engine:
+
+```bash
+pip install mlx-vlm
+python -m mlx_vlm.server --model numind/NuExtract3-mlx-nvfp4
+```
+
+The adapter posts the page image to `POST {serverHost}/v1/chat/completions` in NuExtract3's document-to-Markdown (`content`) mode with thinking disabled, and probes `GET {serverHost}/v1/models` for availability. No text prompt is sent — the model's chat template drives Markdown conversion by default.
 
 ## API
 
@@ -110,6 +138,7 @@ Server stays local-only by config. Allowed bind hosts: `127.0.0.1`, `localhost`,
 
 - Node ESM `pdfjs-dist` + canvas rendering can be brittle across environments/fonts. Current implementation is best-effort and covered mainly at orchestration level in tests; preview rendering should be smoke-tested in target runtime if issues appear.
 - Native PDF embedded-image extraction is not implemented yet. Current commit step preserves only figure image files provided by OCR adapters via `page.figures`; embedded-image extraction from source PDFs is deferred.
+- `nuextract3-ocr` returns Markdown only in v1 — no figure or layout-block extraction. NuExtract3's Markdown mode emits inline `<figure>`/`<table>` HTML and LaTeX rather than bounding boxes or cropped image files, so it provides no `figures`/`layoutBlocks` metadata (unlike `deepseek-ocr`).
 
 ## Commands
 
