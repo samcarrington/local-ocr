@@ -8,7 +8,8 @@
     "build": "tsc -p tsconfig.json",
     "start": "node dist/server.js",
     "test": "vitest run",
-    "setup:tesseract": "node scripts/download-tessdata.mjs eng ./tessdata"
+    "setup:tesseract": "node scripts/download-tessdata.mjs eng ./tessdata",
+    "serve:nuextract3": "tsx scripts/serve-nuextract3.ts"
   },
   "engines": {
     "node": ">=20"

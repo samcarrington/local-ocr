@@ -85,12 +85,23 @@ engines:
 
 ### NuExtract3 (mlx-vlm) prerequisite
 
-The `nuextract3-ocr` engine targets a local [mlx-vlm](https://github.com/Blaizzy/mlx-vlm) OpenAI-compatible server (Apple Silicon), the same way `deepseek-ocr` targets local Ollama. Install and run it before selecting the engine:
+The `nuextract3-ocr` engine targets a local [mlx-vlm](https://github.com/Blaizzy/mlx-vlm) OpenAI-compatible server (Apple Silicon), the same way `deepseek-ocr` targets local Ollama. Install mlx-vlm, then start the server before selecting the engine:
 
 ```bash
 pip install mlx-vlm
-python -m mlx_vlm.server --model numind/NuExtract3-mlx-nvfp4
+npm run serve:nuextract3
 ```
+
+`npm run serve:nuextract3` reads the `nuextract3-ocr` model, host, and port from your config (falling back to defaults) and runs `python -m mlx_vlm.server` accordingly, so the server and app stay in sync. Options:
+
+```bash
+# Override per invocation (see all flags with --help)
+npm run serve:nuextract3 -- --model numind/NuExtract3-mlx-nvfp4 --port 8080
+# Print the resolved command without launching
+npm run serve:nuextract3 -- --dry-run
+```
+
+Set `PYTHON` (or `--python`) if mlx-vlm lives in a virtualenv whose interpreter is not `python3`. The equivalent manual command is `python -m mlx_vlm.server --model numind/NuExtract3-mlx-nvfp4 --host 127.0.0.1 --port 8080`.
 
 The adapter posts the page image to `POST {serverHost}/v1/chat/completions` in NuExtract3's document-to-Markdown (`content`) mode with thinking disabled, and probes `GET {serverHost}/v1/models` for availability. No text prompt is sent — the model's chat template drives Markdown conversion by default.
 
@@ -145,6 +156,7 @@ Server stays local-only by config. Allowed bind hosts: `127.0.0.1`, `localhost`,
 - `npm run dev` — start dev server.
 - `npm run build` — compile TypeScript.
 - `npm run start` — run built server.
+- `npm run serve:nuextract3` — start the local mlx-vlm server for the `nuextract3-ocr` engine (`-- --help` for options).
 - `npm test` — run Vitest.
 
 ## Verification
