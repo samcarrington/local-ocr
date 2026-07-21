@@ -382,17 +382,49 @@ describe('server api', () => {
   it('returns generic message for unexpected internal errors', async () => {
     const rootDir = makeTempDir();
     const config = makeConfig(rootDir);
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
     const app = createServer(config, {
       loadJob: vi.fn(async () => {
         throw new Error(`ENOENT: secret path ${rootDir}/private/file`);
       })
     });
 
-    await withServer(app, async (baseUrl) => {
-      const response = await fetch(`${baseUrl}/api/jobs/job-1`);
-      expect(response.status).toBe(500);
-      expect(await response.json()).toEqual({ error: 'Internal server error' });
+    try {
+      await withServer(app, async (baseUrl) => {
+        const response = await fetch(`${baseUrl}/api/jobs/job-1`);
+        expect(response.status).toBe(500);
+        expect(await response.json()).toEqual({ error: 'Internal server error' });
+      });
+    } finally {
+      errorSpy.mockRestore();
+    }
+  });
+
+  it('logs server-side detail for 5xx while keeping the client response sanitized', async () => {
+    const rootDir = makeTempDir();
+    const config = makeConfig(rootDir);
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const app = createServer(config, {
+      loadJob: vi.fn(async () => {
+        throw new Error('boom internal detail');
+      })
     });
+
+    try {
+      await withServer(app, async (baseUrl) => {
+        const response = await fetch(`${baseUrl}/api/jobs/job-1`);
+        expect(response.status).toBe(500);
+        expect(await response.json()).toEqual({ error: 'Internal server error' });
+      });
+
+      expect(errorSpy).toHaveBeenCalledTimes(1);
+      const logged = String(errorSpy.mock.calls[0]?.[0]);
+      expect(logged).toContain('GET /api/jobs/job-1');
+      expect(logged).toContain('-> 500');
+      expect(logged).toContain('boom internal detail');
+    } finally {
+      errorSpy.mockRestore();
+    }
   });
 
   it('returns useful OCR rerun errors for adapter failures', async () => {
@@ -407,6 +439,7 @@ describe('server api', () => {
       })
     };
 
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
     const app = createServer(config, {
       loadJob: vi.fn(async () => job),
       createAdapterRegistry: vi.fn(() => ({
@@ -417,18 +450,22 @@ describe('server api', () => {
       }))
     });
 
-    await withServer(app, async (baseUrl) => {
-      const response = await fetch(`${baseUrl}/api/jobs/job-1/pages/1/rerun`, {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ engine: 'tesseract' })
-      });
+    try {
+      await withServer(app, async (baseUrl) => {
+        const response = await fetch(`${baseUrl}/api/jobs/job-1/pages/1/rerun`, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ engine: 'tesseract' })
+        });
 
-      expect(response.status).toBe(502);
-      expect(await response.json()).toEqual({
-        error: 'OCR rerun failed for tesseract: Tesseract requires engines.tesseract.trainedDataPath'
+        expect(response.status).toBe(502);
+        expect(await response.json()).toEqual({
+          error: 'OCR rerun failed for tesseract: Tesseract requires engines.tesseract.trainedDataPath'
+        });
       });
-    });
+    } finally {
+      errorSpy.mockRestore();
+    }
   });
 
   it('saves OCR rerun output with warning when native coverage is low', async () => {

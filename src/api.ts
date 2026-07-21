@@ -146,9 +146,17 @@ export function createApiRouter(config: AppConfig, dependencies: Partial<ApiDepe
 }
 
 export function installJsonErrorHandler(app: express.Express): void {
-  app.use((error: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+  app.use((error: unknown, req: express.Request, res: express.Response, _next: express.NextFunction) => {
     const statusCode = getStatusCode(error);
     const message = isApiError(error) ? getErrorMessage(error) : statusCode >= 500 ? 'Internal server error' : getErrorMessage(error);
+
+    // The client response is deliberately sanitized for 5xx (see message above),
+    // so log full detail server-side — otherwise these failures vanish silently
+    // and are undiagnosable (e.g. an unconfigured engine surfaces as a bare 500).
+    if (statusCode >= 500) {
+      const detail = error instanceof Error ? error.stack ?? error.message : String(error);
+      console.error(`[api] ${req.method} ${req.originalUrl} -> ${statusCode}: ${detail}`);
+    }
 
     res.status(statusCode).json({ error: message });
   });
