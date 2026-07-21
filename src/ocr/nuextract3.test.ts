@@ -142,6 +142,22 @@ describe('Nuextract3OcrAdapter', () => {
     });
   });
 
+  it('strips leaked ChatML control tokens but preserves HTML markup', async () => {
+    vi.mocked(globalThis.fetch).mockResolvedValue(
+      chatResponse('# 01\n\n<table><tr><td>x<sup>1</sup></td></tr></table>\n\n01<|im_end|>')
+    );
+
+    const adapter = new Nuextract3OcrAdapter({
+      kind: 'nuextract3-ocr',
+      serverHost: 'http://127.0.0.1:8080',
+      model: 'numind/NuExtract3-mlx-nvfp4'
+    });
+
+    await expect(adapter.processPage(makeTempImage())).resolves.toEqual({
+      markdown: '# 01\n\n<table><tr><td>x<sup>1</sup></td></tr></table>\n\n01'
+    });
+  });
+
   it('unwraps a fenced markdown code block', async () => {
     vi.mocked(globalThis.fetch).mockResolvedValue(
       chatResponse('```markdown\n# Title\n\n<table><tr><td>x</td></tr></table>\n```')

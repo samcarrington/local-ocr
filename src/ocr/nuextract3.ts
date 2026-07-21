@@ -148,9 +148,15 @@ export class Nuextract3OcrAdapter implements OcrAdapter {
 }
 
 /**
- * Strips a leading reasoning block (should be absent with enable_thinking:false,
- * kept as a guard) and any surrounding markdown code fence. NuExtract3 markdown
- * legitimately contains `<table>`, `<figure>`, and LaTeX, so those are preserved.
+ * Cleans the raw model output:
+ * - strips a leading reasoning block (should be absent with enable_thinking:false,
+ *   kept as a guard);
+ * - removes ChatML control tokens (e.g. `<|im_end|>`, `<|im_start|>`), which
+ *   mlx-vlm leaks into the content; these are pipe-delimited (`<|...|>`) so they
+ *   never collide with legitimate HTML like `<table>`/`<figure>`/`<sup>`;
+ * - unwraps a surrounding markdown code fence.
+ * NuExtract3 markdown legitimately contains `<table>`, `<figure>`, and LaTeX, so
+ * those are preserved.
  */
 function cleanOcrMarkdown(content: string | null | undefined): string {
   let markdown = content?.trim() ?? '';
@@ -159,6 +165,8 @@ function cleanOcrMarkdown(content: string | null | undefined): string {
   if (thinkClose !== -1) {
     markdown = markdown.slice(thinkClose + '</think>'.length).trim();
   }
+
+  markdown = markdown.replace(/<\|[^|]*\|>/g, '').trim();
 
   const fenced = /^```(?:markdown|md)?\s*\n([\s\S]*?)\n```$/i.exec(markdown);
   if (fenced) {
