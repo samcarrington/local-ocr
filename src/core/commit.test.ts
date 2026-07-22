@@ -213,6 +213,41 @@ Second page accepted.
     expect(markdown).not.toMatch(/<script|bad\(\)|<iframe|<style|onclick=|javascript:|https:\/\/example\.test|ftp:\/\/example\.test|file:\/\/\/tmp|data:image/i);
   });
 
+  it('strips style attributes from safe raw html while retaining allowed table and figure markup', async () => {
+    const rootDir = makeTempDir();
+    const config = makeConfig(rootDir);
+    const sourcePdfPath = createPdf(rootDir, 'styled-raw-html.pdf');
+    const job: DraftJob = {
+      id: 'job-styled-raw-html',
+      sourcePdfPath,
+      status: 'pending_review',
+      createdAt: '2026-07-13T00:00:00.000Z',
+      updatedAt: '2026-07-13T00:00:00.000Z',
+      pages: [
+        {
+          pageNumber: 1,
+          imagePath: 'page-1.png',
+          nativeText: '',
+          markdown:
+            '<div style="background-image:url(https://attacker.test/pixel.png)">x</div>\n' +
+            '<table><thead><tr><th scope="col">H</th></tr></thead><tbody><tr><td data-note="kept">Cell</td></tr></tbody></table>\n' +
+            '<figure><img src="images/local.png" alt="Local"><figcaption>Caption</figcaption></figure>',
+          accepted: true,
+          status: 'accepted',
+          engine: 'tesseract'
+        }
+      ]
+    };
+
+    const result = await commitJob(config, job);
+    const markdown = await readFile(result.markdownPath, 'utf8');
+
+    expect(markdown).toContain('<div>x</div>');
+    expect(markdown).toContain('<table><thead><tr><th scope="col">H</th></tr></thead><tbody><tr><td data-note="kept">Cell</td></tr></tbody></table>');
+    expect(markdown).toContain('<figure><img src="images/local.png" alt="Local"><figcaption>Caption</figcaption></figure>');
+    expect(markdown).not.toMatch(/style=|background-image|https:\/\/attacker\.test/i);
+  });
+
   it('strips obfuscated executable html and unsafe raw image urls', async () => {
     const rootDir = makeTempDir();
     const config = makeConfig(rootDir);
