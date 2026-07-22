@@ -275,11 +275,80 @@ Second page accepted.
     const result = await commitJob(config, job);
     const markdown = await readFile(result.markdownPath, 'utf8');
 
-    expect(markdown).toContain('<svg><a>unsafe</a></svg>');
-    expect(markdown).toContain('<svg><a>encoded</a></svg>');
-    expect(markdown).toContain('<svg><a xlink:href="#safe">safe</a></svg>');
+    expect(markdown).toContain('<a>unsafe</a>');
+    expect(markdown).toContain('<a>encoded</a>');
+    expect(markdown).toContain('<a xlink:href="#safe">safe</a>');
     expect(markdown).toContain('<a href="/normal">normal</a>');
-    expect(markdown).not.toMatch(/javascript:|java&#x09;script|xlink:href="javascript/i);
+    expect(markdown).not.toMatch(/<svg|<\/svg|javascript:|java&#x09;script|xlink:href="javascript/i);
+  });
+
+  it('strips malformed and disallowed raw html tags before attribute sanitization', async () => {
+    const rootDir = makeTempDir();
+    const config = makeConfig(rootDir);
+    const sourcePdfPath = createPdf(rootDir, 'malformed-tags.pdf');
+    const job: DraftJob = {
+      id: 'job-malformed-tags',
+      sourcePdfPath,
+      status: 'pending_review',
+      createdAt: '2026-07-13T00:00:00.000Z',
+      updatedAt: '2026-07-13T00:00:00.000Z',
+      pages: [
+        {
+          pageNumber: 1,
+          imagePath: 'page-1.png',
+          nativeText: '',
+          markdown:
+            '<scr/onerror=""ipt>alert(1)</scr/onerror=""ipt>\n' +
+            '<math><mi>x</mi></math>\n' +
+            '<custom-tag data-x="1">custom</custom-tag>\n' +
+            '<span data-x="1">safe span</span>',
+          accepted: true,
+          status: 'accepted',
+          engine: 'tesseract'
+        }
+      ]
+    };
+
+    const result = await commitJob(config, job);
+    const markdown = await readFile(result.markdownPath, 'utf8');
+
+    expect(markdown).toContain('alert(1)');
+    expect(markdown).toContain('x');
+    expect(markdown).toContain('custom');
+    expect(markdown).toContain('<span data-x="1">safe span</span>');
+    expect(markdown).not.toMatch(/<scr|<\/scr|onerror|<math|<\/math|<mi|<\/mi|<custom-tag|<\/custom-tag/i);
+  });
+
+  it('preserves normal table figure and local image markup through raw html allowlist', async () => {
+    const rootDir = makeTempDir();
+    const config = makeConfig(rootDir);
+    const sourcePdfPath = createPdf(rootDir, 'ordinary-html.pdf');
+    const job: DraftJob = {
+      id: 'job-ordinary-html',
+      sourcePdfPath,
+      status: 'pending_review',
+      createdAt: '2026-07-13T00:00:00.000Z',
+      updatedAt: '2026-07-13T00:00:00.000Z',
+      pages: [
+        {
+          pageNumber: 1,
+          imagePath: 'page-1.png',
+          nativeText: '',
+          markdown:
+            '<table><caption>Data</caption><thead><tr><th>A</th></tr></thead><tbody><tr><td>B</td></tr></tbody></table>\n' +
+            '<figure><img src="images/chart.png" alt="Chart"><figcaption><strong>Chart</strong></figcaption></figure>',
+          accepted: true,
+          status: 'accepted',
+          engine: 'tesseract'
+        }
+      ]
+    };
+
+    const result = await commitJob(config, job);
+    const markdown = await readFile(result.markdownPath, 'utf8');
+
+    expect(markdown).toContain('<table><caption>Data</caption><thead><tr><th>A</th></tr></thead><tbody><tr><td>B</td></tr></tbody></table>');
+    expect(markdown).toContain('<figure><img src="images/chart.png" alt="Chart"><figcaption><strong>Chart</strong></figcaption></figure>');
   });
 
   it('sanitizes img tags with greater-than characters inside quoted attributes', async () => {
@@ -384,11 +453,11 @@ Second page accepted.
     const markdown = await readFile(result.markdownPath, 'utf8');
 
     expect(markdown).toContain('<a>bad link</a>');
-    expect(markdown).toContain('<svg><a>bad xlink</a></svg>');
+    expect(markdown).toContain('<a>bad xlink</a>');
     expect(markdown).toContain('<img alt="slash src">');
     expect(markdown).toContain('<img srcset="images/local.png 2x" alt="slash srcset">');
     expect(markdown).toContain('<img src="images/self-closing.png" alt="self closing" />');
-    expect(markdown).not.toMatch(/href=|xlink:href=|javascript:|https:\/\/example\.test/i);
+    expect(markdown).not.toMatch(/<svg|<\/svg|href=|xlink:href=|javascript:|https:\/\/example\.test/i);
   });
 
   it('strips unquoted remote raw image urls while preserving unquoted local paths', async () => {

@@ -63,20 +63,47 @@ function sanitizeCommittedMarkdown(markdown: string): string {
     .replace(/<script\b[^>]*\/?>(?:[^\n<]*)/gi, '')
     .replace(/<\/?script\b[^>]*>/gi, '')
     .replace(/<(?:iframe|object|embed|link|meta|style|base)\b[^>]*>[\s\S]*?<\/(?:iframe|object|embed|link|meta|style|base)\s*>/gi, '')
-    .replace(/<\/?(?:iframe|object|embed|link|meta|style|base)\b[^>]*>/gi, '')
+    .replace(/<\/?(?:iframe|object|embed|link|meta|style|base)\b[^>]*>/gi, '');
+
+  const allowlisted = stripDisallowedHtmlTags(sanitized);
+
+  const attributeSanitized = allowlisted
     .replace(/(?:\s+|\/+)+on[a-z][\w:-]*\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, '')
     .replace(/(?:\s+|\/+)+(?:href|xlink:href|src)\s*=\s*(?:"[^"]*"|'[^']*'|[^\s\/>]+)/gi, (attribute) =>
       isJavaScriptUrl(getAttributeValue(attribute)) ? '' : normalizeAttributeDelimiter(attribute)
     );
 
-  return replaceImgTags(sanitized, sanitizeImageTag);
+  return replaceImgTags(attributeSanitized, sanitizeImageTag);
+}
+
+const RAW_HTML_TAG_ALLOWLIST = new Set([
+  'a', 'b', 'strong', 'em', 'i', 'u', 'p', 'br', 'ul', 'ol', 'li', 'blockquote', 'code', 'pre',
+  'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'hr', 'table', 'thead', 'tbody', 'tfoot', 'tr', 'td', 'th',
+  'caption', 'colgroup', 'col', 'figure', 'figcaption', 'img', 'span', 'div', 'details', 'summary',
+  'dl', 'dt', 'dd', 'sub', 'sup', 'mark', 'kbd', 'samp', 'var', 'cite', 'q'
+]);
+
+function stripDisallowedHtmlTags(markdown: string): string {
+  let result = '';
+  let cursor = 0;
+
+  for (const tag of scanHtmlTags(markdown)) {
+    result += markdown.slice(cursor, tag.start);
+    if (tag.name && RAW_HTML_TAG_ALLOWLIST.has(tag.name)) {
+      result += markdown.slice(tag.start, tag.end);
+    }
+    cursor = tag.end;
+  }
+
+  return result + markdown.slice(cursor);
 }
 
 function replaceImgTags(markdown: string, replacer: (tag: string) => string): string {
   let result = '';
   let cursor = 0;
 
-  for (const tag of scanImgTags(markdown)) {
+  for (const tag of scanHtmlTags(markdown)) {
+    if (tag.name !== 'img') continue;
     result += markdown.slice(cursor, tag.start) + replacer(markdown.slice(tag.start, tag.end));
     cursor = tag.end;
   }
@@ -84,22 +111,23 @@ function replaceImgTags(markdown: string, replacer: (tag: string) => string): st
   return result + markdown.slice(cursor);
 }
 
-function scanImgTags(markdown: string): Array<{ start: number; end: number }> {
-  const tags: Array<{ start: number; end: number }> = [];
+function scanHtmlTags(markdown: string): Array<{ start: number; end: number; name: string | null }> {
+  const tags: Array<{ start: number; end: number; name: string | null }> = [];
   let cursor = 0;
 
   while (cursor < markdown.length) {
-    const start = markdown.toLowerCase().indexOf('<img', cursor);
+    const start = markdown.indexOf('<', cursor);
     if (start === -1) break;
 
-    const next = markdown[start + 4];
-    if (next && /[\w:-]/.test(next)) {
-      cursor = start + 4;
+    if (start + 1 >= markdown.length || /\s/.test(markdown[start + 1]!)) {
+      cursor = start + 1;
       continue;
     }
 
+    const name = parseHtmlTagName(markdown, start);
+
     let quote: '"' | "'" | undefined;
-    for (let index = start + 4; index < markdown.length; index += 1) {
+    for (let index = start + 1; index < markdown.length; index += 1) {
       const char = markdown[index];
 
       if (quote) {
@@ -113,18 +141,26 @@ function scanImgTags(markdown: string): Array<{ start: number; end: number }> {
       }
 
       if (char === '>') {
-        tags.push({ start, end: index + 1 });
+        tags.push({ start, end: index + 1, name });
         cursor = index + 1;
         break;
       }
 
       if (index === markdown.length - 1) {
-        cursor = start + 4;
+        cursor = start + 1;
       }
     }
   }
 
   return tags;
+}
+
+function parseHtmlTagName(markdown: string, start: number): string | null {
+  let index = start + 1;
+  if (markdown[index] === '/') index += 1;
+
+  const match = /^[a-z][a-z0-9-]*/i.exec(markdown.slice(index));
+  return match?.[0]?.toLowerCase() ?? null;
 }
 
 function getAttributeValue(attribute: string): string {
