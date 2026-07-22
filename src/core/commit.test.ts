@@ -230,6 +230,7 @@ Second page accepted.
           nativeText: '',
           markdown:
             '<div style="background-image:url(https://attacker.test/pixel.png)">x</div>\n' +
+            '<div class="x"style="background-image:url(https://attacker.test/pixel.png)">x</div>\n' +
             '<div style=/*x*/background-image:url(https://attacker.test/pixel.png)>x</div>\n' +
             '<div style>x</div>\n' +
             '<div data-style="kept">y</div>\n' +
@@ -247,6 +248,7 @@ Second page accepted.
 
     expect(markdown).toContain('<div>x</div>');
     expect(markdown.match(/<div>x<\/div>/g)).toHaveLength(3);
+    expect(markdown).toContain('<div class="x">x</div>');
     expect(markdown).toContain('<div data-style="kept">y</div>');
     expect(markdown).toContain('<table><thead><tr><th scope="col">H</th></tr></thead><tbody><tr><td data-note="kept">Cell</td></tr></tbody></table>');
     expect(markdown).toContain('<figure><img src="images/local.png" alt="Local"><figcaption>Caption</figcaption></figure>');
