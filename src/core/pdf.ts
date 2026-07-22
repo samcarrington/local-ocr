@@ -447,7 +447,7 @@ function readFiniteNumber(value: unknown): number | null {
 }
 
 function readPositions(value: unknown): Array<[number, number]> {
-  if (!Array.isArray(value)) {
+  if (!isFiniteNumberArrayLike(value)) {
     return [];
   }
 
@@ -460,6 +460,26 @@ function readPositions(value: unknown): Array<[number, number]> {
     }
   }
   return positions;
+}
+
+function isFiniteNumberArrayLike(value: unknown): value is ArrayLike<number> {
+  if (typeof value !== 'object' || value === null) {
+    return false;
+  }
+
+  const length = (value as { length?: unknown }).length;
+  if (typeof length !== 'number' || !Number.isInteger(length) || length < 0) {
+    return false;
+  }
+
+  const arrayLike = value as ArrayLike<unknown>;
+  for (let index = 0; index < length; index += 1) {
+    if (typeof arrayLike[index] !== 'number' || !Number.isFinite(arrayLike[index])) {
+      return false;
+    }
+  }
+
+  return true;
 }
 
 function cropRegion(sourceCanvas: Canvas, bbox: [number, number, number, number]): Canvas {

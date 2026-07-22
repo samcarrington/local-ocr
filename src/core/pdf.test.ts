@@ -177,7 +177,7 @@ describe('computeImageRegions', () => {
   it('expands repeated image xobjects from scale and positions', () => {
     const ops = makeOpList([
       [OPS.transform, [2, 0, 0, 3, 5, 7]],
-      [OPS.paintImageXObjectRepeat, ['img_1', 100, 50, [10, 20, 200, 100]]]
+      [OPS.paintImageXObjectRepeat, ['img_1', 100, 50, new Float32Array([10, 20, 200, 100])]]
     ]);
 
     expect(computeImageRegions(ops, NO_TRANSFORM, 1000, 1000)).toEqual([
@@ -189,12 +189,22 @@ describe('computeImageRegions', () => {
   it('expands repeated image masks from full transform matrix and positions', () => {
     const ops = makeOpList([
       [OPS.transform, [2, 0, 0, 3, 5, 7]],
-      [OPS.paintImageMaskXObjectRepeat, [{ width: 1, height: 1 }, 100, 10, 20, 50, [10, 20, 200, 100]]]
+      [OPS.paintImageMaskXObjectRepeat, [{ width: 1, height: 1 }, 100, 10, 20, 50, new Float32Array([10, 20, 200, 100])]]
     ]);
 
     expect(computeImageRegions(ops, NO_TRANSFORM, 1000, 1000)).toEqual([
       [25, 67, 265, 247],
       [405, 307, 645, 487]
     ]);
+  });
+
+  it.each([
+    ['non-finite position', [10, 20, Number.NaN, 100]],
+    ['negative length', { length: -1, 0: 10, 1: 20 }],
+    ['non-integer length', { length: 2.5, 0: 10, 1: 20 }]
+  ])('rejects malformed repeated image positions: %s', (_label, positions) => {
+    const ops = makeOpList([[OPS.paintImageXObjectRepeat, ['img_1', 100, 50, positions]]]);
+
+    expect(computeImageRegions(ops, NO_TRANSFORM, 1000, 1000)).toEqual([]);
   });
 });
