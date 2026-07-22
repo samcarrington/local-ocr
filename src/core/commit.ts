@@ -273,11 +273,15 @@ function decodeHtmlEntities(value: string): string {
 }
 
 function normalizeUrlForSchemeCheck(value: string): string {
-  return decodeHtmlEntities(value)
+  return decodeMarkdownBackslashEscapes(decodeHtmlEntities(value))
     .replace(/\\/g, '/')
     .replace(/[\p{Cc}\s]+/gu, '')
     .trim()
     .toLowerCase();
+}
+
+function decodeMarkdownBackslashEscapes(value: string): string {
+  return value.replace(/\\([!"#$%&'()*+,\-./:;<=>?@[\\\]^_`{|}~])/g, '$1');
 }
 
 function isJavaScriptUrl(value: string): boolean {
@@ -285,7 +289,7 @@ function isJavaScriptUrl(value: string): boolean {
 }
 
 function isRemoteImageUrl(value: string): boolean {
-  return /^(?:[a-z][a-z0-9+.-]*:|\/\/)/i.test(normalizeUrlForSchemeCheck(value));
+  return /^(?:[a-z][a-z0-9+.-]*:|\/\/|\/)/i.test(normalizeUrlForSchemeCheck(value));
 }
 
 function isLocalRelativeImageUrl(value: string): boolean {

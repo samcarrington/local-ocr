@@ -268,8 +268,10 @@ Second page accepted.
             '![](https://example.test/remote.png)\n' +
             '![](file:///tmp/local.png)\n' +
             '![](\\\\example.test\\share.png)\n' +
+            '![](\\//example.test/escaped.png)\n' +
             '![](images/local.png "Local title")\n' +
             '[x](javascript:bad())\n' +
+            '[escaped](javascript\\:alert(1))\n' +
             '[encoded](java&#x09;script&#58;bad())\n' +
             '[spaced](java\u0000 script:bad())\n' +
             '[note](../notes/safe.md)',
@@ -286,10 +288,11 @@ Second page accepted.
     expect(markdown).toContain('![]()');
     expect(markdown).toContain('![](images/local.png "Local title")');
     expect(markdown).toContain('[x]()');
+    expect(markdown).toContain('[escaped]()');
     expect(markdown).toContain('[encoded]()');
     expect(markdown).toContain('[spaced]()');
     expect(markdown).toContain('[note](../notes/safe.md)');
-    expect(markdown).not.toMatch(/https:\/\/example\.test|file:\/\/|\\\\example\.test|javascript:|java&#x09;script/i);
+    expect(markdown).not.toMatch(/https:\/\/example\.test|file:\/\/|\\\\example\.test|javascript\\?:|java&#x09;script/i);
   });
 
   it('strips unsafe svg xlink href urls', async () => {
