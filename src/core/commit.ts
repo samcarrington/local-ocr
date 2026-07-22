@@ -173,11 +173,12 @@ function normalizeAttributeDelimiter(attribute: string): string {
 }
 
 function decodeHtmlEntities(value: string): string {
-  return value.replace(/&(#x[\da-f]+|#\d+|colon|tab|newline);?/gi, (entity, body: string) => {
+  return value.replace(/&(#x[\da-f]+|#\d+|colon|tab|newline|sol);?/gi, (entity, body: string) => {
     const lower = body.toLowerCase();
     if (lower === 'colon') return ':';
     if (lower === 'tab') return '\t';
     if (lower === 'newline') return '\n';
+    if (lower === 'sol') return '/';
     if (lower.startsWith('#x')) return String.fromCodePoint(Number.parseInt(lower.slice(2), 16));
     if (lower.startsWith('#')) return String.fromCodePoint(Number.parseInt(lower.slice(1), 10));
     return entity;
