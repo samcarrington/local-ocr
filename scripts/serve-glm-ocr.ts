@@ -6,7 +6,7 @@ import { spawn } from 'node:child_process';
 import process from 'node:process';
 
 import { getEngineConfig, loadConfig } from '../src/core/config.js';
-import { formatHttpHost, isLocalHost } from '../src/ocr/local-host.js';
+import { formatHttpHost, isLocalHost, normalizeBindHost } from '../src/ocr/local-host.js';
 
 const DEFAULT_SERVER_HOST = 'http://127.0.0.1:8080';
 const DEFAULT_MODEL = 'mlx-community/GLM-OCR-bf16';
@@ -124,7 +124,7 @@ function main(): void {
 
   const serverHost = resolveServerHost(args.configPath);
   const parsed = new URL(serverHost);
-  const host = args.host ?? parsed.hostname;
+  const host = normalizeBindHost(args.host ?? parsed.hostname);
   const port = args.port ?? (parsed.port ? parsePort(parsed.port) : DEFAULT_PORT);
   const model = resolveModel(args.configPath, args.model);
   const python = args.python ?? process.env.PYTHON ?? 'python3';

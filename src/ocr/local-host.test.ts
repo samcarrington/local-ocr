@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { formatHttpHost, isLocalHost } from './local-host.js';
+import { formatHttpHost, isLocalHost, normalizeBindHost } from './local-host.js';
 
 describe('isLocalHost', () => {
   it('accepts localhost, IPv4 loopback, and bracketed IPv6 loopback', () => {
@@ -21,5 +21,14 @@ describe('formatHttpHost', () => {
     expect(formatHttpHost('[::1]', 8080)).toBe('http://[::1]:8080');
     expect(formatHttpHost('localhost', 8080)).toBe('http://localhost:8080');
     expect(formatHttpHost('127.0.0.1', 8080)).toBe('http://127.0.0.1:8080');
+  });
+});
+
+describe('normalizeBindHost', () => {
+  it('removes IPv6 URL brackets while preserving localhost and IPv4 hosts', () => {
+    expect(normalizeBindHost('[::1]')).toBe('::1');
+    expect(normalizeBindHost('::1')).toBe('::1');
+    expect(normalizeBindHost('localhost')).toBe('localhost');
+    expect(normalizeBindHost('127.0.0.1')).toBe('127.0.0.1');
   });
 });

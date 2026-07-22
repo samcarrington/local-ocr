@@ -4,6 +4,10 @@ function normalizeHostname(hostname: string): string {
   return hostname.toLowerCase().replace(/^\[(.*)]$/, '$1');
 }
 
+export function normalizeBindHost(hostname: string): string {
+  return normalizeHostname(hostname);
+}
+
 /**
  * Returns true only when the given URL resolves to a loopback host.
  * Used by local-only OCR adapters to guarantee no image bytes leave the machine.
