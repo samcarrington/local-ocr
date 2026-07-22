@@ -60,13 +60,64 @@ function getPageMarkdown(page: DraftPage): string {
 function sanitizeCommittedMarkdown(markdown: string): string {
   return markdown
     .replace(/<script\b[^>]*>[\s\S]*?<\/script\s*>/gi, '')
+    .replace(/<script\b[^>]*\/?>(?:[^\n<]*)/gi, '')
+    .replace(/<\/?script\b[^>]*>/gi, '')
     .replace(/<(?:iframe|object|embed|link|meta|style|base)\b[^>]*>[\s\S]*?<\/(?:iframe|object|embed|link|meta|style|base)\s*>/gi, '')
     .replace(/<\/?(?:iframe|object|embed|link|meta|style|base)\b[^>]*>/gi, '')
     .replace(/\s+on[a-z][\w:-]*\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, '')
-    .replace(/\s+(?:href|src)\s*=\s*(?:"\s*javascript:[^"]*"|'\s*javascript:[^']*'|\s*javascript:[^\s>]+)/gi, '')
-    .replace(/<img\b[^>]*>/gi, (tag) =>
-      tag.replace(/\s+src\s*=\s*(?:"\s*(?:https?:|data:)[^"]*"|'\s*(?:https?:|data:)[^']*'|\s*(?:https?:|data:)[^\s>]+)/i, '')
-    );
+    .replace(/\s+(?:href|src)\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, (attribute) =>
+      isJavaScriptUrl(getAttributeValue(attribute)) ? '' : attribute
+    )
+    .replace(/<img\b[^>]*>/gi, sanitizeImageTag);
+}
+
+function getAttributeValue(attribute: string): string {
+  const match = /^\s*[\w:-]+\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/i.exec(attribute);
+  return match?.[1] ?? match?.[2] ?? match?.[3] ?? '';
+}
+
+function decodeHtmlEntities(value: string): string {
+  return value.replace(/&(#x[\da-f]+|#\d+|colon|tab|newline);?/gi, (entity, body: string) => {
+    const lower = body.toLowerCase();
+    if (lower === 'colon') return ':';
+    if (lower === 'tab') return '\t';
+    if (lower === 'newline') return '\n';
+    if (lower.startsWith('#x')) return String.fromCodePoint(Number.parseInt(lower.slice(2), 16));
+    if (lower.startsWith('#')) return String.fromCodePoint(Number.parseInt(lower.slice(1), 10));
+    return entity;
+  });
+}
+
+function normalizeUrlForSchemeCheck(value: string): string {
+  return decodeHtmlEntities(value)
+    .replace(/[\s\x7f-\x9f]+/g, '')
+    .toLowerCase();
+}
+
+function isJavaScriptUrl(value: string): boolean {
+  return normalizeUrlForSchemeCheck(value).startsWith('javascript:');
+}
+
+function isRemoteImageUrl(value: string): boolean {
+  return /^(?:https?:|data:|\/\/)/i.test(normalizeUrlForSchemeCheck(value));
+}
+
+function sanitizeImageTag(tag: string): string {
+  return tag
+    .replace(/\s+src\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, (attribute) =>
+      isRemoteImageUrl(getAttributeValue(attribute)) ? '' : attribute
+    )
+    .replace(/\s+srcset\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, (attribute) => {
+      const value = getAttributeValue(attribute);
+      if (normalizeUrlForSchemeCheck(value).includes('data:')) {
+        return '';
+      }
+      const safeCandidates = value
+        .split(',')
+        .map((candidate) => candidate.trim())
+        .filter((candidate) => candidate && !isRemoteImageUrl(candidate.split(/\s+/)[0] ?? ''));
+      return safeCandidates.length === 0 ? '' : attribute.replace(value, safeCandidates.join(', '));
+    });
 }
 
 function getFigureFileName(pageNumber: number, figureIndex: number, imagePath: string): string {
@@ -108,21 +159,25 @@ function rewriteInlineImageSrcs(markdown: string, files: string[]): { markdown: 
       return tag;
     }
 
-    const srcMatch = /(\ssrc\s*=\s*")([^"]*)(")/i.exec(tag);
+    const srcMatch = /(\ssrc\s*=\s*)(?:"([^"]*)"|'([^']*)'|([^\s>]+))/i.exec(tag);
     if (!srcMatch) {
       return tag;
     }
 
+    const srcValue = srcMatch[2] ?? srcMatch[3] ?? srcMatch[4] ?? '';
+
     // Leave already-resolved or external references untouched.
-    if (/^(images\/|https?:|\/|data:|#)/i.test(srcMatch[2])) {
+    if (/^(images\/|https?:|\/|data:|#)/i.test(srcValue)) {
       return tag;
     }
 
+    const quote = srcMatch[2] !== undefined ? '"' : srcMatch[3] !== undefined ? "'" : '';
     const replaced =
       tag.slice(0, srcMatch.index) +
       srcMatch[1] +
+      quote +
       files[index] +
-      srcMatch[3] +
+      quote +
       tag.slice(srcMatch.index + srcMatch[0].length);
     index += 1;
     return replaced;

@@ -209,6 +209,40 @@ Second page accepted.
     expect(markdown).not.toMatch(/<script|bad\(\)|<iframe|<style|onclick=|javascript:|https:\/\/example\.test|data:image/i);
   });
 
+  it('strips obfuscated executable html and unsafe raw image urls', async () => {
+    const rootDir = makeTempDir();
+    const config = makeConfig(rootDir);
+    const sourcePdfPath = createPdf(rootDir, 'obfuscated-unsafe.pdf');
+    const job: DraftJob = {
+      id: 'job-obfuscated-unsafe',
+      sourcePdfPath,
+      status: 'pending_review',
+      createdAt: '2026-07-13T00:00:00.000Z',
+      updatedAt: '2026-07-13T00:00:00.000Z',
+      pages: [
+        {
+          pageNumber: 1,
+          imagePath: 'page-1.png',
+          nativeText: '',
+          markdown:
+            '<script src="bad.js"/>\n<script>alert(1)\n<a href="java&#x09;script&#58;bad()">encoded</a>\n<img src="//example.test/a.png" srcset="//example.test/a.png 1x, images/local.png 2x" alt="proto">\n<img srcset="https://example.test/a.png 1x, data:image/png;base64,abc 2x" alt="remote srcset">\n<img srcset="images/one.png 1x, images/two.png 2x" alt="local srcset">',
+          accepted: true,
+          status: 'accepted',
+          engine: 'tesseract'
+        }
+      ]
+    };
+
+    const result = await commitJob(config, job);
+    const markdown = await readFile(result.markdownPath, 'utf8');
+
+    expect(markdown).toContain('<a>encoded</a>');
+    expect(markdown).toContain('<img srcset="images/local.png 2x" alt="proto">');
+    expect(markdown).toContain('<img alt="remote srcset">');
+    expect(markdown).toContain('<img srcset="images/one.png 1x, images/two.png 2x" alt="local srcset">');
+    expect(markdown).not.toMatch(/<script|alert\(1\)|javascript:|java&#x09;script|\/\/example\.test|https:\/\/example\.test|data:image/i);
+  });
+
   it('does not copy or wire figures from pending and failed pages during partial commits', async () => {
     const rootDir = makeTempDir();
     const config = makeConfig(rootDir);
@@ -355,6 +389,47 @@ Second page accepted.
     expect(existsSync(path.join(imagesDir, 'page-001-figure-001.png'))).toBe(true);
     expect(await readFile(path.join(imagesDir, 'page-001-figure-001.png'), 'utf8')).toBe('crop-one');
     expect(await readFile(path.join(imagesDir, 'page-001-figure-002.png'), 'utf8')).toBe('crop-two');
+  });
+
+  it('rewrites single-quoted and unquoted placeholder image srcs without appending duplicate fallback links', async () => {
+    const rootDir = makeTempDir();
+    const config = makeConfig(rootDir);
+    const sourcePdfPath = createPdf(rootDir, 'figure-quotes.pdf');
+    const cropOne = path.join(rootDir, 'quote-crop-1.png');
+    const cropTwo = path.join(rootDir, 'quote-crop-2.png');
+    writeFileSync(cropOne, 'quote-one');
+    writeFileSync(cropTwo, 'quote-two');
+    const job: DraftJob = {
+      id: 'job-figure-quotes',
+      sourcePdfPath,
+      status: 'pending_review',
+      createdAt: '2026-07-13T00:00:00.000Z',
+      updatedAt: '2026-07-13T00:00:00.000Z',
+      pages: [
+        {
+          pageNumber: 1,
+          imagePath: 'page-1.png',
+          nativeText: '',
+          markdown: "<figure><img alt='one' src='img_1.png' data-id='a'></figure>\n<figure><img alt=two src=img_2.png data-id=b></figure>",
+          accepted: true,
+          status: 'accepted',
+          engine: 'nuextract3-ocr',
+          figures: [
+            { bbox: [0, 0, 10, 10], imagePath: cropOne },
+            { bbox: [0, 0, 10, 10], imagePath: cropTwo }
+          ]
+        }
+      ]
+    };
+
+    const result = await commitJob(config, job);
+    const markdown = await readFile(result.markdownPath, 'utf8');
+
+    expect(markdown).toContain("<img alt='one' src='images/page-001-figure-001.png' data-id='a'>");
+    expect(markdown).toContain('<img alt=two src=images/page-001-figure-002.png data-id=b>');
+    expect(markdown).not.toContain('img_1.png');
+    expect(markdown).not.toContain('img_2.png');
+    expect(markdown).not.toContain('![](images/');
   });
 
   it('leaves surplus inline image placeholders untouched when fewer crops exist', async () => {
