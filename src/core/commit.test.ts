@@ -319,6 +319,39 @@ Second page accepted.
     expect(markdown).not.toMatch(/https:\/\/example\.test/i);
   });
 
+  it('strips slash-prefixed event attributes while preserving self-closing image tags', async () => {
+    const rootDir = makeTempDir();
+    const config = makeConfig(rootDir);
+    const sourcePdfPath = createPdf(rootDir, 'slash-event-attribute.pdf');
+    const job: DraftJob = {
+      id: 'job-slash-event-attribute',
+      sourcePdfPath,
+      status: 'pending_review',
+      createdAt: '2026-07-13T00:00:00.000Z',
+      updatedAt: '2026-07-13T00:00:00.000Z',
+      pages: [
+        {
+          pageNumber: 1,
+          imagePath: 'page-1.png',
+          nativeText: '',
+          markdown:
+            '<img/onerror="alert(1)" src="images/local.png" alt="slash event">\n' +
+            '<img src="images/self-closing.png" alt="self closing" />',
+          accepted: true,
+          status: 'accepted',
+          engine: 'tesseract'
+        }
+      ]
+    };
+
+    const result = await commitJob(config, job);
+    const markdown = await readFile(result.markdownPath, 'utf8');
+
+    expect(markdown).toContain('<img src="images/local.png" alt="slash event">');
+    expect(markdown).toContain('<img src="images/self-closing.png" alt="self closing" />');
+    expect(markdown).not.toMatch(/onerror|alert\(1\)/i);
+  });
+
   it('strips entity-encoded C0 and C1 controls before unsafe URL checks', async () => {
     const rootDir = makeTempDir();
     const config = makeConfig(rootDir);

@@ -64,7 +64,7 @@ function sanitizeCommittedMarkdown(markdown: string): string {
     .replace(/<\/?script\b[^>]*>/gi, '')
     .replace(/<(?:iframe|object|embed|link|meta|style|base)\b[^>]*>[\s\S]*?<\/(?:iframe|object|embed|link|meta|style|base)\s*>/gi, '')
     .replace(/<\/?(?:iframe|object|embed|link|meta|style|base)\b[^>]*>/gi, '')
-    .replace(/\s+on[a-z][\w:-]*\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, '')
+    .replace(/(?:\s+|\/+)+on[a-z][\w:-]*\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, '')
     .replace(/\s+(?:href|xlink:href|src)\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, (attribute) =>
       isJavaScriptUrl(getAttributeValue(attribute)) ? '' : attribute
     );
