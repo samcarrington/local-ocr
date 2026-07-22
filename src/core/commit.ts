@@ -198,7 +198,7 @@ function isJavaScriptUrl(value: string): boolean {
 }
 
 function isRemoteImageUrl(value: string): boolean {
-  return /^(?:https?:|data:|\/\/)/i.test(normalizeUrlForSchemeCheck(value));
+  return /^(?:[a-z][a-z0-9+.-]*:|\/\/)/i.test(normalizeUrlForSchemeCheck(value));
 }
 
 function sanitizeImageTag(tag: string): string {

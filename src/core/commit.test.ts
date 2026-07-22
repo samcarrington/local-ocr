@@ -189,7 +189,7 @@ Second page accepted.
           imagePath: 'page-1.png',
           nativeText: '',
           markdown:
-            '# Title\n\n<div class="note" onclick="alert(1)">Safe **markdown** HTML</div>\n<script>bad()</script>\n<iframe src="x"></iframe>\n<style>.bad{}</style>\n<a href="javascript:bad()">bad link</a>\n<img src="https://example.test/x.png" alt="remote">\n<img src="data:image/png;base64,abc" alt="data">\n<img src="images/local.png" alt="local">',
+            '# Title\n\n<div class="note" onclick="alert(1)">Safe **markdown** HTML</div>\n<script>bad()</script>\n<iframe src="x"></iframe>\n<style>.bad{}</style>\n<a href="javascript:bad()">bad link</a>\n<img src="https://example.test/x.png" alt="remote">\n<img src="ftp://example.test/x.png" alt="ftp">\n<img src="file:///tmp/x.png" alt="file">\n<img src="data:image/png;base64,abc" alt="data">\n<img src="images/local.png" alt="local">\n<img src="./foo.png" alt="dot local">\n<img src="../foo.png" alt="parent local">',
           accepted: true,
           status: 'accepted',
           engine: 'tesseract'
@@ -204,9 +204,13 @@ Second page accepted.
     expect(markdown).toContain('<div class="note">Safe **markdown** HTML</div>');
     expect(markdown).toContain('<a>bad link</a>');
     expect(markdown).toContain('<img alt="remote">');
+    expect(markdown).toContain('<img alt="ftp">');
+    expect(markdown).toContain('<img alt="file">');
     expect(markdown).toContain('<img alt="data">');
     expect(markdown).toContain('<img src="images/local.png" alt="local">');
-    expect(markdown).not.toMatch(/<script|bad\(\)|<iframe|<style|onclick=|javascript:|https:\/\/example\.test|data:image/i);
+    expect(markdown).toContain('<img src="./foo.png" alt="dot local">');
+    expect(markdown).toContain('<img src="../foo.png" alt="parent local">');
+    expect(markdown).not.toMatch(/<script|bad\(\)|<iframe|<style|onclick=|javascript:|https:\/\/example\.test|ftp:\/\/example\.test|file:\/\/\/tmp|data:image/i);
   });
 
   it('strips obfuscated executable html and unsafe raw image urls', async () => {
