@@ -225,7 +225,7 @@ Second page accepted.
           imagePath: 'page-1.png',
           nativeText: '',
           markdown:
-            '<script src="bad.js"/>\n<script>alert(1)\n<a href="java&#x09;script&#58;bad()">encoded</a>\n<img src="//example.test/a.png" srcset="//example.test/a.png 1x, images/local.png 2x" alt="proto">\n<img srcset="https://example.test/a.png 1x, data:image/png;base64,abc 2x" alt="remote srcset">\n<img srcset="images/one.png 1x, images/two.png 2x" alt="local srcset">',
+            '<script src="bad.js"/>\n<script>alert(1)\n<a href="java&#x09;script&#58;bad()">encoded</a>\n<a href=" javascript:spaced()">spaced link</a>\n<img src=" https://example.test/spaced.png" alt="spaced remote">\n<img src="//example.test/a.png" srcset="//example.test/a.png 1x, images/local.png 2x" alt="proto">\n<img srcset="https://example.test/a.png 1x, data:image/png;base64,abc 2x" alt="remote srcset">\n<img srcset="images/one.png 1x, images/two.png 2x" alt="local srcset">',
           accepted: true,
           status: 'accepted',
           engine: 'tesseract'
@@ -237,10 +237,12 @@ Second page accepted.
     const markdown = await readFile(result.markdownPath, 'utf8');
 
     expect(markdown).toContain('<a>encoded</a>');
+    expect(markdown).toContain('<a>spaced link</a>');
+    expect(markdown).toContain('<img alt="spaced remote">');
     expect(markdown).toContain('<img srcset="images/local.png 2x" alt="proto">');
     expect(markdown).toContain('<img alt="remote srcset">');
     expect(markdown).toContain('<img srcset="images/one.png 1x, images/two.png 2x" alt="local srcset">');
-    expect(markdown).not.toMatch(/<script|alert\(1\)|javascript:|java&#x09;script|\/\/example\.test|https:\/\/example\.test|data:image/i);
+    expect(markdown).not.toMatch(/<script|alert\(1\)|javascript:|java&#x09;script|spaced\.png|\/\/example\.test|https:\/\/example\.test|data:image/i);
   });
 
   it('strips entity-encoded C0 and C1 controls before unsafe URL checks', async () => {
