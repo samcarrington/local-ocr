@@ -187,6 +187,7 @@ function decodeHtmlEntities(value: string): string {
 
 function normalizeUrlForSchemeCheck(value: string): string {
   return decodeHtmlEntities(value)
+    .replace(/\\/g, '/')
     .replace(/[^\P{Cc}]+/gu, '')
     .trim()
     .toLowerCase();

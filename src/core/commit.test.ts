@@ -565,6 +565,39 @@ Second page accepted.
     expect(markdown).not.toMatch(/&sol;&sol;example\.test|\/\/example\.test/i);
   });
 
+  it('strips backslash-normalized protocol-relative raw image urls while preserving local paths', async () => {
+    const rootDir = makeTempDir();
+    const config = makeConfig(rootDir);
+    const sourcePdfPath = createPdf(rootDir, 'backslash-protocol-relative.pdf');
+    const job: DraftJob = {
+      id: 'job-backslash-protocol-relative',
+      sourcePdfPath,
+      status: 'pending_review',
+      createdAt: '2026-07-13T00:00:00.000Z',
+      updatedAt: '2026-07-13T00:00:00.000Z',
+      pages: [
+        {
+          pageNumber: 1,
+          imagePath: 'page-1.png',
+          nativeText: '',
+          markdown:
+            '<img src="\\\\example.test/x.png" alt="backslash proto">\n' +
+            '<img src="images\\local.png" srcset="images\\one.png 1x, images/two.png 2x" alt="local">',
+          accepted: true,
+          status: 'accepted',
+          engine: 'tesseract'
+        }
+      ]
+    };
+
+    const result = await commitJob(config, job);
+    const markdown = await readFile(result.markdownPath, 'utf8');
+
+    expect(markdown).toContain('<img alt="backslash proto">');
+    expect(markdown).toContain('<img src="images\\local.png" srcset="images\\one.png 1x, images/two.png 2x" alt="local">');
+    expect(markdown).not.toMatch(/\\\\example\.test|\/\/example\.test/i);
+  });
+
   it('does not copy or wire figures from pending and failed pages during partial commits', async () => {
     const rootDir = makeTempDir();
     const config = makeConfig(rootDir);
