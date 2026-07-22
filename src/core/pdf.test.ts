@@ -111,24 +111,44 @@ describe('computeImageRegions', () => {
     expect(computeImageRegions(ops, NO_TRANSFORM, 1000, 1000)).toEqual([[10, 20, 110, 70]]);
   });
 
-  it('expands inline image groups from each map transform and atlas rectangle', () => {
+  it('expands inline image groups from the composed CTM and map transform unit square', () => {
     const ops = makeOpList([
-      [OPS.transform, [999, 0, 0, 999, 999, 999]],
+      [OPS.transform, [10, 0, 0, 20, 100, 200]],
       [
         OPS.paintInlineImageXObjectGroup,
         [
           { width: 400, height: 300 },
           [
-            { transform: [2, 0, 0, 2, 10, 20], x: 5, y: 10, w: 50, h: 40 },
-            { transform: [1, 0, 0, 1, 200, 100], x: 0, y: 0, w: 80, h: 60 }
+            { transform: [5, 0, 0, 5, 10, 20], x: 5, y: 10, w: 50, h: 40 },
+            { transform: [4, 0, 0, 4, 20, 10], x: 1000, y: 2000, w: 3000, h: 4000 }
           ]
         ]
       ]
     ]);
 
     expect(computeImageRegions(ops, NO_TRANSFORM, 1000, 1000)).toEqual([
-      [20, 40, 120, 120],
-      [200, 100, 280, 160]
+      [200, 600, 250, 700],
+      [300, 400, 340, 480]
+    ]);
+  });
+
+  it('ignores inline image group source atlas x/y/w/h for destination geometry', () => {
+    const ops = makeOpList([
+      [
+        OPS.paintInlineImageXObjectGroup,
+        [
+          { width: 400, height: 300 },
+          [
+            { transform: [50, 0, 0, 60, 10, 20], x: 0, y: 0, w: 1, h: 1 },
+            { transform: [50, 0, 0, 60, 10, 20], x: 300, y: 200, w: 80, h: 70 }
+          ]
+        ]
+      ]
+    ]);
+
+    expect(computeImageRegions(ops, NO_TRANSFORM, 1000, 1000)).toEqual([
+      [10, 20, 60, 80],
+      [10, 20, 60, 80]
     ]);
   });
 

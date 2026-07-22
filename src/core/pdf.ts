@@ -320,7 +320,7 @@ function computeRegionsForImageOp(
   deviceHeight: number
 ): Array<[number, number, number, number]> {
   if (fn === OPS.paintInlineImageXObjectGroup) {
-    return computeInlineImageGroupRegions(args, viewportTransform, deviceWidth, deviceHeight);
+    return computeInlineImageGroupRegions(args, ctm, viewportTransform, deviceWidth, deviceHeight);
   }
 
   if (fn === OPS.paintImageMaskXObjectGroup) {
@@ -342,6 +342,7 @@ function computeRegionsForImageOp(
 
 function computeInlineImageGroupRegions(
   args: unknown[],
+  ctm: Matrix,
   viewportTransform: Matrix,
   deviceWidth: number,
   deviceHeight: number
@@ -350,16 +351,12 @@ function computeInlineImageGroupRegions(
 
   return map.flatMap((item) => {
     const transform = readMatrix(item?.transform);
-    const x = readFiniteNumber(item?.x);
-    const y = readFiniteNumber(item?.y);
-    const w = readFiniteNumber(item?.w);
-    const h = readFiniteNumber(item?.h);
 
-    if (!transform || x === null || y === null || w === null || h === null) {
+    if (!transform) {
       return [];
     }
 
-    const region = computeRegion(multiplyMatrix(viewportTransform, transform), x, y, w, h, deviceWidth, deviceHeight);
+    const region = computeRegion(multiplyMatrix(multiplyMatrix(viewportTransform, ctm), transform), 0, 0, 1, 1, deviceWidth, deviceHeight);
     return region ? [region] : [];
   });
 }
