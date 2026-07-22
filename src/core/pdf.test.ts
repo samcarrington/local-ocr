@@ -19,6 +19,7 @@ const IMAGE_OPERATOR_NAMES = [
   'paintInlineImageXObject',
   'paintImageMaskXObject',
   'paintImageMaskXObjectGroup',
+  'paintSolidColorImageMask',
   'paintInlineImageXObjectGroup',
   'paintImageXObjectRepeat',
   'paintImageMaskXObjectRepeat'
@@ -101,6 +102,7 @@ describe('computeImageRegions', () => {
     ['inline image', OPS.paintInlineImageXObject],
     ['image mask', OPS.paintImageMaskXObject],
     ['image mask group', OPS.paintImageMaskXObjectGroup],
+    ['solid color image mask', OPS.paintSolidColorImageMask],
     ['inline image group', OPS.paintInlineImageXObjectGroup],
     ['image repeat', OPS.paintImageXObjectRepeat],
     ['image mask repeat', OPS.paintImageMaskXObjectRepeat]

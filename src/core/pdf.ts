@@ -20,6 +20,7 @@ const IMAGE_OP_CODES = new Set<number>(
     'paintInlineImageXObject',
     'paintImageMaskXObject',
     'paintImageMaskXObjectGroup',
+    'paintSolidColorImageMask',
     'paintInlineImageXObjectGroup',
     'paintImageXObjectRepeat',
     'paintImageMaskXObjectRepeat'
