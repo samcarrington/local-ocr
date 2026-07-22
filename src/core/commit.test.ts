@@ -239,10 +239,10 @@ Second page accepted.
     expect(markdown).toContain('<a>encoded</a>');
     expect(markdown).toContain('<a>spaced link</a>');
     expect(markdown).toContain('<img alt="spaced remote">');
-    expect(markdown).toContain('<img srcset="images/local.png 2x" alt="proto">');
+    expect(markdown).toContain('<img alt="proto">');
     expect(markdown).toContain('<img alt="remote srcset">');
-    expect(markdown).toContain('<img srcset="images/one.png 1x, images/two.png 2x" alt="local srcset">');
-    expect(markdown).not.toMatch(/<script|alert\(1\)|javascript:|java&#x09;script|spaced\.png|\/\/example\.test|https:\/\/example\.test|data:image/i);
+    expect(markdown).toContain('<img alt="local srcset">');
+    expect(markdown).not.toMatch(/<script|alert\(1\)|javascript:|java&#x09;script|spaced\.png|srcset=|\/\/example\.test|https:\/\/example\.test|data:image/i);
   });
 
   it('strips unsafe svg xlink href urls', async () => {
@@ -455,7 +455,7 @@ Second page accepted.
     expect(markdown).toContain('<a>bad link</a>');
     expect(markdown).toContain('<a>bad xlink</a>');
     expect(markdown).toContain('<img alt="slash src">');
-    expect(markdown).toContain('<img srcset="images/local.png 2x" alt="slash srcset">');
+    expect(markdown).toContain('<img alt="slash srcset">');
     expect(markdown).toContain('<img src="images/self-closing.png" alt="self closing" />');
     expect(markdown).not.toMatch(/<svg|<\/svg|href=|xlink:href=|javascript:|https:\/\/example\.test/i);
   });
@@ -495,8 +495,8 @@ Second page accepted.
     expect(markdown).toContain('<img alt=http>');
     expect(markdown).toContain('<img alt=https>');
     expect(markdown).toContain('<img alt=data>');
-    expect(markdown).toContain('<img src=images/local.png srcset=images/local.png alt=local>');
-    expect(markdown).not.toMatch(/src=\/\/example\.test|src=https?:\/\/example\.test|src=data:|srcset=\/\/example\.test/i);
+    expect(markdown).toContain('<img src=images/local.png alt=local>');
+    expect(markdown).not.toMatch(/src=\/\/example\.test|src=https?:\/\/example\.test|src=data:|srcset=/i);
   });
 
   it('strips entity-encoded C0 and C1 controls before unsafe URL checks', async () => {
@@ -529,8 +529,8 @@ Second page accepted.
     expect(markdown).toContain('<a>c0 link</a>');
     expect(markdown).toContain('<img alt="c0 src">');
     expect(markdown).toContain('<img alt="c1 src">');
-    expect(markdown).toContain('<img srcset="images/local.png 2x" alt="c0 srcset">');
-    expect(markdown).not.toMatch(/href=|&#14;|&#x85;|javascript:|https:\/\/example\.test/i);
+    expect(markdown).toContain('<img alt="c0 srcset">');
+    expect(markdown).not.toMatch(/href=|srcset=|&#14;|&#x85;|javascript:|https:\/\/example\.test/i);
   });
 
   it('strips entity-encoded protocol-relative raw image urls while preserving local values', async () => {
@@ -561,11 +561,11 @@ Second page accepted.
     const markdown = await readFile(result.markdownPath, 'utf8');
 
     expect(markdown).toContain('<img alt="encoded proto">');
-    expect(markdown).toContain('<img src="images/local.png" srcset="images/one.png 1x, images/two.png 2x" alt="local">');
+    expect(markdown).toContain('<img src="images/local.png" alt="local">');
     expect(markdown).not.toMatch(/&sol;&sol;example\.test|\/\/example\.test/i);
   });
 
-  it('strips external srcset candidates separated by entity-encoded commas', async () => {
+  it('strips raw html srcset attributes while preserving safe local src', async () => {
     const rootDir = makeTempDir();
     const config = makeConfig(rootDir);
     const sourcePdfPath = createPdf(rootDir, 'encoded-srcset-comma-external.pdf');
@@ -581,7 +581,7 @@ Second page accepted.
           imagePath: 'page-1.png',
           nativeText: '',
           markdown:
-            '<img srcset="images/local.png 1x&#44; https://example.test/remote.png 2x" alt="encoded comma external">',
+            '<img src="images/base.png" srcset="images/local.png 1x&#34; onerror=alert(1)&#44; https://example.test/remote.png 2x" alt="encoded quote srcset">',
           accepted: true,
           status: 'accepted',
           engine: 'tesseract'
@@ -592,11 +592,11 @@ Second page accepted.
     const result = await commitJob(config, job);
     const markdown = await readFile(result.markdownPath, 'utf8');
 
-    expect(markdown).toContain('<img srcset="images/local.png 1x" alt="encoded comma external">');
-    expect(markdown).not.toMatch(/https:\/\/example\.test|&#44;/i);
+    expect(markdown).toContain('<img src="images/base.png" alt="encoded quote srcset">');
+    expect(markdown).not.toMatch(/srcset=|onerror|alert\(1\)|https:\/\/example\.test|&#34;|&#44;/i);
   });
 
-  it('preserves local srcset candidates separated by entity-encoded commas', async () => {
+  it('strips local srcset candidates separated by entity-encoded commas', async () => {
     const rootDir = makeTempDir();
     const config = makeConfig(rootDir);
     const sourcePdfPath = createPdf(rootDir, 'encoded-srcset-comma-local.pdf');
@@ -623,9 +623,8 @@ Second page accepted.
     const result = await commitJob(config, job);
     const markdown = await readFile(result.markdownPath, 'utf8');
 
-    expect(markdown).toContain(
-      '<img src="images/base.png" srcset="images/one.png 1x, images/two.png 2x" alt="encoded comma local">'
-    );
+    expect(markdown).toContain('<img src="images/base.png" alt="encoded comma local">');
+    expect(markdown).not.toMatch(/srcset=/i);
   });
 
   it('strips backslash-normalized protocol-relative raw image urls while preserving local paths', async () => {
@@ -657,7 +656,7 @@ Second page accepted.
     const markdown = await readFile(result.markdownPath, 'utf8');
 
     expect(markdown).toContain('<img alt="backslash proto">');
-    expect(markdown).toContain('<img src="images\\local.png" srcset="images\\one.png 1x, images/two.png 2x" alt="local">');
+    expect(markdown).toContain('<img src="images\\local.png" alt="local">');
     expect(markdown).not.toMatch(/\\\\example\.test|\/\/example\.test/i);
   });
 

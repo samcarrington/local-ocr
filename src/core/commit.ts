@@ -206,18 +206,7 @@ function sanitizeImageTag(tag: string): string {
     .replace(/(?:\s+|\/+)+src\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, (attribute) =>
       isRemoteImageUrl(getAttributeValue(attribute)) ? '' : normalizeAttributeDelimiter(attribute)
     )
-    .replace(/(?:\s+|\/+)+srcset\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, (attribute) => {
-      const value = getAttributeValue(attribute);
-      const decodedValue = decodeHtmlEntities(value);
-      if (normalizeUrlForSchemeCheck(decodedValue).includes('data:')) {
-        return '';
-      }
-      const safeCandidates = decodedValue
-        .split(',')
-        .map((candidate) => candidate.trim())
-        .filter((candidate) => candidate && !isRemoteImageUrl(candidate.split(/\s+/)[0] ?? ''));
-      return safeCandidates.length === 0 ? '' : normalizeAttributeDelimiter(attribute.replace(value, safeCandidates.join(', ')));
-    });
+    .replace(/(?:\s+|\/+)+srcset\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, '');
 }
 
 function getFigureFileName(pageNumber: number, figureIndex: number, imagePath: string): string {
