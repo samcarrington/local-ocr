@@ -90,7 +90,7 @@ function decodeHtmlEntities(value: string): string {
 
 function normalizeUrlForSchemeCheck(value: string): string {
   return decodeHtmlEntities(value)
-    .replace(/[\s\x7f-\x9f]+/g, '')
+    .replace(/[^\P{Cc}]+/gu, '')
     .toLowerCase();
 }
 

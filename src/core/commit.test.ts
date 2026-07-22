@@ -243,6 +243,40 @@ Second page accepted.
     expect(markdown).not.toMatch(/<script|alert\(1\)|javascript:|java&#x09;script|\/\/example\.test|https:\/\/example\.test|data:image/i);
   });
 
+  it('strips entity-encoded C0 and C1 controls before unsafe URL checks', async () => {
+    const rootDir = makeTempDir();
+    const config = makeConfig(rootDir);
+    const sourcePdfPath = createPdf(rootDir, 'encoded-controls.pdf');
+    const job: DraftJob = {
+      id: 'job-encoded-controls',
+      sourcePdfPath,
+      status: 'pending_review',
+      createdAt: '2026-07-13T00:00:00.000Z',
+      updatedAt: '2026-07-13T00:00:00.000Z',
+      pages: [
+        {
+          pageNumber: 1,
+          imagePath: 'page-1.png',
+          nativeText: '',
+          markdown:
+            '<a href="&#14;javascript:bad()">c0 link</a>\n<img src="&#14;https://example.test/c0.png" alt="c0 src">\n<img src="&#x85;https://example.test/c1.png" alt="c1 src">\n<img srcset="&#14;https://example.test/c0.png 1x, images/local.png 2x" alt="c0 srcset">',
+          accepted: true,
+          status: 'accepted',
+          engine: 'tesseract'
+        }
+      ]
+    };
+
+    const result = await commitJob(config, job);
+    const markdown = await readFile(result.markdownPath, 'utf8');
+
+    expect(markdown).toContain('<a>c0 link</a>');
+    expect(markdown).toContain('<img alt="c0 src">');
+    expect(markdown).toContain('<img alt="c1 src">');
+    expect(markdown).toContain('<img srcset="images/local.png 2x" alt="c0 srcset">');
+    expect(markdown).not.toMatch(/href=|&#14;|&#x85;|javascript:|https:\/\/example\.test/i);
+  });
+
   it('does not copy or wire figures from pending and failed pages during partial commits', async () => {
     const rootDir = makeTempDir();
     const config = makeConfig(rootDir);
