@@ -73,7 +73,94 @@ function sanitizeCommittedMarkdown(markdown: string): string {
       isJavaScriptUrl(getAttributeValue(attribute)) ? '' : normalizeAttributeDelimiter(attribute)
     );
 
-  return replaceImgTags(attributeSanitized, sanitizeImageTag);
+  return sanitizeMarkdownLinks(replaceImgTags(attributeSanitized, sanitizeImageTag));
+}
+
+function sanitizeMarkdownLinks(markdown: string): string {
+  let result = '';
+  let cursor = 0;
+
+  while (cursor < markdown.length) {
+    const openBracket = markdown.indexOf('[', cursor);
+    if (openBracket === -1) break;
+
+    const isImage = openBracket > 0 && markdown[openBracket - 1] === '!';
+    const start = isImage ? openBracket - 1 : openBracket;
+    const closeBracket = markdown.indexOf(']', openBracket + 1);
+
+    if (closeBracket === -1 || markdown[closeBracket + 1] !== '(') {
+      cursor = openBracket + 1;
+      continue;
+    }
+
+    const closeParen = findMarkdownLinkCloseParen(markdown, closeBracket + 2);
+    if (closeParen === -1) {
+      cursor = closeBracket + 2;
+      continue;
+    }
+
+    const linkContents = markdown.slice(closeBracket + 2, closeParen);
+    const destination = getMarkdownDestination(linkContents);
+    const unsafe = isImage ? !isLocalRelativeImageUrl(destination) : isJavaScriptUrl(destination) || isJavaScriptUrl(linkContents);
+
+    result += markdown.slice(cursor, start);
+    result += unsafe ? `${markdown.slice(start, closeBracket + 2)})` : markdown.slice(start, closeParen + 1);
+    cursor = closeParen + 1;
+  }
+
+  return result + markdown.slice(cursor);
+}
+
+function findMarkdownLinkCloseParen(markdown: string, start: number): number {
+  let quote: '"' | "'" | undefined;
+  let escaped = false;
+  let depth = 0;
+
+  for (let index = start; index < markdown.length; index += 1) {
+    const char = markdown[index];
+
+    if (escaped) {
+      escaped = false;
+      continue;
+    }
+
+    if (char === '\\') {
+      escaped = true;
+      continue;
+    }
+
+    if (quote) {
+      if (char === quote) quote = undefined;
+      continue;
+    }
+
+    if (char === '"' || char === "'") {
+      quote = char;
+      continue;
+    }
+
+    if (char === '\n') return -1;
+    if (char === '(') {
+      depth += 1;
+      continue;
+    }
+    if (char === ')') {
+      if (depth === 0) return index;
+      depth -= 1;
+    }
+  }
+
+  return -1;
+}
+
+function getMarkdownDestination(contents: string): string {
+  const trimmed = contents.trimStart();
+  if (trimmed.startsWith('<')) {
+    const end = trimmed.indexOf('>');
+    return end === -1 ? trimmed.slice(1) : trimmed.slice(1, end);
+  }
+
+  return /^\S*/.exec(trimmed)?.[0] ?? '';
 }
 
 const RAW_HTML_TAG_ALLOWLIST = new Set([
@@ -188,7 +275,7 @@ function decodeHtmlEntities(value: string): string {
 function normalizeUrlForSchemeCheck(value: string): string {
   return decodeHtmlEntities(value)
     .replace(/\\/g, '/')
-    .replace(/[^\P{Cc}]+/gu, '')
+    .replace(/[\p{Cc}\s]+/gu, '')
     .trim()
     .toLowerCase();
 }
@@ -199,6 +286,11 @@ function isJavaScriptUrl(value: string): boolean {
 
 function isRemoteImageUrl(value: string): boolean {
   return /^(?:[a-z][a-z0-9+.-]*:|\/\/)/i.test(normalizeUrlForSchemeCheck(value));
+}
+
+function isLocalRelativeImageUrl(value: string): boolean {
+  const normalized = normalizeUrlForSchemeCheck(value);
+  return normalized.length > 0 && !/^(?:[a-z][a-z0-9+.-]*:|\/\/|\\\\|\/)/i.test(value.trim()) && !/^(?:[a-z][a-z0-9+.-]*:|\/\/|\/)/i.test(normalized);
 }
 
 function sanitizeImageTag(tag: string): string {

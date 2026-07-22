@@ -249,6 +249,49 @@ Second page accepted.
     expect(markdown).not.toMatch(/<script|alert\(1\)|javascript:|java&#x09;script|spaced\.png|srcset=|\/\/example\.test|https:\/\/example\.test|data:image/i);
   });
 
+  it('sanitizes unsafe inline markdown links and images', async () => {
+    const rootDir = makeTempDir();
+    const config = makeConfig(rootDir);
+    const sourcePdfPath = createPdf(rootDir, 'markdown-links.pdf');
+    const job: DraftJob = {
+      id: 'job-markdown-links',
+      sourcePdfPath,
+      status: 'pending_review',
+      createdAt: '2026-07-13T00:00:00.000Z',
+      updatedAt: '2026-07-13T00:00:00.000Z',
+      pages: [
+        {
+          pageNumber: 1,
+          imagePath: 'page-1.png',
+          nativeText: '',
+          markdown:
+            '![](https://example.test/remote.png)\n' +
+            '![](file:///tmp/local.png)\n' +
+            '![](\\\\example.test\\share.png)\n' +
+            '![](images/local.png "Local title")\n' +
+            '[x](javascript:bad())\n' +
+            '[encoded](java&#x09;script&#58;bad())\n' +
+            '[spaced](java\u0000 script:bad())\n' +
+            '[note](../notes/safe.md)',
+          accepted: true,
+          status: 'accepted',
+          engine: 'tesseract'
+        }
+      ]
+    };
+
+    const result = await commitJob(config, job);
+    const markdown = await readFile(result.markdownPath, 'utf8');
+
+    expect(markdown).toContain('![]()');
+    expect(markdown).toContain('![](images/local.png "Local title")');
+    expect(markdown).toContain('[x]()');
+    expect(markdown).toContain('[encoded]()');
+    expect(markdown).toContain('[spaced]()');
+    expect(markdown).toContain('[note](../notes/safe.md)');
+    expect(markdown).not.toMatch(/https:\/\/example\.test|file:\/\/|\\\\example\.test|javascript:|java&#x09;script/i);
+  });
+
   it('strips unsafe svg xlink href urls', async () => {
     const rootDir = makeTempDir();
     const config = makeConfig(rootDir);
