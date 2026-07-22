@@ -1,4 +1,4 @@
-import { mkdtempSync, mkdirSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { rm } from 'node:fs/promises';
 import { createServer as createHttpServer } from 'node:http';
 import os from 'node:os';
@@ -86,6 +86,12 @@ async function withServer(
 }
 
 describe('server api', () => {
+  it('exposes glm-ocr in the review OCR adapter selector', () => {
+    const html = readFileSync(path.resolve('public/index.html'), 'utf8');
+
+    expect(html).toContain('<option value="glm-ocr">glm-ocr</option>');
+  });
+
   it('rejects non-local host binding', () => {
     const rootDir = makeTempDir();
     const config = makeConfig(rootDir);
