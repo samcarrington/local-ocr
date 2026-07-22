@@ -245,6 +245,43 @@ Second page accepted.
     expect(markdown).not.toMatch(/<script|alert\(1\)|javascript:|java&#x09;script|spaced\.png|\/\/example\.test|https:\/\/example\.test|data:image/i);
   });
 
+  it('strips unsafe svg xlink href urls', async () => {
+    const rootDir = makeTempDir();
+    const config = makeConfig(rootDir);
+    const sourcePdfPath = createPdf(rootDir, 'svg-xlink.pdf');
+    const job: DraftJob = {
+      id: 'job-svg-xlink',
+      sourcePdfPath,
+      status: 'pending_review',
+      createdAt: '2026-07-13T00:00:00.000Z',
+      updatedAt: '2026-07-13T00:00:00.000Z',
+      pages: [
+        {
+          pageNumber: 1,
+          imagePath: 'page-1.png',
+          nativeText: '',
+          markdown:
+            '<svg><a xlink:href="javascript:bad()">unsafe</a></svg>\n' +
+            '<svg><a xlink:href="java&#x09;script&#58;encoded()">encoded</a></svg>\n' +
+            '<svg><a xlink:href="#safe">safe</a></svg>\n' +
+            '<a href="/normal">normal</a>',
+          accepted: true,
+          status: 'accepted',
+          engine: 'tesseract'
+        }
+      ]
+    };
+
+    const result = await commitJob(config, job);
+    const markdown = await readFile(result.markdownPath, 'utf8');
+
+    expect(markdown).toContain('<svg><a>unsafe</a></svg>');
+    expect(markdown).toContain('<svg><a>encoded</a></svg>');
+    expect(markdown).toContain('<svg><a xlink:href="#safe">safe</a></svg>');
+    expect(markdown).toContain('<a href="/normal">normal</a>');
+    expect(markdown).not.toMatch(/javascript:|java&#x09;script|xlink:href="javascript/i);
+  });
+
   it('sanitizes img tags with greater-than characters inside quoted attributes', async () => {
     const rootDir = makeTempDir();
     const config = makeConfig(rootDir);
