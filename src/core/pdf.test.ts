@@ -101,11 +101,7 @@ describe('computeImageRegions', () => {
   it.each([
     ['inline image', OPS.paintInlineImageXObject],
     ['image mask', OPS.paintImageMaskXObject],
-    ['image mask group', OPS.paintImageMaskXObjectGroup],
-    ['solid color image mask', OPS.paintSolidColorImageMask],
-    ['inline image group', OPS.paintInlineImageXObjectGroup],
-    ['image repeat', OPS.paintImageXObjectRepeat],
-    ['image mask repeat', OPS.paintImageMaskXObjectRepeat]
+    ['solid color image mask', OPS.paintSolidColorImageMask]
   ])('recognizes %s paint operators', (_label, imageOp) => {
     const ops = makeOpList([
       [OPS.transform, [100, 0, 0, 50, 10, 20]],
@@ -113,5 +109,68 @@ describe('computeImageRegions', () => {
     ]);
 
     expect(computeImageRegions(ops, NO_TRANSFORM, 1000, 1000)).toEqual([[10, 20, 110, 70]]);
+  });
+
+  it('expands inline image groups from each map transform and atlas rectangle', () => {
+    const ops = makeOpList([
+      [OPS.transform, [999, 0, 0, 999, 999, 999]],
+      [
+        OPS.paintInlineImageXObjectGroup,
+        [
+          { width: 400, height: 300 },
+          [
+            { transform: [2, 0, 0, 2, 10, 20], x: 5, y: 10, w: 50, h: 40 },
+            { transform: [1, 0, 0, 1, 200, 100], x: 0, y: 0, w: 80, h: 60 }
+          ]
+        ]
+      ]
+    ]);
+
+    expect(computeImageRegions(ops, NO_TRANSFORM, 1000, 1000)).toEqual([
+      [20, 40, 120, 120],
+      [200, 100, 280, 160]
+    ]);
+  });
+
+  it('expands image mask groups from each item transform and dimensions', () => {
+    const ops = makeOpList([
+      [
+        OPS.paintImageMaskXObjectGroup,
+        [
+          [
+            { transform: [1, 0, 0, 1, 10, 20], width: 100, height: 50 },
+            { transform: [2, 0, 0, 2, 200, 100], img: { width: 40, height: 30 } }
+          ]
+        ]
+      ]
+    ]);
+
+    expect(computeImageRegions(ops, NO_TRANSFORM, 1000, 1000)).toEqual([
+      [10, 20, 110, 70],
+      [200, 100, 280, 160]
+    ]);
+  });
+
+  it('expands repeated image xobjects from scale and positions', () => {
+    const ops = makeOpList([
+      [OPS.transform, [999, 0, 0, 999, 999, 999]],
+      [OPS.paintImageXObjectRepeat, ['img_1', 100, 50, [10, 20, 200, 100]]]
+    ]);
+
+    expect(computeImageRegions(ops, NO_TRANSFORM, 1000, 1000)).toEqual([
+      [10, 20, 110, 70],
+      [200, 100, 300, 150]
+    ]);
+  });
+
+  it('expands repeated image masks from full transform matrix and positions', () => {
+    const ops = makeOpList([
+      [OPS.paintImageMaskXObjectRepeat, [{ width: 1, height: 1 }, 100, 10, 20, 50, [10, 20, 200, 100]]]
+    ]);
+
+    expect(computeImageRegions(ops, NO_TRANSFORM, 1000, 1000)).toEqual([
+      [10, 20, 130, 80],
+      [200, 100, 320, 160]
+    ]);
   });
 });
