@@ -1,12 +1,16 @@
 const LOCAL_HOSTNAMES = new Set(['localhost', '127.0.0.1', '::1']);
 
+function normalizeHostname(hostname: string): string {
+  return hostname.toLowerCase().replace(/^\[(.*)]$/, '$1');
+}
+
 /**
  * Returns true only when the given URL resolves to a loopback host.
  * Used by local-only OCR adapters to guarantee no image bytes leave the machine.
  */
 export function isLocalHost(host: string): boolean {
   try {
-    return LOCAL_HOSTNAMES.has(new URL(host).hostname.toLowerCase());
+    return LOCAL_HOSTNAMES.has(normalizeHostname(new URL(host).hostname));
   } catch {
     return false;
   }
