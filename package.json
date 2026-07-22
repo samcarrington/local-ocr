@@ -15,7 +15,7 @@
     "serve:glm-ocr": "tsx scripts/serve-glm-ocr.ts"
   },
   "engines": {
-    "node": ">=20"
+    "node": "24"
   },
   "dependencies": {
     "@napi-rs/canvas": "1.0.2",
