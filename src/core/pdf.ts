@@ -15,7 +15,15 @@ const MIN_IMAGE_DEVICE_PX = 32;
 // pdf.js type defs omit some members that exist at runtime; unknown names are
 // dropped rather than breaking the build.
 const IMAGE_OP_CODES = new Set<number>(
-  (['paintImageXObject', 'paintJpegXObject', 'paintInlineImage'] as const)
+  ([
+    'paintImageXObject',
+    'paintInlineImageXObject',
+    'paintImageMaskXObject',
+    'paintImageMaskXObjectGroup',
+    'paintInlineImageXObjectGroup',
+    'paintImageXObjectRepeat',
+    'paintImageMaskXObjectRepeat'
+  ] as const)
     .map((name) => (OPS as unknown as Record<string, number | undefined>)[name])
     .filter((code): code is number => typeof code === 'number')
 );

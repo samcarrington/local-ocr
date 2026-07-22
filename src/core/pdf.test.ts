@@ -14,7 +14,26 @@ function makeOpList(ops: Op[]): { fnArray: number[]; argsArray: unknown[][] } {
 
 const NO_TRANSFORM: [number, number, number, number, number, number] = [1, 0, 0, 1, 0, 0];
 
+const IMAGE_OPERATOR_NAMES = [
+  'paintImageXObject',
+  'paintInlineImageXObject',
+  'paintImageMaskXObject',
+  'paintImageMaskXObjectGroup',
+  'paintInlineImageXObjectGroup',
+  'paintImageXObjectRepeat',
+  'paintImageMaskXObjectRepeat'
+] as const;
+
 describe('computeImageRegions', () => {
+  it('uses only raster image paint operators that exist in the installed pdf.js runtime', () => {
+    for (const name of IMAGE_OPERATOR_NAMES) {
+      expect(OPS[name], name).toEqual(expect.any(Number));
+    }
+
+    expect('paintJpegXObject' in OPS).toBe(false);
+    expect('paintInlineImage' in OPS).toBe(false);
+  });
+
   it('maps an image CTM unit square to device pixels', () => {
     const ops = makeOpList([
       [OPS.transform, [100, 0, 0, 50, 10, 20]],
@@ -76,5 +95,21 @@ describe('computeImageRegions', () => {
     const regions = computeImageRegions(ops, NO_TRANSFORM, 100000, 100000);
     expect(regions).toHaveLength(2);
     expect(regions[0]).toEqual([10, 20, 110, 70]);
+  });
+
+  it.each([
+    ['inline image', OPS.paintInlineImageXObject],
+    ['image mask', OPS.paintImageMaskXObject],
+    ['image mask group', OPS.paintImageMaskXObjectGroup],
+    ['inline image group', OPS.paintInlineImageXObjectGroup],
+    ['image repeat', OPS.paintImageXObjectRepeat],
+    ['image mask repeat', OPS.paintImageMaskXObjectRepeat]
+  ])('recognizes %s paint operators', (_label, imageOp) => {
+    const ops = makeOpList([
+      [OPS.transform, [100, 0, 0, 50, 10, 20]],
+      [imageOp, ['img_1']]
+    ]);
+
+    expect(computeImageRegions(ops, NO_TRANSFORM, 1000, 1000)).toEqual([[10, 20, 110, 70]]);
   });
 });
