@@ -243,7 +243,7 @@ function applyFigureImages(markdown: string, pageNumber: number, figures: OcrFig
 function rewriteInlineImageSrcs(markdown: string, files: string[]): { markdown: string; count: number } {
   let index = 0;
 
-  const result = markdown.replace(/<img\b[^>]*>/gi, (tag) => {
+  const result = replaceImgTags(markdown, (tag) => {
     if (index >= files.length) {
       return tag;
     }
@@ -255,8 +255,9 @@ function rewriteInlineImageSrcs(markdown: string, files: string[]): { markdown: 
 
     const srcValue = srcMatch[2] ?? srcMatch[3] ?? srcMatch[4] ?? '';
 
-    // Leave already-resolved or external references untouched.
-    if (/^(images\/|https?:|\/|data:|#)/i.test(srcValue)) {
+    // Only rewrite unresolved local OCR placeholders. Leave already-resolved
+    // refs and sanitizer-removed unsafe/external refs untouched.
+    if (!isUnresolvedLocalImagePlaceholder(srcValue)) {
       return tag;
     }
 
@@ -273,6 +274,10 @@ function rewriteInlineImageSrcs(markdown: string, files: string[]): { markdown: 
   });
 
   return { markdown: result, count: index };
+}
+
+function isUnresolvedLocalImagePlaceholder(srcValue: string): boolean {
+  return /^img_\d+\.[a-z0-9]+$/i.test(srcValue);
 }
 
 function appendFigureLinks(markdown: string, files: string[]): string {

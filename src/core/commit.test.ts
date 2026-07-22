@@ -853,6 +853,93 @@ Second page accepted.
     expect(markdown).not.toContain('![](images/');
   });
 
+  it('rewrites double-quoted, single-quoted, and unquoted placeholders while preserving surrounding attributes', async () => {
+    const rootDir = makeTempDir();
+    const config = makeConfig(rootDir);
+    const sourcePdfPath = createPdf(rootDir, 'figure-quote-forms.pdf');
+    const cropOne = path.join(rootDir, 'form-crop-1.png');
+    const cropTwo = path.join(rootDir, 'form-crop-2.png');
+    const cropThree = path.join(rootDir, 'form-crop-3.png');
+    writeFileSync(cropOne, 'form-one');
+    writeFileSync(cropTwo, 'form-two');
+    writeFileSync(cropThree, 'form-three');
+    const job: DraftJob = {
+      id: 'job-figure-quote-forms',
+      sourcePdfPath,
+      status: 'pending_review',
+      createdAt: '2026-07-13T00:00:00.000Z',
+      updatedAt: '2026-07-13T00:00:00.000Z',
+      pages: [
+        {
+          pageNumber: 1,
+          imagePath: 'page-1.png',
+          nativeText: '',
+          markdown:
+            '<figure data-wrap="double"><img class="first" src="img_1.png" alt="one" data-after="kept"></figure>\n' +
+            "<figure data-wrap='single'><img class='second' src='img_2.png' alt='two' data-after='kept'></figure>\n" +
+            '<figure data-wrap=unquoted><img class=third src=img_3.png alt=three data-after=kept></figure>',
+          accepted: true,
+          status: 'accepted',
+          engine: 'nuextract3-ocr',
+          figures: [
+            { bbox: [0, 0, 10, 10], imagePath: cropOne },
+            { bbox: [0, 0, 10, 10], imagePath: cropTwo },
+            { bbox: [0, 0, 10, 10], imagePath: cropThree }
+          ]
+        }
+      ]
+    };
+
+    const result = await commitJob(config, job);
+    const markdown = await readFile(result.markdownPath, 'utf8');
+
+    expect(markdown).toContain('<img class="first" src="images/page-001-figure-001.png" alt="one" data-after="kept">');
+    expect(markdown).toContain("<img class='second' src='images/page-001-figure-002.png' alt='two' data-after='kept'>");
+    expect(markdown).toContain('<img class=third src=images/page-001-figure-003.png alt=three data-after=kept>');
+    expect(markdown).not.toContain('img_1.png');
+    expect(markdown).not.toContain('img_2.png');
+    expect(markdown).not.toContain('img_3.png');
+    expect(markdown).not.toContain('![](images/');
+  });
+
+  it('does not rewrite already resolved safe local refs or unsafe/external refs removed by sanitizer', async () => {
+    const rootDir = makeTempDir();
+    const config = makeConfig(rootDir);
+    const sourcePdfPath = createPdf(rootDir, 'figure-safe-unsafe.pdf');
+    const cropOne = path.join(rootDir, 'safe-unsafe-crop.png');
+    writeFileSync(cropOne, 'safe-unsafe');
+    const job: DraftJob = {
+      id: 'job-figure-safe-unsafe',
+      sourcePdfPath,
+      status: 'pending_review',
+      createdAt: '2026-07-13T00:00:00.000Z',
+      updatedAt: '2026-07-13T00:00:00.000Z',
+      pages: [
+        {
+          pageNumber: 1,
+          imagePath: 'page-1.png',
+          nativeText: '',
+          markdown:
+            '<img src="images/already.png" alt="safe">\n' +
+            '<img src="https://example.com/external.png" alt="external">\n' +
+            '<img src="javascript:alert(1)" alt="unsafe">',
+          accepted: true,
+          status: 'accepted',
+          engine: 'nuextract3-ocr',
+          figures: [{ bbox: [0, 0, 10, 10], imagePath: cropOne }]
+        }
+      ]
+    };
+
+    const result = await commitJob(config, job);
+    const markdown = await readFile(result.markdownPath, 'utf8');
+
+    expect(markdown).toContain('<img src="images/already.png" alt="safe">');
+    expect(markdown).toContain('<img alt="external">');
+    expect(markdown).toContain('<img alt="unsafe">');
+    expect(markdown).toContain('![](images/page-001-figure-001.png)');
+  });
+
   it('leaves surplus inline image placeholders untouched when fewer crops exist', async () => {
     const rootDir = makeTempDir();
     const config = makeConfig(rootDir);
