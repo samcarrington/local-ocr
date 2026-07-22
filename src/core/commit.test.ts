@@ -337,6 +337,51 @@ Second page accepted.
     expect(markdown).not.toMatch(/https:\/\/example\.test|file:\/\/|\\\\example\.test|javascript\\?:|java&#x09;script/i);
   });
 
+  it('sanitizes markdown reference image destinations and nested-alt inline images', async () => {
+    const rootDir = makeTempDir();
+    const config = makeConfig(rootDir);
+    const sourcePdfPath = createPdf(rootDir, 'markdown-reference-images.pdf');
+    const job: DraftJob = {
+      id: 'job-markdown-reference-images',
+      sourcePdfPath,
+      status: 'pending_review',
+      createdAt: '2026-07-13T00:00:00.000Z',
+      updatedAt: '2026-07-13T00:00:00.000Z',
+      pages: [
+        {
+          pageNumber: 1,
+          imagePath: 'page-1.png',
+          nativeText: '',
+          markdown:
+            '![remote][remote]\n\n[remote]: https://attacker.test/pixel.png\n' +
+            '![safe][safe]\n\n[safe]: images/local.png "Local title"\n' +
+            '![file][file]\n![data][data]\n![proto][proto]\n\n' +
+            '[file]: file:///tmp/pixel.png\n' +
+            '[data]: data:image/png;base64,abc\n' +
+            '[proto]: //attacker.test/pixel.png\n' +
+            '[normal text link][doc]\n\n[doc]: ../notes/safe.md\n' +
+            '![chart [inner] (draft)](https://attacker.test/nested.png)\n' +
+            '![safe [inner] (draft)](images/local.png)',
+          accepted: true,
+          status: 'accepted',
+          engine: 'tesseract'
+        }
+      ]
+    };
+
+    const result = await commitJob(config, job);
+    const markdown = await readFile(result.markdownPath, 'utf8');
+
+    expect(markdown).toContain('![remote][remote]');
+    expect(markdown).toContain('![safe][safe]');
+    expect(markdown).toContain('[safe]: images/local.png "Local title"');
+    expect(markdown).toContain('[normal text link][doc]');
+    expect(markdown).toContain('[doc]: ../notes/safe.md');
+    expect(markdown).toContain('![chart [inner] (draft)]()');
+    expect(markdown).toContain('![safe [inner] (draft)](images/local.png)');
+    expect(markdown).not.toMatch(/\[(?:remote|file|data|proto)\]:|https:\/\/attacker\.test|file:\/\/|data:image|\/\/attacker\.test/i);
+  });
+
   it('strips unsafe svg xlink href urls', async () => {
     const rootDir = makeTempDir();
     const config = makeConfig(rootDir);

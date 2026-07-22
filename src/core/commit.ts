@@ -75,29 +75,37 @@ function sanitizeCommittedMarkdown(markdown: string): string {
       isJavaScriptUrl(getAttributeValue(attribute)) ? '' : normalizeAttributeDelimiter(attribute)
     );
 
-  return sanitizeMarkdownLinks(replaceImgTags(attributeSanitized, sanitizeImageTag));
+  return sanitizeMarkdownLinks(sanitizeMarkdownReferenceDefinitions(replaceImgTags(attributeSanitized, sanitizeImageTag)));
+}
+
+function sanitizeMarkdownReferenceDefinitions(markdown: string): string {
+  return markdown.replace(/^[ \t]{0,3}\[[^\]\n]+\]:[ \t]*(\S[^\n]*)(?:\n|$)/gm, (definition, contents: string) => {
+    const destination = getMarkdownDestination(contents);
+    return isLocalRelativeImageUrl(destination) ? definition : '';
+  });
 }
 
 function sanitizeMarkdownLinks(markdown: string): string {
   let result = '';
   let cursor = 0;
+  let scanCursor = 0;
 
-  while (cursor < markdown.length) {
-    const openBracket = markdown.indexOf('[', cursor);
+  while (scanCursor < markdown.length) {
+    const openBracket = markdown.indexOf('[', scanCursor);
     if (openBracket === -1) break;
 
     const isImage = openBracket > 0 && markdown[openBracket - 1] === '!';
     const start = isImage ? openBracket - 1 : openBracket;
-    const closeBracket = markdown.indexOf(']', openBracket + 1);
+    const closeBracket = findMarkdownLinkCloseBracket(markdown, openBracket + 1);
 
     if (closeBracket === -1 || markdown[closeBracket + 1] !== '(') {
-      cursor = openBracket + 1;
+      scanCursor = openBracket + 1;
       continue;
     }
 
     const closeParen = findMarkdownLinkCloseParen(markdown, closeBracket + 2);
     if (closeParen === -1) {
-      cursor = closeBracket + 2;
+      scanCursor = closeBracket + 2;
       continue;
     }
 
@@ -108,9 +116,41 @@ function sanitizeMarkdownLinks(markdown: string): string {
     result += markdown.slice(cursor, start);
     result += unsafe ? `${markdown.slice(start, closeBracket + 2)})` : markdown.slice(start, closeParen + 1);
     cursor = closeParen + 1;
+    scanCursor = cursor;
   }
 
   return result + markdown.slice(cursor);
+}
+
+function findMarkdownLinkCloseBracket(markdown: string, start: number): number {
+  let escaped = false;
+  let depth = 0;
+
+  for (let index = start; index < markdown.length; index += 1) {
+    const char = markdown[index];
+
+    if (escaped) {
+      escaped = false;
+      continue;
+    }
+
+    if (char === '\\') {
+      escaped = true;
+      continue;
+    }
+
+    if (char === '\n') return -1;
+    if (char === '[') {
+      depth += 1;
+      continue;
+    }
+    if (char === ']') {
+      if (depth === 0) return index;
+      depth -= 1;
+    }
+  }
+
+  return -1;
 }
 
 function findMarkdownLinkCloseParen(markdown: string, start: number): number {
