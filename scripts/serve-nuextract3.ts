@@ -13,7 +13,7 @@ import { spawn } from 'node:child_process';
 import process from 'node:process';
 
 import { getEngineConfig, loadConfig } from '../src/core/config.js';
-import { isLocalHost } from '../src/ocr/local-host.js';
+import { formatHttpHost, isLocalHost, normalizeBindHost } from '../src/ocr/local-host.js';
 
 const DEFAULT_SERVER_HOST = 'http://127.0.0.1:8080';
 const DEFAULT_MODEL = 'numind/NuExtract3-mlx-nvfp4';
@@ -133,14 +133,16 @@ function main(): void {
 
   const serverHost = resolveServerHost(args.configPath);
   const parsed = new URL(serverHost);
-  const host = args.host ?? parsed.hostname;
+  const host = normalizeBindHost(args.host ?? parsed.hostname);
   const port = args.port ?? (parsed.port ? parsePort(parsed.port) : DEFAULT_PORT);
   const model = resolveModel(args.configPath, args.model);
   const python = args.python ?? process.env.PYTHON ?? 'python3';
 
+  const localServerUrl = formatHttpHost(host, port);
+
   // The whole app is local-only; refuse to bind a non-loopback host so the
   // launcher can't accidentally expose the model on the network.
-  if (!isLocalHost(`http://${host}:${port}`)) {
+  if (!isLocalHost(localServerUrl)) {
     process.stderr.write(
       `Refusing to bind non-local host "${host}". Use localhost, 127.0.0.1, or ::1.\n`
     );
@@ -154,7 +156,7 @@ function main(): void {
     return;
   }
 
-  process.stderr.write(`Starting mlx-vlm server: ${model} on http://${host}:${port}\n`);
+  process.stderr.write(`Starting mlx-vlm server: ${model} on ${localServerUrl}\n`);
 
   const child = spawn(python, serverArgs, { stdio: 'inherit' });
 
