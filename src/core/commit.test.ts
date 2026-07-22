@@ -354,6 +354,8 @@ Second page accepted.
           nativeText: '',
           markdown:
             '![remote][remote]\n\n[remote]: https://attacker.test/pixel.png\n' +
+            '![escaped remote][bad\\]]\n\n[bad\\]]: https://attacker.test/pixel.png\n' +
+            '![escaped safe][good\\]]\n\n[good\\]]: images/escaped-local.png\n' +
             '![safe][safe]\n\n[safe]: images/local.png "Local title"\n' +
             '![file][file]\n![data][data]\n![proto][proto]\n\n' +
             '[file]: file:///tmp/pixel.png\n' +
@@ -373,13 +375,16 @@ Second page accepted.
     const markdown = await readFile(result.markdownPath, 'utf8');
 
     expect(markdown).toContain('![remote][remote]');
+    expect(markdown).toContain('![escaped remote][bad\\]]');
+    expect(markdown).toContain('![escaped safe][good\\]]');
+    expect(markdown).toContain('[good\\]]: images/escaped-local.png');
     expect(markdown).toContain('![safe][safe]');
     expect(markdown).toContain('[safe]: images/local.png "Local title"');
     expect(markdown).toContain('[normal text link][doc]');
     expect(markdown).toContain('[doc]: ../notes/safe.md');
     expect(markdown).toContain('![chart [inner] (draft)]()');
     expect(markdown).toContain('![safe [inner] (draft)](images/local.png)');
-    expect(markdown).not.toMatch(/\[(?:remote|file|data|proto)\]:|https:\/\/attacker\.test|file:\/\/|data:image|\/\/attacker\.test/i);
+    expect(markdown).not.toMatch(/\[(?:remote|bad\\\]|file|data|proto)\]:|https:\/\/attacker\.test|file:\/\/|data:image|\/\/attacker\.test/i);
   });
 
   it('strips unsafe svg xlink href urls', async () => {

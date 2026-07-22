@@ -79,7 +79,7 @@ function sanitizeCommittedMarkdown(markdown: string): string {
 }
 
 function sanitizeMarkdownReferenceDefinitions(markdown: string): string {
-  return markdown.replace(/^[ \t]{0,3}\[[^\]\n]+\]:[ \t]*(\S[^\n]*)(?:\n|$)/gm, (definition, contents: string) => {
+  return markdown.replace(/^[ \t]{0,3}\[(?:\\[^\n]|[^\]\\\n])+\]:[ \t]*(\S[^\n]*)(?:\n|$)/gm, (definition, contents: string) => {
     const destination = getMarkdownDestination(contents);
     return isLocalRelativeImageUrl(destination) ? definition : '';
   });
