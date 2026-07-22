@@ -352,6 +352,45 @@ Second page accepted.
     expect(markdown).not.toMatch(/onerror|alert\(1\)/i);
   });
 
+  it('treats slash as an unsafe URL attribute delimiter while preserving self-closing tags', async () => {
+    const rootDir = makeTempDir();
+    const config = makeConfig(rootDir);
+    const sourcePdfPath = createPdf(rootDir, 'slash-url-attribute.pdf');
+    const job: DraftJob = {
+      id: 'job-slash-url-attribute',
+      sourcePdfPath,
+      status: 'pending_review',
+      createdAt: '2026-07-13T00:00:00.000Z',
+      updatedAt: '2026-07-13T00:00:00.000Z',
+      pages: [
+        {
+          pageNumber: 1,
+          imagePath: 'page-1.png',
+          nativeText: '',
+          markdown:
+            '<a/href="javascript:bad()">bad link</a>\n' +
+            '<svg><a/xlink:href="javascript:bad()">bad xlink</a></svg>\n' +
+            '<img/src="https://example.test/remote.png" alt="slash src">\n' +
+            '<img/srcset="https://example.test/remote.png 1x, images/local.png 2x" alt="slash srcset">\n' +
+            '<img/src="images/self-closing.png" alt="self closing" />',
+          accepted: true,
+          status: 'accepted',
+          engine: 'tesseract'
+        }
+      ]
+    };
+
+    const result = await commitJob(config, job);
+    const markdown = await readFile(result.markdownPath, 'utf8');
+
+    expect(markdown).toContain('<a>bad link</a>');
+    expect(markdown).toContain('<svg><a>bad xlink</a></svg>');
+    expect(markdown).toContain('<img alt="slash src">');
+    expect(markdown).toContain('<img srcset="images/local.png 2x" alt="slash srcset">');
+    expect(markdown).toContain('<img src="images/self-closing.png" alt="self closing" />');
+    expect(markdown).not.toMatch(/href=|xlink:href=|javascript:|https:\/\/example\.test/i);
+  });
+
   it('strips entity-encoded C0 and C1 controls before unsafe URL checks', async () => {
     const rootDir = makeTempDir();
     const config = makeConfig(rootDir);

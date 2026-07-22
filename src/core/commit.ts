@@ -65,8 +65,8 @@ function sanitizeCommittedMarkdown(markdown: string): string {
     .replace(/<(?:iframe|object|embed|link|meta|style|base)\b[^>]*>[\s\S]*?<\/(?:iframe|object|embed|link|meta|style|base)\s*>/gi, '')
     .replace(/<\/?(?:iframe|object|embed|link|meta|style|base)\b[^>]*>/gi, '')
     .replace(/(?:\s+|\/+)+on[a-z][\w:-]*\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, '')
-    .replace(/\s+(?:href|xlink:href|src)\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, (attribute) =>
-      isJavaScriptUrl(getAttributeValue(attribute)) ? '' : attribute
+    .replace(/(?:\s+|\/+)+(?:href|xlink:href|src)\s*=\s*(?:"[^"]*"|'[^']*'|[^\s\/>]+)/gi, (attribute) =>
+      isJavaScriptUrl(getAttributeValue(attribute)) ? '' : normalizeAttributeDelimiter(attribute)
     );
 
   return replaceImgTags(sanitized, sanitizeImageTag);
@@ -128,8 +128,12 @@ function scanImgTags(markdown: string): Array<{ start: number; end: number }> {
 }
 
 function getAttributeValue(attribute: string): string {
-  const match = /^\s*[\w:-]+\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/i.exec(attribute);
+  const match = /^[\s/]*[\w:-]+\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s\/>]+))/i.exec(attribute);
   return match?.[1] ?? match?.[2] ?? match?.[3] ?? '';
+}
+
+function normalizeAttributeDelimiter(attribute: string): string {
+  return attribute.replace(/^[\s/]+/, ' ');
 }
 
 function decodeHtmlEntities(value: string): string {
@@ -161,10 +165,10 @@ function isRemoteImageUrl(value: string): boolean {
 
 function sanitizeImageTag(tag: string): string {
   return tag
-    .replace(/\s+src\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, (attribute) =>
-      isRemoteImageUrl(getAttributeValue(attribute)) ? '' : attribute
+    .replace(/(?:\s+|\/+)+src\s*=\s*(?:"[^"]*"|'[^']*'|[^\s\/>]+)/gi, (attribute) =>
+      isRemoteImageUrl(getAttributeValue(attribute)) ? '' : normalizeAttributeDelimiter(attribute)
     )
-    .replace(/\s+srcset\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, (attribute) => {
+    .replace(/(?:\s+|\/+)+srcset\s*=\s*(?:"[^"]*"|'[^']*'|[^\s\/>]+)/gi, (attribute) => {
       const value = getAttributeValue(attribute);
       if (normalizeUrlForSchemeCheck(value).includes('data:')) {
         return '';
@@ -173,7 +177,7 @@ function sanitizeImageTag(tag: string): string {
         .split(',')
         .map((candidate) => candidate.trim())
         .filter((candidate) => candidate && !isRemoteImageUrl(candidate.split(/\s+/)[0] ?? ''));
-      return safeCandidates.length === 0 ? '' : attribute.replace(value, safeCandidates.join(', '));
+      return safeCandidates.length === 0 ? '' : normalizeAttributeDelimiter(attribute.replace(value, safeCandidates.join(', ')));
     });
 }
 
