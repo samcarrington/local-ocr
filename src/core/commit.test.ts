@@ -230,6 +230,7 @@ Second page accepted.
           nativeText: '',
           markdown:
             '<div style="background-image:url(https://attacker.test/pixel.png)">x</div>\n' +
+            '<div style=/*x*/background-image:url(https://attacker.test/pixel.png)>x</div>\n' +
             '<table><thead><tr><th scope="col">H</th></tr></thead><tbody><tr><td data-note="kept">Cell</td></tr></tbody></table>\n' +
             '<figure><img src="images/local.png" alt="Local"><figcaption>Caption</figcaption></figure>',
           accepted: true,
@@ -243,6 +244,7 @@ Second page accepted.
     const markdown = await readFile(result.markdownPath, 'utf8');
 
     expect(markdown).toContain('<div>x</div>');
+    expect(markdown.match(/<div>x<\/div>/g)).toHaveLength(2);
     expect(markdown).toContain('<table><thead><tr><th scope="col">H</th></tr></thead><tbody><tr><td data-note="kept">Cell</td></tr></tbody></table>');
     expect(markdown).toContain('<figure><img src="images/local.png" alt="Local"><figcaption>Caption</figcaption></figure>');
     expect(markdown).not.toMatch(/style=|background-image|https:\/\/attacker\.test/i);
