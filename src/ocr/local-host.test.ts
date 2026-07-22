@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
-import { formatHttpHost, isLocalHost, normalizeBindHost } from './local-host.js';
+import {
+  formatHttpHost,
+  isLocalHost,
+  normalizeBindHost,
+} from './local-host.js';
 
 describe('isLocalHost', () => {
   it('accepts localhost, IPv4 loopback, and bracketed IPv6 loopback', () => {

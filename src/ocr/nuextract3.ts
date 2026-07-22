@@ -1,7 +1,11 @@
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 
-import type { Nuextract3OcrEngineConfig, OcrAdapter, OcrResult } from '../core/types.js';
+import type {
+  Nuextract3OcrEngineConfig,
+  OcrAdapter,
+  OcrResult,
+} from '../core/types.js';
 import { assertLocalHost, isLocalHost } from './local-host.js';
 
 const AVAILABILITY_TIMEOUT_MS = 1_500;
@@ -18,7 +22,10 @@ const LOCAL_HOST_ERROR_PREFIX = 'NuExtract3 OCR requires a local mlx-vlm host';
 // renders any text into the document region, which would pollute the
 // transcription. `chat_template_kwargs` is included for OpenAI-compatible
 // servers that DO honour it (e.g. vLLM); mlx-vlm ignores it harmlessly.
-const CHAT_TEMPLATE_KWARGS = { mode: 'markdown', enable_thinking: false } as const;
+const CHAT_TEMPLATE_KWARGS = {
+  mode: 'markdown',
+  enable_thinking: false,
+} as const;
 
 type ChatCompletionResponse = {
   choices?: Array<{
@@ -37,7 +44,7 @@ const MIME_BY_EXTENSION: Record<string, string> = {
   '.jpg': 'image/jpeg',
   '.jpeg': 'image/jpeg',
   '.webp': 'image/webp',
-  '.gif': 'image/gif'
+  '.gif': 'image/gif',
 };
 
 export class Nuextract3OcrAdapter implements OcrAdapter {
@@ -51,12 +58,15 @@ export class Nuextract3OcrAdapter implements OcrAdapter {
     }
 
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), AVAILABILITY_TIMEOUT_MS);
+    const timeout = setTimeout(
+      () => controller.abort(),
+      AVAILABILITY_TIMEOUT_MS,
+    );
 
     try {
       const response = await fetch(this.resolveUrl('/v1/models'), {
         method: 'GET',
-        signal: controller.signal
+        signal: controller.signal,
       });
 
       if (!response.ok) {
@@ -64,7 +74,9 @@ export class Nuextract3OcrAdapter implements OcrAdapter {
       }
 
       const payload = (await response.json()) as ModelsResponse;
-      return listModelIds(payload).includes(normalizeModelName(this.config.model));
+      return listModelIds(payload).includes(
+        normalizeModelName(this.config.model),
+      );
     } catch {
       return false;
     } finally {
@@ -76,13 +88,16 @@ export class Nuextract3OcrAdapter implements OcrAdapter {
     imagePath: string,
     _options?: {
       mode?: 'markdown' | 'plain' | 'layout';
-    }
+    },
   ): Promise<OcrResult> {
     assertLocalHost(this.config.serverHost, LOCAL_HOST_ERROR_PREFIX);
 
     const dataUrl = await this.readImageAsDataUrl(imagePath);
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), this.config.chatTimeoutMs ?? DEFAULT_CHAT_TIMEOUT_MS);
+    const timeout = setTimeout(
+      () => controller.abort(),
+      this.config.chatTimeoutMs ?? DEFAULT_CHAT_TIMEOUT_MS,
+    );
 
     let response: Response;
 
@@ -90,7 +105,7 @@ export class Nuextract3OcrAdapter implements OcrAdapter {
       response = await fetch(this.resolveUrl('/v1/chat/completions'), {
         method: 'POST',
         headers: {
-          'content-type': 'application/json'
+          'content-type': 'application/json',
         },
         body: JSON.stringify({
           model: this.config.model,
@@ -103,18 +118,20 @@ export class Nuextract3OcrAdapter implements OcrAdapter {
               content: [
                 {
                   type: 'image_url',
-                  image_url: { url: dataUrl }
-                }
-              ]
-            }
+                  image_url: { url: dataUrl },
+                },
+              ],
+            },
           ],
-          chat_template_kwargs: CHAT_TEMPLATE_KWARGS
+          chat_template_kwargs: CHAT_TEMPLATE_KWARGS,
         }),
-        signal: controller.signal
+        signal: controller.signal,
       });
     } catch (error) {
       const reason = error instanceof Error ? error.message : String(error);
-      throw new Error(`NuExtract3 OCR unavailable at ${this.config.serverHost}: ${reason}`);
+      throw new Error(
+        `NuExtract3 OCR unavailable at ${this.config.serverHost}: ${reason}`,
+      );
     } finally {
       clearTimeout(timeout);
     }
@@ -122,7 +139,7 @@ export class Nuextract3OcrAdapter implements OcrAdapter {
     if (!response.ok) {
       const details = await safeResponseText(response);
       throw new Error(
-        `NuExtract3 OCR request failed (${response.status} ${response.statusText})${details ? `: ${details}` : ''}`
+        `NuExtract3 OCR request failed (${response.status} ${response.statusText})${details ? `: ${details}` : ''}`,
       );
     }
 
@@ -138,12 +155,16 @@ export class Nuextract3OcrAdapter implements OcrAdapter {
 
   private async readImageAsDataUrl(imagePath: string): Promise<string> {
     const base64 = await readFile(imagePath, { encoding: 'base64' });
-    const mime = MIME_BY_EXTENSION[path.extname(imagePath).toLowerCase()] ?? 'image/png';
+    const mime =
+      MIME_BY_EXTENSION[path.extname(imagePath).toLowerCase()] ?? 'image/png';
     return `data:${mime};base64,${base64}`;
   }
 
   private resolveUrl(pathname: string): string {
-    return new URL(pathname, withTrailingSlash(this.config.serverHost)).toString();
+    return new URL(
+      pathname,
+      withTrailingSlash(this.config.serverHost),
+    ).toString();
   }
 }
 
@@ -179,7 +200,9 @@ function cleanOcrMarkdown(content: string | null | undefined): string {
 function listModelIds(payload: ModelsResponse): string[] {
   return (payload.data ?? [])
     .map((model) => model.id)
-    .filter((value): value is string => typeof value === 'string' && value.length > 0)
+    .filter(
+      (value): value is string => typeof value === 'string' && value.length > 0,
+    )
     .map(normalizeModelName);
 }
 

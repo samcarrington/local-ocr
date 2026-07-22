@@ -27,7 +27,7 @@ function makeTempImage(): string {
 function chatResponse(content: string): Response {
   return new Response(JSON.stringify({ choices: [{ message: { content } }] }), {
     status: 200,
-    headers: { 'content-type': 'application/json' }
+    headers: { 'content-type': 'application/json' },
   });
 }
 
@@ -38,22 +38,25 @@ describe('GlmOcrAdapter', () => {
 
   it('checks local mlx-vlm availability against /v1/models', async () => {
     vi.mocked(globalThis.fetch).mockResolvedValue(
-      new Response(JSON.stringify({ data: [{ id: 'mlx-community/GLM-OCR-bf16' }] }), {
-        status: 200,
-        headers: { 'content-type': 'application/json' }
-      })
+      new Response(
+        JSON.stringify({ data: [{ id: 'mlx-community/GLM-OCR-bf16' }] }),
+        {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        },
+      ),
     );
 
     const adapter = new GlmOcrAdapter({
       kind: 'glm-ocr',
       serverHost: 'http://127.0.0.1:8080',
-      model: 'mlx-community/GLM-OCR-bf16'
+      model: 'mlx-community/GLM-OCR-bf16',
     });
 
     await expect(adapter.isAvailable()).resolves.toBe(true);
     expect(globalThis.fetch).toHaveBeenCalledWith(
       'http://127.0.0.1:8080/v1/models',
-      expect.objectContaining({ method: 'GET' })
+      expect.objectContaining({ method: 'GET' }),
     );
   });
 
@@ -61,14 +64,14 @@ describe('GlmOcrAdapter', () => {
     vi.mocked(globalThis.fetch).mockResolvedValue(
       new Response(JSON.stringify({ data: [{ id: 'some/other-model' }] }), {
         status: 200,
-        headers: { 'content-type': 'application/json' }
-      })
+        headers: { 'content-type': 'application/json' },
+      }),
     );
 
     const adapter = new GlmOcrAdapter({
       kind: 'glm-ocr',
       serverHost: 'http://localhost:8080',
-      model: 'mlx-community/GLM-OCR-bf16'
+      model: 'mlx-community/GLM-OCR-bf16',
     });
 
     await expect(adapter.isAvailable()).resolves.toBe(false);
@@ -78,7 +81,7 @@ describe('GlmOcrAdapter', () => {
     const adapter = new GlmOcrAdapter({
       kind: 'glm-ocr',
       serverHost: 'http://192.168.1.10:8080',
-      model: 'mlx-community/GLM-OCR-bf16'
+      model: 'mlx-community/GLM-OCR-bf16',
     });
 
     await expect(adapter.isAvailable()).resolves.toBe(false);
@@ -86,13 +89,15 @@ describe('GlmOcrAdapter', () => {
   });
 
   it('sends prompt and page image to chat completions endpoint and returns text', async () => {
-    vi.mocked(globalThis.fetch).mockResolvedValue(chatResponse('Recognized text'));
+    vi.mocked(globalThis.fetch).mockResolvedValue(
+      chatResponse('Recognized text'),
+    );
 
     const adapter = new GlmOcrAdapter({
       kind: 'glm-ocr',
       serverHost: 'http://127.0.0.1:8080/',
       model: 'mlx-community/GLM-OCR-bf16',
-      maxOutputTokens: 2048
+      maxOutputTokens: 2048,
     });
 
     const result = await adapter.processPage(makeTempImage());
@@ -100,7 +105,7 @@ describe('GlmOcrAdapter', () => {
     expect(result).toEqual({ markdown: 'Recognized text' });
     expect(globalThis.fetch).toHaveBeenCalledWith(
       'http://127.0.0.1:8080/v1/chat/completions',
-      expect.any(Object)
+      expect.any(Object),
     );
 
     const [, request] = vi.mocked(globalThis.fetch).mock.calls[0];
@@ -114,47 +119,62 @@ describe('GlmOcrAdapter', () => {
       { type: 'text', text: 'Text Recognition:' },
       {
         type: 'image_url',
-        image_url: { url: `data:image/png;base64,${Buffer.from('image-bytes').toString('base64')}` }
-      }
+        image_url: {
+          url: `data:image/png;base64,${Buffer.from('image-bytes').toString('base64')}`,
+        },
+      },
     ]);
   });
 
   it('strips reasoning, ChatML tokens, and surrounding code fences', async () => {
-    vi.mocked(globalThis.fetch).mockResolvedValue(chatResponse('<think>x</think>\n```text\nHello<|im_end|>\n```'));
-
-    const adapter = new GlmOcrAdapter({
-      kind: 'glm-ocr',
-      serverHost: 'http://127.0.0.1:8080',
-      model: 'mlx-community/GLM-OCR-bf16'
-    });
-
-    await expect(adapter.processPage(makeTempImage())).resolves.toEqual({ markdown: 'Hello' });
-  });
-
-  it('throws a useful error for non-ok responses', async () => {
     vi.mocked(globalThis.fetch).mockResolvedValue(
-      new Response('model not loaded', { status: 503, statusText: 'Service Unavailable' })
+      chatResponse('<think>x</think>\n```text\nHello<|im_end|>\n```'),
     );
 
     const adapter = new GlmOcrAdapter({
       kind: 'glm-ocr',
       serverHost: 'http://127.0.0.1:8080',
-      model: 'mlx-community/GLM-OCR-bf16'
+      model: 'mlx-community/GLM-OCR-bf16',
     });
 
-    await expect(adapter.processPage(makeTempImage())).rejects.toThrow(/503 Service Unavailable.*model not loaded/);
+    await expect(adapter.processPage(makeTempImage())).resolves.toEqual({
+      markdown: 'Hello',
+    });
   });
 
-  it('throws a useful error when the server is unavailable', async () => {
-    vi.mocked(globalThis.fetch).mockRejectedValue(new Error('connect ECONNREFUSED'));
+  it('throws a useful error for non-ok responses', async () => {
+    vi.mocked(globalThis.fetch).mockResolvedValue(
+      new Response('model not loaded', {
+        status: 503,
+        statusText: 'Service Unavailable',
+      }),
+    );
 
     const adapter = new GlmOcrAdapter({
       kind: 'glm-ocr',
       serverHost: 'http://127.0.0.1:8080',
-      model: 'mlx-community/GLM-OCR-bf16'
+      model: 'mlx-community/GLM-OCR-bf16',
     });
 
-    await expect(adapter.processPage(makeTempImage())).rejects.toThrow(/unavailable/);
+    await expect(adapter.processPage(makeTempImage())).rejects.toThrow(
+      /503 Service Unavailable.*model not loaded/,
+    );
+  });
+
+  it('throws a useful error when the server is unavailable', async () => {
+    vi.mocked(globalThis.fetch).mockRejectedValue(
+      new Error('connect ECONNREFUSED'),
+    );
+
+    const adapter = new GlmOcrAdapter({
+      kind: 'glm-ocr',
+      serverHost: 'http://127.0.0.1:8080',
+      model: 'mlx-community/GLM-OCR-bf16',
+    });
+
+    await expect(adapter.processPage(makeTempImage())).rejects.toThrow(
+      /unavailable/,
+    );
   });
 
   it('throws on empty content', async () => {
@@ -163,20 +183,24 @@ describe('GlmOcrAdapter', () => {
     const adapter = new GlmOcrAdapter({
       kind: 'glm-ocr',
       serverHost: 'http://127.0.0.1:8080',
-      model: 'mlx-community/GLM-OCR-bf16'
+      model: 'mlx-community/GLM-OCR-bf16',
     });
 
-    await expect(adapter.processPage(makeTempImage())).rejects.toThrow(/empty content/);
+    await expect(adapter.processPage(makeTempImage())).rejects.toThrow(
+      /empty content/,
+    );
   });
 
   it('refuses non-local server host before sending image bytes', async () => {
     const adapter = new GlmOcrAdapter({
       kind: 'glm-ocr',
       serverHost: 'http://192.168.1.10:8080',
-      model: 'mlx-community/GLM-OCR-bf16'
+      model: 'mlx-community/GLM-OCR-bf16',
     });
 
-    await expect(adapter.processPage(makeTempImage())).rejects.toThrow(/requires a local mlx-vlm host/);
+    await expect(adapter.processPage(makeTempImage())).rejects.toThrow(
+      /requires a local mlx-vlm host/,
+    );
     expect(globalThis.fetch).not.toHaveBeenCalled();
   });
 });

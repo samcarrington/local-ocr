@@ -7,11 +7,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 const mocks = vi.hoisted(() => ({
   recognize: vi.fn(),
   terminate: vi.fn(),
-  createWorker: vi.fn()
+  createWorker: vi.fn(),
 }));
 
 vi.mock('tesseract.js', () => ({
-  createWorker: mocks.createWorker
+  createWorker: mocks.createWorker,
 }));
 
 const tempDirs: string[] = [];
@@ -39,7 +39,7 @@ describe('TesseractOcrAdapter', () => {
 
     mocks.createWorker.mockResolvedValue({
       recognize: mocks.recognize,
-      terminate: mocks.terminate
+      terminate: mocks.terminate,
     });
   });
 
@@ -47,15 +47,15 @@ describe('TesseractOcrAdapter', () => {
     mocks.recognize.mockResolvedValue({
       data: {
         text: '  Hello OCR  \n',
-        confidence: 87
-      }
+        confidence: 87,
+      },
     });
     mocks.terminate.mockResolvedValue(undefined);
 
     const adapter = new TesseractOcrAdapter({
       kind: 'tesseract',
       lang: 'eng',
-      trainedDataPath: makeTrainedDataDir('eng')
+      trainedDataPath: makeTrainedDataDir('eng'),
     });
     const result = await adapter.processPage('/tmp/page.png');
 
@@ -65,14 +65,14 @@ describe('TesseractOcrAdapter', () => {
       expect.objectContaining({
         langPath: expect.any(String),
         gzip: false,
-        cacheMethod: 'none'
-      })
+        cacheMethod: 'none',
+      }),
     );
     expect(mocks.recognize).toHaveBeenCalledWith('/tmp/page.png');
     expect(mocks.terminate).toHaveBeenCalled();
     expect(result).toEqual({
       markdown: 'Hello OCR',
-      confidence: 0.87
+      confidence: 0.87,
     });
   });
 
@@ -80,34 +80,39 @@ describe('TesseractOcrAdapter', () => {
     mocks.recognize.mockResolvedValue({
       data: {
         text: 'plain text',
-        confidence: Number.NaN
-      }
+        confidence: Number.NaN,
+      },
     });
     mocks.terminate.mockResolvedValue(undefined);
 
     const adapter = new TesseractOcrAdapter({
       kind: 'tesseract',
       lang: 'eng',
-      trainedDataPath: makeTrainedDataDir('eng')
+      trainedDataPath: makeTrainedDataDir('eng'),
     });
-    const result = await adapter.processPage('/tmp/page.png', { mode: 'plain' });
+    const result = await adapter.processPage('/tmp/page.png', {
+      mode: 'plain',
+    });
 
     expect(result).toEqual({
-      markdown: 'plain text'
+      markdown: 'plain text',
     });
   });
 
   it('supports compressed traineddata files when present', async () => {
     const dir = mkdtempSync(path.join(os.tmpdir(), 'local-ocr-tesseract-'));
     tempDirs.push(dir);
-    writeFileSync(path.join(dir, 'eng.traineddata.gz'), 'compressed-traineddata');
+    writeFileSync(
+      path.join(dir, 'eng.traineddata.gz'),
+      'compressed-traineddata',
+    );
     mocks.recognize.mockResolvedValue({ data: { text: 'compressed text' } });
     mocks.terminate.mockResolvedValue(undefined);
 
     const adapter = new TesseractOcrAdapter({
       kind: 'tesseract',
       lang: 'eng',
-      trainedDataPath: dir
+      trainedDataPath: dir,
     });
 
     await adapter.processPage('/tmp/page.png');
@@ -116,15 +121,17 @@ describe('TesseractOcrAdapter', () => {
       'eng',
       1,
       expect.objectContaining({
-        gzip: true
-      })
+        gzip: true,
+      }),
     );
   });
 
   it('fails fast when local traineddata path is not configured', async () => {
     const adapter = new TesseractOcrAdapter({ kind: 'tesseract', lang: 'eng' });
 
-    await expect(adapter.processPage('/tmp/page.png')).rejects.toThrow(/trainedDataPath/);
+    await expect(adapter.processPage('/tmp/page.png')).rejects.toThrow(
+      /trainedDataPath/,
+    );
     expect(mocks.createWorker).not.toHaveBeenCalled();
   });
 });

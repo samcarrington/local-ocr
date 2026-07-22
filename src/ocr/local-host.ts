@@ -22,7 +22,9 @@ export function isLocalHost(host: string): boolean {
 
 export function formatHttpHost(hostname: string, port: number): string {
   const normalizedHostname = normalizeHostname(hostname);
-  const host = normalizedHostname.includes(':') ? `[${normalizedHostname}]` : normalizedHostname;
+  const host = normalizedHostname.includes(':')
+    ? `[${normalizedHostname}]`
+    : normalizedHostname;
   return `http://${host}:${port}`;
 }
 
@@ -33,6 +35,8 @@ export function formatHttpHost(hostname: string, port: number): string {
  */
 export function assertLocalHost(host: string, errorPrefix: string): void {
   if (!isLocalHost(host)) {
-    throw new Error(`${errorPrefix} (localhost, 127.0.0.1, or ::1). Received: ${host}`);
+    throw new Error(
+      `${errorPrefix} (localhost, 127.0.0.1, or ::1). Received: ${host}`,
+    );
   }
 }

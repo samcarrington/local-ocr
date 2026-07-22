@@ -17,7 +17,7 @@ export async function createDraftJob(
   pdfPath: string,
   config: AppConfig,
   adapterRegistry: OcrAdapterRegistry = createOcrAdapterRegistry(config),
-  options: CreateDraftJobOptions = {}
+  options: CreateDraftJobOptions = {},
 ): Promise<DraftJob> {
   assertPdfPathWithinInbox(pdfPath, config.inboxPath);
 
@@ -42,7 +42,7 @@ export async function createDraftJob(
     status: 'pending_review',
     createdAt: timestamp,
     updatedAt: timestamp,
-    pages
+    pages,
   };
 
   if (options.persist ?? true) {
@@ -57,7 +57,11 @@ function assertPdfPathWithinInbox(pdfPath: string, inboxPath: string): void {
   const resolvedPdfPath = path.resolve(pdfPath);
   const relativePath = path.relative(resolvedInboxPath, resolvedPdfPath);
 
-  if (relativePath === '' || relativePath.startsWith('..') || path.isAbsolute(relativePath)) {
+  if (
+    relativePath === '' ||
+    relativePath.startsWith('..') ||
+    path.isAbsolute(relativePath)
+  ) {
     throw new Error(`PDF path must stay within inboxPath: ${resolvedPdfPath}`);
   }
 }
@@ -65,14 +69,20 @@ function assertPdfPathWithinInbox(pdfPath: string, inboxPath: string): void {
 async function createDraftPage(
   extractedPage: Awaited<ReturnType<typeof extractPdfPages>>[number],
   config: AppConfig,
-  adapter: OcrAdapter
+  adapter: OcrAdapter,
 ): Promise<DraftPage> {
   const nativeText = extractedPage.nativeText.trim();
   // Images are a property of the PDF page, not the OCR engine, so they are
   // available regardless of engine (and survive engine reruns).
-  const pageFigures = extractedPage.images && extractedPage.images.length > 0 ? extractedPage.images : undefined;
+  const pageFigures =
+    extractedPage.images && extractedPage.images.length > 0
+      ? extractedPage.images
+      : undefined;
 
-  if (config.textExtractionMode === 'auto' && nativeText.length >= config.nativeTextMinChars) {
+  if (
+    config.textExtractionMode === 'auto' &&
+    nativeText.length >= config.nativeTextMinChars
+  ) {
     return {
       pageNumber: extractedPage.pageNumber,
       imagePath: extractedPage.previewImagePath,
@@ -81,13 +91,15 @@ async function createDraftPage(
       accepted: false,
       status: 'pending',
       engine: 'native',
-      figures: pageFigures
+      figures: pageFigures,
     };
   }
 
   let ocrResult: Awaited<ReturnType<OcrAdapter['processPage']>>;
   try {
-    ocrResult = await adapter.processPage(extractedPage.previewImagePath, { mode: 'markdown' });
+    ocrResult = await adapter.processPage(extractedPage.previewImagePath, {
+      mode: 'markdown',
+    });
   } catch (error) {
     const reason = error instanceof Error ? error.message : String(error);
     return {
@@ -105,9 +117,9 @@ async function createDraftPage(
           severity: 'warning',
           message: `Initial OCR failed for page ${extractedPage.pageNumber}: ${reason}`,
           coverage: 0,
-          missingSnippets: []
-        }
-      ]
+          missingSnippets: [],
+        },
+      ],
     };
   }
 
@@ -121,6 +133,6 @@ async function createDraftPage(
     engine: adapter.name,
     confidence: ocrResult.confidence,
     figures: ocrResult.figures ?? pageFigures,
-    layoutBlocks: ocrResult.layoutBlocks
+    layoutBlocks: ocrResult.layoutBlocks,
   };
 }

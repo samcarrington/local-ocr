@@ -9,7 +9,11 @@ import { DEFAULT_CONFIG_FILE, loadConfig } from './config.js';
 
 const originalCwd = process.cwd();
 const tempDirs: string[] = [];
-const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
+const repoRoot = path.resolve(
+  path.dirname(fileURLToPath(import.meta.url)),
+  '..',
+  '..',
+);
 
 afterEach(() => {
   process.chdir(originalCwd);
@@ -41,9 +45,9 @@ describe('loadConfig', () => {
       engines: {
         tesseract: {
           kind: 'tesseract',
-          lang: 'eng'
-        }
-      }
+          lang: 'eng',
+        },
+      },
     });
   });
 
@@ -71,8 +75,8 @@ describe('loadConfig', () => {
         '    ollamaHost: http://localhost:11434',
         '    model: deepseek-ocr:latest',
         '    chatTimeoutMs: 240000',
-        '    maxOutputTokens: 2048'
-      ].join('\n')
+        '    maxOutputTokens: 2048',
+      ].join('\n'),
     );
 
     expect(loadConfig(configPath)).toEqual({
@@ -87,16 +91,16 @@ describe('loadConfig', () => {
         tesseract: {
           kind: 'tesseract',
           lang: 'deu',
-          trainedDataPath: './tessdata'
+          trainedDataPath: './tessdata',
         },
         'deepseek-ocr': {
           kind: 'deepseek-ocr',
           ollamaHost: 'http://localhost:11434',
           model: 'deepseek-ocr:latest',
           chatTimeoutMs: 240000,
-          maxOutputTokens: 2048
-        }
-      }
+          maxOutputTokens: 2048,
+        },
+      },
     });
   });
 
@@ -110,8 +114,8 @@ describe('loadConfig', () => {
         'defaultEngine: nuextract3-ocr',
         'engines:',
         '  nuextract3-ocr:',
-        '    kind: nuextract3-ocr'
-      ].join('\n')
+        '    kind: nuextract3-ocr',
+      ].join('\n'),
     );
 
     const config = loadConfig(configPath);
@@ -122,7 +126,7 @@ describe('loadConfig', () => {
       serverHost: 'http://127.0.0.1:8080',
       model: 'numind/NuExtract3-mlx-nvfp4',
       chatTimeoutMs: 180000,
-      maxOutputTokens: 4096
+      maxOutputTokens: 4096,
     });
   });
 
@@ -130,7 +134,15 @@ describe('loadConfig', () => {
     const dir = makeTempDir();
     const configPath = path.join(dir, DEFAULT_CONFIG_FILE);
 
-    writeFileSync(configPath, ['defaultEngine: glm-ocr', 'engines:', '  glm-ocr:', '    kind: glm-ocr'].join('\n'));
+    writeFileSync(
+      configPath,
+      [
+        'defaultEngine: glm-ocr',
+        'engines:',
+        '  glm-ocr:',
+        '    kind: glm-ocr',
+      ].join('\n'),
+    );
 
     const config = loadConfig(configPath);
 
@@ -140,31 +152,33 @@ describe('loadConfig', () => {
       serverHost: 'http://127.0.0.1:8080',
       model: 'mlx-community/GLM-OCR-bf16',
       chatTimeoutMs: 180000,
-      maxOutputTokens: 4096
+      maxOutputTokens: 4096,
     });
   });
 
   it('loads the shipped example config', () => {
-    const config = loadConfig(path.join(repoRoot, 'ocrtool.config.example.yaml'));
+    const config = loadConfig(
+      path.join(repoRoot, 'ocrtool.config.example.yaml'),
+    );
 
     expect(config.defaultEngine).toBe('tesseract');
     expect(config.engines.tesseract).toMatchObject({
       kind: 'tesseract',
       lang: 'eng',
-      trainedDataPath: './tessdata'
+      trainedDataPath: './tessdata',
     });
     expect(config.engines['deepseek-ocr']).toMatchObject({
       kind: 'deepseek-ocr',
       model: 'deepseek-ocr',
       chatTimeoutMs: 180000,
-      maxOutputTokens: 4096
+      maxOutputTokens: 4096,
     });
     expect(config.engines['glm-ocr']).toMatchObject({
       kind: 'glm-ocr',
       serverHost: 'http://127.0.0.1:8080',
       model: 'mlx-community/GLM-OCR-bf16',
       chatTimeoutMs: 180000,
-      maxOutputTokens: 4096
+      maxOutputTokens: 4096,
     });
   });
 
@@ -179,8 +193,8 @@ describe('loadConfig', () => {
         'engines:',
         '  tesseract:',
         '    kind: tesseract',
-        '    lang: eng'
-      ].join('\n')
+        '    lang: eng',
+      ].join('\n'),
     );
 
     expect(() => loadConfig(configPath)).toThrow(/defaultEngine/);
@@ -198,8 +212,8 @@ describe('loadConfig', () => {
         'engines:',
         '  tesseract:',
         '    kind: tesseract',
-        '    lang: eng'
-      ].join('\n')
+        '    lang: eng',
+      ].join('\n'),
     );
 
     expect(() => loadConfig(configPath)).toThrow();
@@ -217,8 +231,8 @@ describe('loadConfig', () => {
         '  deepseek-ocr:',
         '    kind: deepseek-ocr',
         '    ollama_host: http://localhost:11434',
-        '    model: deepseek-ocr'
-      ].join('\n')
+        '    model: deepseek-ocr',
+      ].join('\n'),
     );
 
     expect(() => loadConfig(configPath)).toThrow(/Unrecognized key/);
@@ -237,8 +251,8 @@ describe('loadConfig', () => {
         '    kind: glm-ocr',
         '    mode: mlx',
         '    apiHost: http://127.0.0.1',
-        '    apiPort: 8080'
-      ].join('\n')
+        '    apiPort: 8080',
+      ].join('\n'),
     );
 
     expect(() => loadConfig(configPath)).toThrow(/Unrecognized key/);

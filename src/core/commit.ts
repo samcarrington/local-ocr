@@ -2,7 +2,13 @@ import { randomUUID } from 'node:crypto';
 import { copyFile, mkdir, rename, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
-import type { AppConfig, DraftJob, DraftPage, OcrFigure, PageEngineName } from './types.js';
+import type {
+  AppConfig,
+  DraftJob,
+  DraftPage,
+  OcrFigure,
+  PageEngineName,
+} from './types.js';
 
 export interface CommitJobResult {
   outputDir: string;
@@ -19,10 +25,13 @@ function getPageStatus(page: DraftPage): 'accepted' | 'pending' | 'failed' {
   return page.status === 'failed' ? 'failed' : 'pending';
 }
 
-async function writeFileAtomic(filePath: string, contents: string): Promise<void> {
+async function writeFileAtomic(
+  filePath: string,
+  contents: string,
+): Promise<void> {
   const tempFilePath = path.join(
     path.dirname(filePath),
-    `${path.basename(filePath)}.${process.pid}.${randomUUID()}.tmp`
+    `${path.basename(filePath)}.${process.pid}.${randomUUID()}.tmp`,
   );
 
   await writeFile(tempFilePath, contents, 'utf8');
@@ -62,27 +71,50 @@ function sanitizeCommittedMarkdown(markdown: string): string {
     .replace(/<script\b[^>]*>[\s\S]*?<\/script\s*>/gi, '')
     .replace(/<script\b[^>]*\/?>(?:[^\n<]*)/gi, '')
     .replace(/<\/?script\b[^>]*>/gi, '')
-    .replace(/<(?:iframe|object|embed|link|meta|style|base)\b[^>]*>[\s\S]*?<\/(?:iframe|object|embed|link|meta|style|base)\s*>/gi, '')
+    .replace(
+      /<(?:iframe|object|embed|link|meta|style|base)\b[^>]*>[\s\S]*?<\/(?:iframe|object|embed|link|meta|style|base)\s*>/gi,
+      '',
+    )
     .replace(/<\/?(?:iframe|object|embed|link|meta|style|base)\b[^>]*>/gi, '');
 
   const allowlisted = stripDisallowedHtmlTags(sanitized);
 
   const attributeSanitized = allowlisted
-    .replace(/(?:\s+|\/+)+on[a-z][\w:-]*\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, '')
-    .replace(/(?:\s+|\/+)+style(?=\s|\/|>|=)(?:\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+))?/gi, '')
-    .replace(/(?<=["'])style(?=\s|\/|>|=)(?:\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+))?/gi, '')
-    .replace(/(?:\s+|\/+)+(?:href|xlink:href|src)\s*=\s*(?:"[^"]*"|'[^']*'|[^\s\/>]+)/gi, (attribute) =>
-      isJavaScriptUrl(getAttributeValue(attribute)) ? '' : normalizeAttributeDelimiter(attribute)
+    .replace(
+      /(?:\s+|\/+)+on[a-z][\w:-]*\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi,
+      '',
+    )
+    .replace(
+      /(?:\s+|\/+)+style(?=\s|\/|>|=)(?:\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+))?/gi,
+      '',
+    )
+    .replace(
+      /(?<=["'])style(?=\s|\/|>|=)(?:\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+))?/gi,
+      '',
+    )
+    .replace(
+      /(?:\s+|\/+)+(?:href|xlink:href|src)\s*=\s*(?:"[^"]*"|'[^']*'|[^\s/>]+)/gi,
+      (attribute) =>
+        isJavaScriptUrl(getAttributeValue(attribute))
+          ? ''
+          : normalizeAttributeDelimiter(attribute),
     );
 
-  return sanitizeMarkdownLinks(sanitizeMarkdownReferenceDefinitions(replaceImgTags(attributeSanitized, sanitizeImageTag)));
+  return sanitizeMarkdownLinks(
+    sanitizeMarkdownReferenceDefinitions(
+      replaceImgTags(attributeSanitized, sanitizeImageTag),
+    ),
+  );
 }
 
 function sanitizeMarkdownReferenceDefinitions(markdown: string): string {
-  return markdown.replace(/^[ \t]{0,3}\[(?:\\[^\n]|[^\]\\\n])+\]:[ \t]*(\S[^\n]*)(?:\n|$)/gm, (definition, contents: string) => {
-    const destination = getMarkdownDestination(contents);
-    return isLocalRelativeImageUrl(destination) ? definition : '';
-  });
+  return markdown.replace(
+    /^[ \t]{0,3}\[(?:\\[^\n]|[^\]\\\n])+\]:[ \t]*(\S[^\n]*)(?:\n|$)/gm,
+    (definition, contents: string) => {
+      const destination = getMarkdownDestination(contents);
+      return isLocalRelativeImageUrl(destination) ? definition : '';
+    },
+  );
 }
 
 function sanitizeMarkdownLinks(markdown: string): string {
@@ -96,7 +128,10 @@ function sanitizeMarkdownLinks(markdown: string): string {
 
     const isImage = openBracket > 0 && markdown[openBracket - 1] === '!';
     const start = isImage ? openBracket - 1 : openBracket;
-    const closeBracket = findMarkdownLinkCloseBracket(markdown, openBracket + 1);
+    const closeBracket = findMarkdownLinkCloseBracket(
+      markdown,
+      openBracket + 1,
+    );
 
     if (closeBracket === -1 || markdown[closeBracket + 1] !== '(') {
       scanCursor = openBracket + 1;
@@ -111,10 +146,14 @@ function sanitizeMarkdownLinks(markdown: string): string {
 
     const linkContents = markdown.slice(closeBracket + 2, closeParen);
     const destination = getMarkdownDestination(linkContents);
-    const unsafe = isImage ? !isLocalRelativeImageUrl(destination) : isJavaScriptUrl(destination) || isJavaScriptUrl(linkContents);
+    const unsafe = isImage
+      ? !isLocalRelativeImageUrl(destination)
+      : isJavaScriptUrl(destination) || isJavaScriptUrl(linkContents);
 
     result += markdown.slice(cursor, start);
-    result += unsafe ? `${markdown.slice(start, closeBracket + 2)})` : markdown.slice(start, closeParen + 1);
+    result += unsafe
+      ? `${markdown.slice(start, closeBracket + 2)})`
+      : markdown.slice(start, closeParen + 1);
     cursor = closeParen + 1;
     scanCursor = cursor;
   }
@@ -206,10 +245,55 @@ function getMarkdownDestination(contents: string): string {
 }
 
 const RAW_HTML_TAG_ALLOWLIST = new Set([
-  'a', 'b', 'strong', 'em', 'i', 'u', 'p', 'br', 'ul', 'ol', 'li', 'blockquote', 'code', 'pre',
-  'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'hr', 'table', 'thead', 'tbody', 'tfoot', 'tr', 'td', 'th',
-  'caption', 'colgroup', 'col', 'figure', 'figcaption', 'img', 'span', 'div', 'details', 'summary',
-  'dl', 'dt', 'dd', 'sub', 'sup', 'mark', 'kbd', 'samp', 'var', 'cite', 'q'
+  'a',
+  'b',
+  'strong',
+  'em',
+  'i',
+  'u',
+  'p',
+  'br',
+  'ul',
+  'ol',
+  'li',
+  'blockquote',
+  'code',
+  'pre',
+  'h1',
+  'h2',
+  'h3',
+  'h4',
+  'h5',
+  'h6',
+  'hr',
+  'table',
+  'thead',
+  'tbody',
+  'tfoot',
+  'tr',
+  'td',
+  'th',
+  'caption',
+  'colgroup',
+  'col',
+  'figure',
+  'figcaption',
+  'img',
+  'span',
+  'div',
+  'details',
+  'summary',
+  'dl',
+  'dt',
+  'dd',
+  'sub',
+  'sup',
+  'mark',
+  'kbd',
+  'samp',
+  'var',
+  'cite',
+  'q',
 ]);
 
 function stripDisallowedHtmlTags(markdown: string): string {
@@ -227,20 +311,27 @@ function stripDisallowedHtmlTags(markdown: string): string {
   return result + markdown.slice(cursor);
 }
 
-function replaceImgTags(markdown: string, replacer: (tag: string) => string): string {
+function replaceImgTags(
+  markdown: string,
+  replacer: (tag: string) => string,
+): string {
   let result = '';
   let cursor = 0;
 
   for (const tag of scanHtmlTags(markdown)) {
     if (tag.name !== 'img') continue;
-    result += markdown.slice(cursor, tag.start) + replacer(markdown.slice(tag.start, tag.end));
+    result +=
+      markdown.slice(cursor, tag.start) +
+      replacer(markdown.slice(tag.start, tag.end));
     cursor = tag.end;
   }
 
   return result + markdown.slice(cursor);
 }
 
-function scanHtmlTags(markdown: string): Array<{ start: number; end: number; name: string | null }> {
+function scanHtmlTags(
+  markdown: string,
+): Array<{ start: number; end: number; name: string | null }> {
   const tags: Array<{ start: number; end: number; name: string | null }> = [];
   let cursor = 0;
 
@@ -293,7 +384,9 @@ function parseHtmlTagName(markdown: string, start: number): string | null {
 }
 
 function getAttributeValue(attribute: string): string {
-  const match = /^[\s/]*[\w:-]+\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/i.exec(attribute);
+  const match = /^[\s/]*[\w:-]+\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/i.exec(
+    attribute,
+  );
   return match?.[1] ?? match?.[2] ?? match?.[3] ?? '';
 }
 
@@ -302,16 +395,21 @@ function normalizeAttributeDelimiter(attribute: string): string {
 }
 
 function decodeHtmlEntities(value: string): string {
-  return value.replace(/&(#x[\da-f]+|#\d+|colon|tab|newline|sol);?/gi, (entity, body: string) => {
-    const lower = body.toLowerCase();
-    if (lower === 'colon') return ':';
-    if (lower === 'tab') return '\t';
-    if (lower === 'newline') return '\n';
-    if (lower === 'sol') return '/';
-    if (lower.startsWith('#x')) return String.fromCodePoint(Number.parseInt(lower.slice(2), 16));
-    if (lower.startsWith('#')) return String.fromCodePoint(Number.parseInt(lower.slice(1), 10));
-    return entity;
-  });
+  return value.replace(
+    /&(#x[\da-f]+|#\d+|colon|tab|newline|sol);?/gi,
+    (entity, body: string) => {
+      const lower = body.toLowerCase();
+      if (lower === 'colon') return ':';
+      if (lower === 'tab') return '\t';
+      if (lower === 'newline') return '\n';
+      if (lower === 'sol') return '/';
+      if (lower.startsWith('#x'))
+        return String.fromCodePoint(Number.parseInt(lower.slice(2), 16));
+      if (lower.startsWith('#'))
+        return String.fromCodePoint(Number.parseInt(lower.slice(1), 10));
+      return entity;
+    },
+  );
 }
 
 function normalizeUrlForSchemeCheck(value: string): string {
@@ -331,29 +429,49 @@ function isJavaScriptUrl(value: string): boolean {
 }
 
 function isRemoteImageUrl(value: string): boolean {
-  return /^(?:[a-z][a-z0-9+.-]*:|\/\/|\/)/i.test(normalizeUrlForSchemeCheck(value));
+  return /^(?:[a-z][a-z0-9+.-]*:|\/\/|\/)/i.test(
+    normalizeUrlForSchemeCheck(value),
+  );
 }
 
 function isLocalRelativeImageUrl(value: string): boolean {
   const normalized = normalizeUrlForSchemeCheck(value);
-  return normalized.length > 0 && !/^(?:[a-z][a-z0-9+.-]*:|\/\/|\\\\|\/)/i.test(value.trim()) && !/^(?:[a-z][a-z0-9+.-]*:|\/\/|\/)/i.test(normalized);
+  return (
+    normalized.length > 0 &&
+    !/^(?:[a-z][a-z0-9+.-]*:|\/\/|\\\\|\/)/i.test(value.trim()) &&
+    !/^(?:[a-z][a-z0-9+.-]*:|\/\/|\/)/i.test(normalized)
+  );
 }
 
 function sanitizeImageTag(tag: string): string {
   return tag
-    .replace(/(?:\s+|\/+)+src\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, (attribute) =>
-      isRemoteImageUrl(getAttributeValue(attribute)) ? '' : normalizeAttributeDelimiter(attribute)
+    .replace(
+      /(?:\s+|\/+)+src\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi,
+      (attribute) =>
+        isRemoteImageUrl(getAttributeValue(attribute))
+          ? ''
+          : normalizeAttributeDelimiter(attribute),
     )
     .replace(/(?:\s+|\/+)+srcset\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, '');
 }
 
-function getFigureFileName(pageNumber: number, figureIndex: number, imagePath: string): string {
+function getFigureFileName(
+  pageNumber: number,
+  figureIndex: number,
+  imagePath: string,
+): string {
   const extension = path.extname(imagePath) || '.png';
   return `page-${String(pageNumber).padStart(3, '0')}-figure-${String(figureIndex).padStart(3, '0')}${extension}`;
 }
 
-function getFigureFileNames(pageNumber: number, figures: OcrFigure[]): string[] {
-  return figures.map((figure, index) => `images/${getFigureFileName(pageNumber, index + 1, figure.imagePath)}`);
+function getFigureFileNames(
+  pageNumber: number,
+  figures: OcrFigure[],
+): string[] {
+  return figures.map(
+    (figure, index) =>
+      `images/${getFigureFileName(pageNumber, index + 1, figure.imagePath)}`,
+  );
 }
 
 /**
@@ -363,7 +481,11 @@ function getFigureFileNames(pageNumber: number, figures: OcrFigure[]): string[] 
  * the saved crops. Engines with no inline image refs fall back to appending
  * `![](images/...)` links (deepseek-ocr / grounded output).
  */
-function applyFigureImages(markdown: string, pageNumber: number, figures: OcrFigure[] | undefined): string {
+function applyFigureImages(
+  markdown: string,
+  pageNumber: number,
+  figures: OcrFigure[] | undefined,
+): string {
   if (!figures || figures.length === 0) {
     return markdown;
   }
@@ -378,7 +500,10 @@ function applyFigureImages(markdown: string, pageNumber: number, figures: OcrFig
   return appendFigureLinks(markdown, files);
 }
 
-function rewriteInlineImageSrcs(markdown: string, files: string[]): { markdown: string; count: number } {
+function rewriteInlineImageSrcs(
+  markdown: string,
+  files: string[],
+): { markdown: string; count: number } {
   let index = 0;
 
   const result = replaceImgTags(markdown, (tag) => {
@@ -386,7 +511,9 @@ function rewriteInlineImageSrcs(markdown: string, files: string[]): { markdown: 
       return tag;
     }
 
-    const srcMatch = /(\ssrc\s*=\s*)(?:"([^"]*)"|'([^']*)'|([^\s>]+))/i.exec(tag);
+    const srcMatch = /(\ssrc\s*=\s*)(?:"([^"]*)"|'([^']*)'|([^\s>]+))/i.exec(
+      tag,
+    );
     if (!srcMatch) {
       return tag;
     }
@@ -399,7 +526,8 @@ function rewriteInlineImageSrcs(markdown: string, files: string[]): { markdown: 
       return tag;
     }
 
-    const quote = srcMatch[2] !== undefined ? '"' : srcMatch[3] !== undefined ? "'" : '';
+    const quote =
+      srcMatch[2] !== undefined ? '"' : srcMatch[3] !== undefined ? "'" : '';
     const replaced =
       tag.slice(0, srcMatch.index) +
       srcMatch[1] +
@@ -419,7 +547,9 @@ function isUnresolvedLocalImagePlaceholder(srcValue: string): boolean {
 }
 
 function appendFigureLinks(markdown: string, files: string[]): string {
-  const missingLinks = files.map((file) => `![](${file})`).filter((link) => !markdown.includes(link));
+  const missingLinks = files
+    .map((file) => `![](${file})`)
+    .filter((link) => !markdown.includes(link));
 
   if (missingLinks.length === 0) {
     return markdown;
@@ -428,7 +558,10 @@ function appendFigureLinks(markdown: string, files: string[]): string {
   return `${markdown.trimEnd()}\n\n${missingLinks.join('\n')}`;
 }
 
-async function copyPageFigures(outputDir: string, pages: DraftPage[]): Promise<void> {
+async function copyPageFigures(
+  outputDir: string,
+  pages: DraftPage[],
+): Promise<void> {
   const imagesDir = path.join(outputDir, 'images');
   await mkdir(imagesDir, { recursive: true });
 
@@ -438,7 +571,10 @@ async function copyPageFigures(outputDir: string, pages: DraftPage[]): Promise<v
     }
 
     for (const [index, figure] of (page.figures ?? []).entries()) {
-      const targetPath = path.join(imagesDir, getFigureFileName(page.pageNumber, index + 1, figure.imagePath));
+      const targetPath = path.join(
+        imagesDir,
+        getFigureFileName(page.pageNumber, index + 1, figure.imagePath),
+      );
       await copyFile(figure.imagePath, targetPath);
     }
   }
@@ -455,7 +591,11 @@ function renderMarkdown(job: DraftJob, convertedAt: string): string {
         return getPageMarkdown(page).trim();
       }
 
-      return applyFigureImages(sanitizeCommittedMarkdown(page.markdown), page.pageNumber, page.figures).trim();
+      return applyFigureImages(
+        sanitizeCommittedMarkdown(page.markdown),
+        page.pageNumber,
+        page.figures,
+      ).trim();
     })
     .join('\n\n');
 
@@ -467,34 +607,40 @@ function renderMarkdown(job: DraftJob, convertedAt: string): string {
     '---',
     '',
     body,
-    ''
+    '',
   ].join('\n');
 }
 
 export async function commitJob(
   config: AppConfig,
   job: DraftJob,
-  options?: { convertedAt?: Date }
+  options?: { convertedAt?: Date },
 ): Promise<CommitJobResult> {
   const sourceFileName = path.basename(job.sourcePdfPath);
   const baseName = path.basename(sourceFileName, path.extname(sourceFileName));
   const outputDir = path.join(config.inboxPath, baseName);
   const markdownPath = path.join(outputDir, `${baseName}.md`);
-  const processedPdfPath = path.join(config.inboxPath, 'processed', sourceFileName);
+  const processedPdfPath = path.join(
+    config.inboxPath,
+    'processed',
+    sourceFileName,
+  );
   const convertedAt = (options?.convertedAt ?? new Date()).toISOString();
 
   await mkdir(outputDir, { recursive: true });
   await copyPageFigures(outputDir, job.pages);
   await writeFileAtomic(markdownPath, renderMarkdown(job, convertedAt));
 
-  const allAccepted = job.pages.every((page) => getPageStatus(page) === 'accepted');
+  const allAccepted = job.pages.every(
+    (page) => getPageStatus(page) === 'accepted',
+  );
 
   if (!allAccepted) {
     return {
       outputDir,
       markdownPath,
       processedPdfPath: null,
-      movedSourcePdf: false
+      movedSourcePdf: false,
     };
   }
 
@@ -505,6 +651,6 @@ export async function commitJob(
     outputDir,
     markdownPath,
     processedPdfPath,
-    movedSourcePdf: true
+    movedSourcePdf: true,
   };
 }

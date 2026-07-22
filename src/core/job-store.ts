@@ -1,5 +1,12 @@
 import { randomUUID } from 'node:crypto';
-import { mkdir, readdir, readFile, rename, rm, writeFile } from 'node:fs/promises';
+import {
+  mkdir,
+  readdir,
+  readFile,
+  rename,
+  rm,
+  writeFile,
+} from 'node:fs/promises';
 import path from 'node:path';
 
 import type { AppConfig, DraftJob } from './types.js';
@@ -33,18 +40,21 @@ function serializeJob(job: DraftJob): string {
         confidence: page.confidence,
         figures: page.figures,
         layoutBlocks: page.layoutBlocks,
-        qualityWarnings: page.qualityWarnings
-      }))
+        qualityWarnings: page.qualityWarnings,
+      })),
     },
     null,
-    2
+    2,
   )}\n`;
 }
 
-async function writeFileAtomic(filePath: string, contents: string): Promise<void> {
+async function writeFileAtomic(
+  filePath: string,
+  contents: string,
+): Promise<void> {
   const tempFilePath = path.join(
     path.dirname(filePath),
-    `${path.basename(filePath)}.${process.pid}.${randomUUID()}.tmp`
+    `${path.basename(filePath)}.${process.pid}.${randomUUID()}.tmp`,
   );
 
   await writeFile(tempFilePath, contents, 'utf8');
@@ -56,7 +66,10 @@ export async function saveJob(config: AppConfig, job: DraftJob): Promise<void> {
   await writeFileAtomic(getJobFilePath(config, job.id), serializeJob(job));
 }
 
-export async function loadJob(config: AppConfig, jobId: string): Promise<DraftJob | null> {
+export async function loadJob(
+  config: AppConfig,
+  jobId: string,
+): Promise<DraftJob | null> {
   try {
     const contents = await readFile(getJobFilePath(config, jobId), 'utf8');
     return JSON.parse(contents) as DraftJob;
@@ -69,7 +82,10 @@ export async function loadJob(config: AppConfig, jobId: string): Promise<DraftJo
   }
 }
 
-export async function deleteJob(config: AppConfig, jobId: string): Promise<boolean> {
+export async function deleteJob(
+  config: AppConfig,
+  jobId: string,
+): Promise<boolean> {
   try {
     await rm(getJobFilePath(config, jobId));
     return true;
@@ -86,7 +102,9 @@ export async function listJobs(config: AppConfig): Promise<DraftJob[]> {
   try {
     const entries = await readdir(config.jobStorePath, { withFileTypes: true });
     const jobFiles = entries
-      .filter((entry) => entry.isFile() && entry.name.endsWith(JOB_FILE_EXTENSION))
+      .filter(
+        (entry) => entry.isFile() && entry.name.endsWith(JOB_FILE_EXTENSION),
+      )
       .map((entry) => entry.name)
       .sort((left, right) => left.localeCompare(right));
 
@@ -94,7 +112,10 @@ export async function listJobs(config: AppConfig): Promise<DraftJob[]> {
       await Promise.all(
         jobFiles.map(async (fileName) => {
           try {
-            const contents = await readFile(path.join(config.jobStorePath, fileName), 'utf8');
+            const contents = await readFile(
+              path.join(config.jobStorePath, fileName),
+              'utf8',
+            );
             return JSON.parse(contents) as DraftJob;
           } catch (error) {
             if (error instanceof SyntaxError) {
@@ -103,7 +124,7 @@ export async function listJobs(config: AppConfig): Promise<DraftJob[]> {
 
             throw error;
           }
-        })
+        }),
       )
     ).filter((job): job is DraftJob => job !== null);
 

@@ -1,5 +1,5 @@
 import { mkdtempSync, writeFileSync } from 'node:fs';
-import { access, readFile, readdir, rm } from 'node:fs/promises';
+import { access, readdir, readFile, rm } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 
@@ -11,7 +11,9 @@ import type { AppConfig, DraftJob } from './types.js';
 const tempDirs: string[] = [];
 
 afterEach(async () => {
-  await Promise.all(tempDirs.splice(0).map((dir) => rm(dir, { recursive: true, force: true })));
+  await Promise.all(
+    tempDirs.splice(0).map((dir) => rm(dir, { recursive: true, force: true })),
+  );
 });
 
 function makeTempDir(): string {
@@ -32,9 +34,9 @@ function makeConfig(rootDir: string): AppConfig {
     engines: {
       tesseract: {
         kind: 'tesseract',
-        lang: 'eng'
-      }
-    }
+        lang: 'eng',
+      },
+    },
   };
 }
 
@@ -59,8 +61,8 @@ function makeJob(id: string): DraftJob {
           {
             type: 'text',
             bbox: [1, 2, 3, 4],
-            text: 'stored block'
-          }
+            text: 'stored block',
+          },
         ],
         qualityWarnings: [
           {
@@ -68,11 +70,11 @@ function makeJob(id: string): DraftJob {
             severity: 'warning',
             message: 'Check OCR completeness',
             coverage: 0.5,
-            missingSnippets: ['missing text']
-          }
-        ]
-      }
-    ]
+            missingSnippets: ['missing text'],
+          },
+        ],
+      },
+    ],
   };
 }
 
@@ -85,12 +87,19 @@ describe('job store', () => {
     await saveJob(config, job);
 
     const loaded = await loadJob(config, job.id);
-    const stored = await readFile(path.join(config.jobStorePath, 'job%2Fone.json'), 'utf8');
+    const stored = await readFile(
+      path.join(config.jobStorePath, 'job%2Fone.json'),
+      'utf8',
+    );
 
     expect(loaded).toEqual(job);
     expect(stored.endsWith('\n')).toBe(true);
     expect(JSON.parse(stored)).toEqual(job);
-    expect((await readdir(config.jobStorePath)).filter((entry) => entry.endsWith('.tmp'))).toEqual([]);
+    expect(
+      (await readdir(config.jobStorePath)).filter((entry) =>
+        entry.endsWith('.tmp'),
+      ),
+    ).toEqual([]);
   });
 
   it('lists jobs in deterministic id order', async () => {
@@ -115,7 +124,9 @@ describe('job store', () => {
     await expect(deleteJob(config, job.id)).resolves.toBe(true);
     await expect(deleteJob(config, job.id)).resolves.toBe(false);
     await expect(loadJob(config, job.id)).resolves.toBeNull();
-    await expect(access(path.join(config.jobStorePath, 'gone.json'))).rejects.toThrow();
+    await expect(
+      access(path.join(config.jobStorePath, 'gone.json')),
+    ).rejects.toThrow();
   });
 
   it('returns empty list when store path missing', async () => {
@@ -130,7 +141,11 @@ describe('job store', () => {
     const config = makeConfig(rootDir);
 
     await saveJob(config, makeJob('good-job'));
-    writeFileSync(path.join(config.jobStorePath, 'bad-job.json'), '{nope', 'utf8');
+    writeFileSync(
+      path.join(config.jobStorePath, 'bad-job.json'),
+      '{nope',
+      'utf8',
+    );
 
     const jobs = await listJobs(config);
 

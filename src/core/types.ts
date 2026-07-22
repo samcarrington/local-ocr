@@ -32,7 +32,7 @@ export interface OcrAdapter {
     imagePath: string,
     options?: {
       mode?: 'markdown' | 'plain' | 'layout';
-    }
+    },
   ): Promise<OcrResult>;
 }
 

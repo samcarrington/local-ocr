@@ -1,6 +1,11 @@
 import { readFile } from 'node:fs/promises';
 
-import type { DeepseekOcrEngineConfig, OcrAdapter, OcrLayoutBlock, OcrResult } from '../core/types.js';
+import type {
+  DeepseekOcrEngineConfig,
+  OcrAdapter,
+  OcrLayoutBlock,
+  OcrResult,
+} from '../core/types.js';
 import { assertLocalHost, isLocalHost } from './local-host.js';
 
 const AVAILABILITY_TIMEOUT_MS = 1_500;
@@ -9,7 +14,7 @@ const DEFAULT_CHAT_TIMEOUT_MS = 180_000;
 const GENERATE_PROMPT = [
   '<|grounding|>Convert this document page image into clean markdown.',
   'Preserve headings, paragraphs, lists, and tables where clear.',
-  'Return only text visible in the image.'
+  'Return only text visible in the image.',
 ].join(' ');
 
 type OllamaGenerateResponse = {
@@ -31,12 +36,15 @@ export class DeepseekOcrAdapter implements OcrAdapter {
     }
 
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), AVAILABILITY_TIMEOUT_MS);
+    const timeout = setTimeout(
+      () => controller.abort(),
+      AVAILABILITY_TIMEOUT_MS,
+    );
 
     try {
       const response = await fetch(this.resolveUrl('/api/tags'), {
         method: 'GET',
-        signal: controller.signal
+        signal: controller.signal,
       });
 
       if (!response.ok) {
@@ -44,7 +52,9 @@ export class DeepseekOcrAdapter implements OcrAdapter {
       }
 
       const payload = (await response.json()) as OllamaTagsResponse;
-      return listAvailableModelNames(payload).includes(normalizeModelName(this.config.model));
+      return listAvailableModelNames(payload).includes(
+        normalizeModelName(this.config.model),
+      );
     } catch {
       return false;
     } finally {
@@ -56,13 +66,19 @@ export class DeepseekOcrAdapter implements OcrAdapter {
     imagePath: string,
     _options?: {
       mode?: 'markdown' | 'plain' | 'layout';
-    }
+    },
   ): Promise<OcrResult> {
-    assertLocalHost(this.config.ollamaHost, 'DeepSeek OCR requires local Ollama host');
+    assertLocalHost(
+      this.config.ollamaHost,
+      'DeepSeek OCR requires local Ollama host',
+    );
 
     const imageBase64 = await readFile(imagePath, { encoding: 'base64' });
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), this.config.chatTimeoutMs ?? DEFAULT_CHAT_TIMEOUT_MS);
+    const timeout = setTimeout(
+      () => controller.abort(),
+      this.config.chatTimeoutMs ?? DEFAULT_CHAT_TIMEOUT_MS,
+    );
 
     let response: Response;
 
@@ -70,7 +86,7 @@ export class DeepseekOcrAdapter implements OcrAdapter {
       response = await fetch(this.resolveUrl('/api/generate'), {
         method: 'POST',
         headers: {
-          'content-type': 'application/json'
+          'content-type': 'application/json',
         },
         body: JSON.stringify({
           model: this.config.model,
@@ -80,14 +96,16 @@ export class DeepseekOcrAdapter implements OcrAdapter {
           options: {
             temperature: 0,
             num_predict: this.config.maxOutputTokens ?? 4096,
-            repeat_penalty: 1.15
-          }
+            repeat_penalty: 1.15,
+          },
         }),
-        signal: controller.signal
+        signal: controller.signal,
       });
     } catch (error) {
       const reason = error instanceof Error ? error.message : String(error);
-      throw new Error(`DeepSeek OCR unavailable at ${this.config.ollamaHost}: ${reason}`);
+      throw new Error(
+        `DeepSeek OCR unavailable at ${this.config.ollamaHost}: ${reason}`,
+      );
     } finally {
       clearTimeout(timeout);
     }
@@ -95,7 +113,7 @@ export class DeepseekOcrAdapter implements OcrAdapter {
     if (!response.ok) {
       const details = await safeResponseText(response);
       throw new Error(
-        `DeepSeek OCR request failed (${response.status} ${response.statusText})${details ? `: ${details}` : ''}`
+        `DeepSeek OCR request failed (${response.status} ${response.statusText})${details ? `: ${details}` : ''}`,
       );
     }
 
@@ -109,16 +127,24 @@ export class DeepseekOcrAdapter implements OcrAdapter {
 
     return {
       markdown,
-      layoutBlocks: parsed.layoutBlocks.length ? parsed.layoutBlocks : undefined
+      layoutBlocks: parsed.layoutBlocks.length
+        ? parsed.layoutBlocks
+        : undefined,
     };
   }
 
   private resolveUrl(pathname: string): string {
-    return new URL(pathname, withTrailingSlash(this.config.ollamaHost)).toString();
+    return new URL(
+      pathname,
+      withTrailingSlash(this.config.ollamaHost),
+    ).toString();
   }
 }
 
-function parseGroundedOcrMarkdown(content: string | undefined): { markdown: string; layoutBlocks: OcrLayoutBlock[] } {
+function parseGroundedOcrMarkdown(content: string | undefined): {
+  markdown: string;
+  layoutBlocks: OcrLayoutBlock[];
+} {
   const source = content ?? '';
   const lines = source.replace(/\r/g, '').split('\n');
   const markdownLines: string[] = [];
@@ -157,7 +183,7 @@ function parseGroundedOcrMarkdown(content: string | undefined): { markdown: stri
 
   return {
     markdown: markdownLines.join('\n'),
-    layoutBlocks
+    layoutBlocks,
   };
 }
 
@@ -176,19 +202,28 @@ function parseLayoutMarker(line: string): OcrLayoutBlock | null {
   return {
     type: match[1],
     bbox: bboxes[0],
-    bboxes: bboxes.length > 1 ? bboxes : undefined
+    bboxes: bboxes.length > 1 ? bboxes : undefined,
   };
 }
 
 function parseBboxes(value: string): Array<[number, number, number, number]> {
   const parts = (value.match(/-?\d+/g) ?? []).map(Number);
-  if (parts.length < 4 || parts.length % 4 !== 0 || parts.some((part) => !Number.isFinite(part))) {
+  if (
+    parts.length < 4 ||
+    parts.length % 4 !== 0 ||
+    parts.some((part) => !Number.isFinite(part))
+  ) {
     return [];
   }
 
   const bboxes: Array<[number, number, number, number]> = [];
   for (let index = 0; index < parts.length; index += 4) {
-    bboxes.push([parts[index], parts[index + 1], parts[index + 2], parts[index + 3]]);
+    bboxes.push([
+      parts[index],
+      parts[index + 1],
+      parts[index + 2],
+      parts[index + 3],
+    ]);
   }
 
   return bboxes;
@@ -197,28 +232,35 @@ function parseBboxes(value: string): Array<[number, number, number, number]> {
 function cleanOcrMarkdown(content: string | undefined): string {
   let markdown = content?.trim() ?? '';
 
-  markdown = markdown.replace(/<\|im_start\|>\s*system[\s\S]*?<\|im_end\|>/gi, '');
+  markdown = markdown.replace(
+    /<\|im_start\|>\s*system[\s\S]*?<\|im_end\|>/gi,
+    '',
+  );
   markdown = markdown.replace(/<\|im_(?:start|end)\|>/gi, '');
   markdown = markdown.replace(/<nl>/gi, '\n');
 
-  const systemPromptPattern = /you are a local ocr transcription engine\.[\s\S]*?(?:best-effort|best-efort) transcription only\.?/gi;
+  const systemPromptPattern =
+    /you are a local ocr transcription engine\.[\s\S]*?(?:best-effort|best-efort) transcription only\.?/gi;
   markdown = markdown.replace(systemPromptPattern, '');
 
   markdown = markdown.replace(
     /^you are a local ocr transcription engine\.\s*return only markdown transcribed from the provided (?:document|pdf) page image\.\s*/i,
-    ''
+    '',
   );
 
-  markdown = markdown.replace(/^convert this document page image into clean markdown\s*/i, '');
+  markdown = markdown.replace(
+    /^convert this document page image into clean markdown\s*/i,
+    '',
+  );
 
   markdown = markdown.replace(
     /^you are a helpful assistant[^\n]*?(?:here(?:'|’)?s the response:|here is the response:)\s*/i,
-    ''
+    '',
   );
 
   markdown = markdown.replace(
     /^(?:sure|certainly|of course)[,.!]?\s*(?:here(?:'|’)?s|here is)\s+(?:the\s+)?(?:transcription|markdown|response)[:\s-]*/i,
-    ''
+    '',
   );
 
   const fenced = /^```(?:markdown|md)?\s*\n([\s\S]*?)\n```$/i.exec(markdown);
@@ -232,7 +274,9 @@ function cleanOcrMarkdown(content: string | undefined): string {
 function listAvailableModelNames(payload: OllamaTagsResponse): string[] {
   return (payload.models ?? [])
     .flatMap((model) => [model.name, model.model])
-    .filter((value): value is string => typeof value === 'string' && value.length > 0)
+    .filter(
+      (value): value is string => typeof value === 'string' && value.length > 0,
+    )
     .map(normalizeModelName);
 }
 

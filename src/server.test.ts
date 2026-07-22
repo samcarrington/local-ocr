@@ -1,18 +1,24 @@
-import { mkdtempSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { rm } from 'node:fs/promises';
 import { createServer as createHttpServer } from 'node:http';
 import os from 'node:os';
 import path from 'node:path';
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
-
+import type {
+  AppConfig,
+  DraftJob,
+  OcrAdapter,
+  OcrResult,
+} from './core/types.js';
 import { createServer } from './server.js';
-import type { AppConfig, DraftJob, OcrAdapter, OcrResult } from './core/types.js';
 
 const tempDirs: string[] = [];
 
 afterEach(async () => {
-  await Promise.all(tempDirs.splice(0).map((dir) => rm(dir, { recursive: true, force: true })));
+  await Promise.all(
+    tempDirs.splice(0).map((dir) => rm(dir, { recursive: true, force: true })),
+  );
 });
 
 function makeTempDir(): string {
@@ -33,14 +39,21 @@ function makeConfig(rootDir: string): AppConfig {
     engines: {
       tesseract: {
         kind: 'tesseract',
-        lang: 'eng'
-      }
-    }
+        lang: 'eng',
+      },
+    },
   };
 }
 
 function makeJob(rootDir: string, overrides: Partial<DraftJob> = {}): DraftJob {
-  const previewPath = path.join(rootDir, '.ocrtool', 'jobs', 'job-1', 'previews', 'page-0001.png');
+  const previewPath = path.join(
+    rootDir,
+    '.ocrtool',
+    'jobs',
+    'job-1',
+    'previews',
+    'page-0001.png',
+  );
   mkdirSync(path.dirname(previewPath), { recursive: true });
   writeFileSync(previewPath, 'preview');
 
@@ -59,19 +72,21 @@ function makeJob(rootDir: string, overrides: Partial<DraftJob> = {}): DraftJob {
         accepted: false,
         status: 'pending',
         engine: 'tesseract',
-        confidence: 0.8
-      }
+        confidence: 0.8,
+      },
     ],
-    ...overrides
+    ...overrides,
   };
 }
 
 async function withServer(
   app: ReturnType<typeof createServer>,
-  run: (baseUrl: string) => Promise<void>
+  run: (baseUrl: string) => Promise<void>,
 ): Promise<void> {
   const server = createHttpServer(app);
-  await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', () => resolve()));
+  await new Promise<void>((resolve) =>
+    server.listen(0, '127.0.0.1', () => resolve()),
+  );
   const address = server.address();
 
   if (!address || typeof address === 'string') {
@@ -81,7 +96,9 @@ async function withServer(
   try {
     await run(`http://127.0.0.1:${address.port}`);
   } finally {
-    await new Promise<void>((resolve, reject) => server.close((error) => (error ? reject(error) : resolve())));
+    await new Promise<void>((resolve, reject) =>
+      server.close((error) => (error ? reject(error) : resolve())),
+    );
   }
 }
 
@@ -97,7 +114,9 @@ describe('server api', () => {
     const config = makeConfig(rootDir);
     config.host = '0.0.0.0';
 
-    expect(() => createServer(config)).toThrow('host must be loopback/local only: 0.0.0.0');
+    expect(() => createServer(config)).toThrow(
+      'host must be loopback/local only: 0.0.0.0',
+    );
   });
 
   it('lists inbox pdfs, resumes pending review jobs, and creates jobs with filename containment', async () => {
@@ -113,13 +132,13 @@ describe('server api', () => {
     const resumedJob = makeJob(rootDir, {
       id: 'resumed-job',
       sourcePdfPath: path.join(config.inboxPath, 'a.PDF'),
-      updatedAt: '2026-07-13T00:01:00.000Z'
+      updatedAt: '2026-07-13T00:01:00.000Z',
     });
     const createDraftJobMock = vi.fn(async () => createdJob);
     const listJobsMock = vi.fn(async () => [resumedJob]);
     const app = createServer(config, {
       createDraftJob: createDraftJobMock,
-      listJobs: listJobsMock
+      listJobs: listJobsMock,
     });
 
     await withServer(app, async (baseUrl) => {
@@ -130,16 +149,19 @@ describe('server api', () => {
       const resumeResponse = await fetch(`${baseUrl}/api/jobs`, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ pdf: 'a.PDF' })
+        body: JSON.stringify({ pdf: 'a.PDF' }),
       });
 
       expect(resumeResponse.status).toBe(200);
-      expect(await resumeResponse.json()).toEqual({ job: resumedJob, resumed: true });
+      expect(await resumeResponse.json()).toEqual({
+        job: resumedJob,
+        resumed: true,
+      });
 
       const createResponse = await fetch(`${baseUrl}/api/jobs`, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ pdf: 'b.pdf' })
+        body: JSON.stringify({ pdf: 'b.pdf' }),
       });
 
       expect(createResponse.status).toBe(201);
@@ -149,17 +171,19 @@ describe('server api', () => {
       expect(createDraftJobMock).toHaveBeenCalledWith(
         path.join(config.inboxPath, 'b.pdf'),
         config,
-        expect.any(Object)
+        expect.any(Object),
       );
 
       const traversalResponse = await fetch(`${baseUrl}/api/jobs`, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ pdf: '../escape.pdf' })
+        body: JSON.stringify({ pdf: '../escape.pdf' }),
       });
 
       expect(traversalResponse.status).toBe(400);
-      expect(await traversalResponse.json()).toEqual({ error: 'pdf must be inbox filename only' });
+      expect(await traversalResponse.json()).toEqual({
+        error: 'pdf must be inbox filename only',
+      });
     });
   });
 
@@ -170,7 +194,7 @@ describe('server api', () => {
     const draftDeleteJob = makeJob(rootDir, { id: 'draft-delete-job' });
     const rerunResult: OcrResult = {
       markdown: 'rerun markdown',
-      confidence: 0.91
+      confidence: 0.91,
     };
     const processPageMock = vi.fn(async () => rerunResult);
     const saveJobMock = vi.fn(async () => undefined);
@@ -178,40 +202,62 @@ describe('server api', () => {
       job.pages[0]!,
       {
         pageNumber: 2,
-        imagePath: path.join(rootDir, '.ocrtool', 'jobs', 'job-1', 'previews', 'page-0002.png'),
+        imagePath: path.join(
+          rootDir,
+          '.ocrtool',
+          'jobs',
+          'job-1',
+          'previews',
+          'page-0002.png',
+        ),
         nativeText: '',
         markdown: 'second page',
         accepted: false,
         status: 'pending',
-        engine: 'tesseract'
-      }
+        engine: 'tesseract',
+      },
     ];
     writeFileSync(job.pages[1]!.imagePath, 'preview-2');
-    const commitJobMock = vi.fn()
+    const commitJobMock = vi
+      .fn()
       .mockResolvedValueOnce({
         outputDir: path.join(config.inboxPath, 'report'),
         markdownPath: path.join(config.inboxPath, 'report', 'report.md'),
         processedPdfPath: null,
-        movedSourcePdf: false
+        movedSourcePdf: false,
       })
       .mockResolvedValueOnce({
         outputDir: path.join(config.inboxPath, 'report'),
         markdownPath: path.join(config.inboxPath, 'report', 'report.md'),
-        processedPdfPath: path.join(config.inboxPath, 'processed', 'report.pdf'),
-        movedSourcePdf: true
+        processedPdfPath: path.join(
+          config.inboxPath,
+          'processed',
+          'report.pdf',
+        ),
+        movedSourcePdf: true,
       });
     const deleteJobMock = vi.fn(async () => true);
-    const loadJobMock = vi.fn(async (_cfg, jobId: string) => (jobId === 'draft-delete-job' ? draftDeleteJob : job));
+    const loadJobMock = vi.fn(async (_cfg, jobId: string) =>
+      jobId === 'draft-delete-job' ? draftDeleteJob : job,
+    );
     const app = createServer(config, {
       loadJob: loadJobMock,
       saveJob: saveJobMock,
       commitJob: commitJobMock,
       deleteJob: deleteJobMock,
       createAdapterRegistry: () => ({
-        getDefaultAdapter: () => ({ name: 'tesseract', isAvailable: async () => true, processPage: processPageMock }),
-        getAdapter: () => ({ name: 'tesseract', isAvailable: async () => true, processPage: processPageMock }),
-        listAdapters: () => []
-      })
+        getDefaultAdapter: () => ({
+          name: 'tesseract',
+          isAvailable: async () => true,
+          processPage: processPageMock,
+        }),
+        getAdapter: () => ({
+          name: 'tesseract',
+          isAvailable: async () => true,
+          processPage: processPageMock,
+        }),
+        listAdapters: () => [],
+      }),
     });
 
     await withServer(app, async (baseUrl) => {
@@ -219,59 +265,78 @@ describe('server api', () => {
       expect(loadResponse.status).toBe(200);
       expect((await loadResponse.json()).job.id).toBe('job-1');
 
-      const previewResponse = await fetch(`${baseUrl}/api/jobs/job-1/pages/1/preview`);
+      const previewResponse = await fetch(
+        `${baseUrl}/api/jobs/job-1/pages/1/preview`,
+      );
       expect(previewResponse.status).toBe(200);
       expect(await previewResponse.text()).toBe('preview');
 
-      const rerunResponse = await fetch(`${baseUrl}/api/jobs/job-1/pages/1/rerun`, {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ engine: 'tesseract' })
-      });
+      const rerunResponse = await fetch(
+        `${baseUrl}/api/jobs/job-1/pages/1/rerun`,
+        {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ engine: 'tesseract' }),
+        },
+      );
       expect(rerunResponse.status).toBe(200);
-      expect(processPageMock).toHaveBeenCalledWith(job.pages[0]!.imagePath, { mode: 'markdown' });
+      expect(processPageMock).toHaveBeenCalledWith(job.pages[0]!.imagePath, {
+        mode: 'markdown',
+      });
       expect(job.pages[0]?.markdown).toBe('rerun markdown');
       expect(job.pages[0]?.confidence).toBe(0.91);
       expect(job.pages[0]?.accepted).toBe(false);
       expect(job.pages[0]?.qualityWarnings).toBeUndefined();
 
-      const acceptResponse = await fetch(`${baseUrl}/api/jobs/job-1/pages/1/accept`, {
-        method: 'POST'
-      });
+      const acceptResponse = await fetch(
+        `${baseUrl}/api/jobs/job-1/pages/1/accept`,
+        {
+          method: 'POST',
+        },
+      );
       expect(acceptResponse.status).toBe(200);
       expect(job.pages[0]?.accepted).toBe(true);
       expect(job.pages[0]?.status).toBe('accepted');
 
       const commitResponse = await fetch(`${baseUrl}/api/jobs/job-1/commit`, {
-        method: 'POST'
+        method: 'POST',
       });
       expect(commitResponse.status).toBe(200);
       expect(await commitResponse.json()).toMatchObject({
         outputPath: path.join(config.inboxPath, 'report'),
-        fullAccepted: false
+        fullAccepted: false,
       });
       expect(job.status).toBe('pending_review');
 
-      const acceptSecondPageResponse = await fetch(`${baseUrl}/api/jobs/job-1/pages/2/accept`, {
-        method: 'POST'
-      });
+      const acceptSecondPageResponse = await fetch(
+        `${baseUrl}/api/jobs/job-1/pages/2/accept`,
+        {
+          method: 'POST',
+        },
+      );
       expect(acceptSecondPageResponse.status).toBe(200);
       expect(job.pages[1]?.accepted).toBe(true);
       expect(job.pages[1]?.status).toBe('accepted');
 
-      const commitResponseFinal = await fetch(`${baseUrl}/api/jobs/job-1/commit`, {
-        method: 'POST'
-      });
+      const commitResponseFinal = await fetch(
+        `${baseUrl}/api/jobs/job-1/commit`,
+        {
+          method: 'POST',
+        },
+      );
       expect(commitResponseFinal.status).toBe(200);
       expect(await commitResponseFinal.json()).toMatchObject({
         outputPath: path.join(config.inboxPath, 'report'),
-        fullAccepted: true
+        fullAccepted: true,
       });
       expect(job.status).toBe('committed');
 
-      const deleteResponse = await fetch(`${baseUrl}/api/jobs/draft-delete-job`, {
-        method: 'DELETE'
-      });
+      const deleteResponse = await fetch(
+        `${baseUrl}/api/jobs/draft-delete-job`,
+        {
+          method: 'DELETE',
+        },
+      );
       expect(deleteResponse.status).toBe(200);
       expect(await deleteResponse.json()).toEqual({ deleted: true });
       expect(deleteJobMock).toHaveBeenCalledWith(config, 'draft-delete-job');
@@ -290,20 +355,25 @@ describe('server api', () => {
         {
           ...makeJob(rootDir).pages[0]!,
           accepted: true,
-          status: 'accepted'
-        }
-      ]
+          status: 'accepted',
+        },
+      ],
     });
     const saveJobMock = vi.fn(async () => undefined);
-    const processPageMock = vi.fn(async () => ({ markdown: 'changed', confidence: 0.7 }));
+    const processPageMock = vi.fn(async () => ({
+      markdown: 'changed',
+      confidence: 0.7,
+    }));
     const commitJobMock = vi.fn(async () => ({
       outputDir: path.join(config.inboxPath, 'report'),
       markdownPath: path.join(config.inboxPath, 'report', 'report.md'),
       processedPdfPath: path.join(config.inboxPath, 'processed', 'report.pdf'),
-      movedSourcePdf: true
+      movedSourcePdf: true,
     }));
     const deleteJobMock = vi.fn(async () => true);
-    const loadJobMock = vi.fn(async (_cfg, jobId: string) => (jobId === 'committed-job' ? committedJob : draftJob));
+    const loadJobMock = vi.fn(async (_cfg, jobId: string) =>
+      jobId === 'committed-job' ? committedJob : draftJob,
+    );
     committedJob.id = 'committed-job';
     const initialCommittedPage = { ...committedJob.pages[0]! };
 
@@ -313,47 +383,75 @@ describe('server api', () => {
       commitJob: commitJobMock,
       deleteJob: deleteJobMock,
       createAdapterRegistry: () => ({
-        getDefaultAdapter: () => ({ name: 'tesseract', isAvailable: async () => true, processPage: processPageMock }),
-        getAdapter: () => ({ name: 'tesseract', isAvailable: async () => true, processPage: processPageMock }),
-        listAdapters: () => []
-      })
+        getDefaultAdapter: () => ({
+          name: 'tesseract',
+          isAvailable: async () => true,
+          processPage: processPageMock,
+        }),
+        getAdapter: () => ({
+          name: 'tesseract',
+          isAvailable: async () => true,
+          processPage: processPageMock,
+        }),
+        listAdapters: () => [],
+      }),
     });
 
     await withServer(app, async (baseUrl) => {
-      const commitWithoutAccepted = await fetch(`${baseUrl}/api/jobs/job-1/commit`, {
-        method: 'POST'
-      });
+      const commitWithoutAccepted = await fetch(
+        `${baseUrl}/api/jobs/job-1/commit`,
+        {
+          method: 'POST',
+        },
+      );
       expect(commitWithoutAccepted.status).toBe(409);
       expect(await commitWithoutAccepted.json()).toEqual({
-        error: 'Cannot commit job without at least one accepted page'
+        error: 'Cannot commit job without at least one accepted page',
       });
       expect(commitJobMock).not.toHaveBeenCalled();
 
-      const rerunCommitted = await fetch(`${baseUrl}/api/jobs/committed-job/pages/1/rerun`, {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ engine: 'tesseract' })
-      });
+      const rerunCommitted = await fetch(
+        `${baseUrl}/api/jobs/committed-job/pages/1/rerun`,
+        {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ engine: 'tesseract' }),
+        },
+      );
       expect(rerunCommitted.status).toBe(409);
-      expect(await rerunCommitted.json()).toEqual({ error: 'Job already committed: committed-job' });
-
-      const acceptCommitted = await fetch(`${baseUrl}/api/jobs/committed-job/pages/1/accept`, {
-        method: 'POST'
+      expect(await rerunCommitted.json()).toEqual({
+        error: 'Job already committed: committed-job',
       });
+
+      const acceptCommitted = await fetch(
+        `${baseUrl}/api/jobs/committed-job/pages/1/accept`,
+        {
+          method: 'POST',
+        },
+      );
       expect(acceptCommitted.status).toBe(409);
-      expect(await acceptCommitted.json()).toEqual({ error: 'Job already committed: committed-job' });
-
-      const commitCommitted = await fetch(`${baseUrl}/api/jobs/committed-job/commit`, {
-        method: 'POST'
+      expect(await acceptCommitted.json()).toEqual({
+        error: 'Job already committed: committed-job',
       });
+
+      const commitCommitted = await fetch(
+        `${baseUrl}/api/jobs/committed-job/commit`,
+        {
+          method: 'POST',
+        },
+      );
       expect(commitCommitted.status).toBe(409);
-      expect(await commitCommitted.json()).toEqual({ error: 'Job already committed: committed-job' });
+      expect(await commitCommitted.json()).toEqual({
+        error: 'Job already committed: committed-job',
+      });
 
       const deleteCommitted = await fetch(`${baseUrl}/api/jobs/committed-job`, {
-        method: 'DELETE'
+        method: 'DELETE',
       });
       expect(deleteCommitted.status).toBe(409);
-      expect(await deleteCommitted.json()).toEqual({ error: 'Job already committed: committed-job' });
+      expect(await deleteCommitted.json()).toEqual({
+        error: 'Job already committed: committed-job',
+      });
     });
 
     expect(processPageMock).not.toHaveBeenCalled();
@@ -367,39 +465,47 @@ describe('server api', () => {
     const rootDir = makeTempDir();
     const config = makeConfig(rootDir);
     const app = createServer(config, {
-      loadJob: vi.fn(async () => null)
+      loadJob: vi.fn(async () => null),
     });
 
     await withServer(app, async (baseUrl) => {
       const missingJob = await fetch(`${baseUrl}/api/jobs/missing`);
       expect(missingJob.status).toBe(404);
-      expect(await missingJob.json()).toEqual({ error: 'Job not found: missing' });
+      expect(await missingJob.json()).toEqual({
+        error: 'Job not found: missing',
+      });
 
       const badJson = await fetch(`${baseUrl}/api/jobs`, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: '{'
+        body: '{',
       });
       expect(badJson.status).toBe(400);
-      expect(await badJson.json()).toEqual({ error: expect.stringContaining('JSON') });
+      expect(await badJson.json()).toEqual({
+        error: expect.stringContaining('JSON'),
+      });
     });
   });
 
   it('returns generic message for unexpected internal errors', async () => {
     const rootDir = makeTempDir();
     const config = makeConfig(rootDir);
-    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const errorSpy = vi
+      .spyOn(console, 'error')
+      .mockImplementation(() => undefined);
     const app = createServer(config, {
       loadJob: vi.fn(async () => {
         throw new Error(`ENOENT: secret path ${rootDir}/private/file`);
-      })
+      }),
     });
 
     try {
       await withServer(app, async (baseUrl) => {
         const response = await fetch(`${baseUrl}/api/jobs/job-1`);
         expect(response.status).toBe(500);
-        expect(await response.json()).toEqual({ error: 'Internal server error' });
+        expect(await response.json()).toEqual({
+          error: 'Internal server error',
+        });
       });
     } finally {
       errorSpy.mockRestore();
@@ -409,18 +515,22 @@ describe('server api', () => {
   it('logs server-side detail for 5xx while keeping the client response sanitized', async () => {
     const rootDir = makeTempDir();
     const config = makeConfig(rootDir);
-    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const errorSpy = vi
+      .spyOn(console, 'error')
+      .mockImplementation(() => undefined);
     const app = createServer(config, {
       loadJob: vi.fn(async () => {
         throw new Error('boom internal detail');
-      })
+      }),
     });
 
     try {
       await withServer(app, async (baseUrl) => {
         const response = await fetch(`${baseUrl}/api/jobs/job-1`);
         expect(response.status).toBe(500);
-        expect(await response.json()).toEqual({ error: 'Internal server error' });
+        expect(await response.json()).toEqual({
+          error: 'Internal server error',
+        });
       });
 
       expect(errorSpy).toHaveBeenCalledTimes(1);
@@ -442,31 +552,37 @@ describe('server api', () => {
       isAvailable: vi.fn(async () => true),
       processPage: vi.fn(async () => {
         throw new Error('Tesseract requires engines.tesseract.trainedDataPath');
-      })
+      }),
     };
 
-    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const errorSpy = vi
+      .spyOn(console, 'error')
+      .mockImplementation(() => undefined);
     const app = createServer(config, {
       loadJob: vi.fn(async () => job),
       createAdapterRegistry: vi.fn(() => ({
         getDefaultAdapter: vi.fn(),
         getAdapter: vi.fn(() => failingAdapter),
         listConfiguredEngines: vi.fn(() => ['tesseract']),
-        listAdapters: vi.fn(() => [])
-      }))
+        listAdapters: vi.fn(() => []),
+      })),
     });
 
     try {
       await withServer(app, async (baseUrl) => {
-        const response = await fetch(`${baseUrl}/api/jobs/job-1/pages/1/rerun`, {
-          method: 'POST',
-          headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ engine: 'tesseract' })
-        });
+        const response = await fetch(
+          `${baseUrl}/api/jobs/job-1/pages/1/rerun`,
+          {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ engine: 'tesseract' }),
+          },
+        );
 
         expect(response.status).toBe(502);
         expect(await response.json()).toEqual({
-          error: 'OCR rerun failed for tesseract: Tesseract requires engines.tesseract.trainedDataPath'
+          error:
+            'OCR rerun failed for tesseract: Tesseract requires engines.tesseract.trainedDataPath',
         });
       });
     } finally {
@@ -477,12 +593,22 @@ describe('server api', () => {
   it('saves OCR rerun output with warning when native coverage is low', async () => {
     const rootDir = makeTempDir();
     const config = makeConfig(rootDir);
-    const nativeText = Array.from({ length: 120 }, (_, index) => `nativeword${index}`).join(' ');
+    const nativeText = Array.from(
+      { length: 120 },
+      (_, index) => `nativeword${index}`,
+    ).join(' ');
     const job = makeJob(rootDir, {
       pages: [
         {
           pageNumber: 1,
-          imagePath: path.join(rootDir, '.ocrtool', 'jobs', 'job-1', 'previews', 'page-0001.png'),
+          imagePath: path.join(
+            rootDir,
+            '.ocrtool',
+            'jobs',
+            'job-1',
+            'previews',
+            'page-0001.png',
+          ),
           nativeText,
           markdown: 'original markdown',
           accepted: false,
@@ -494,11 +620,11 @@ describe('server api', () => {
               severity: 'warning',
               message: 'stale warning',
               coverage: 0.1,
-              missingSnippets: ['stale']
-            }
-          ]
-        }
-      ]
+              missingSnippets: ['stale'],
+            },
+          ],
+        },
+      ],
     });
     mkdirSync(path.dirname(job.pages[0]!.imagePath), { recursive: true });
     writeFileSync(job.pages[0]!.imagePath, 'preview');
@@ -506,7 +632,9 @@ describe('server api', () => {
     const lossyAdapter: OcrAdapter = {
       name: 'deepseek-ocr',
       isAvailable: vi.fn(async () => true),
-      processPage: vi.fn(async () => ({ markdown: 'short OCR output without native coverage' }))
+      processPage: vi.fn(async () => ({
+        markdown: 'short OCR output without native coverage',
+      })),
     };
 
     const app = createServer(config, {
@@ -516,20 +644,22 @@ describe('server api', () => {
         getDefaultAdapter: vi.fn(),
         getAdapter: vi.fn(() => lossyAdapter),
         listConfiguredEngines: vi.fn(() => ['deepseek-ocr']),
-        listAdapters: vi.fn(() => [])
-      }))
+        listAdapters: vi.fn(() => []),
+      })),
     });
 
     await withServer(app, async (baseUrl) => {
       const response = await fetch(`${baseUrl}/api/jobs/job-1/pages/1/rerun`, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ engine: 'deepseek-ocr' })
+        body: JSON.stringify({ engine: 'deepseek-ocr' }),
       });
 
       expect(response.status).toBe(200);
       const payload = await response.json();
-      expect(payload.page.markdown).toBe('short OCR output without native coverage');
+      expect(payload.page.markdown).toBe(
+        'short OCR output without native coverage',
+      );
       expect(payload.page.accepted).toBe(false);
       expect(payload.page.status).toBe('pending');
       expect(payload.page.qualityWarnings).toEqual([
@@ -541,11 +671,13 @@ describe('server api', () => {
           missingSnippets: [
             'nativeword0 nativeword1 nativeword2 nativeword3 nativeword4 nativeword5 nativeword6 nativeword7 nativeword8 nativeword9 nativeword10 nati...',
             'nativeword12 nativeword13 nativeword14 nativeword15 nativeword16 nativeword17 nativeword18 nativeword19 nativeword20 nativeword21 nativew...',
-            'nativeword24 nativeword25 nativeword26 nativeword27 nativeword28 nativeword29 nativeword30 nativeword31 nativeword32 nativeword33 nativew...'
-          ]
-        }
+            'nativeword24 nativeword25 nativeword26 nativeword27 nativeword28 nativeword29 nativeword30 nativeword31 nativeword32 nativeword33 nativew...',
+          ],
+        },
       ]);
-      expect(job.pages[0]?.markdown).toBe('short OCR output without native coverage');
+      expect(job.pages[0]?.markdown).toBe(
+        'short OCR output without native coverage',
+      );
       expect(saveJobMock).toHaveBeenCalledOnce();
     });
   });
@@ -553,12 +685,22 @@ describe('server api', () => {
   it('clears stale low-native-coverage warning when rerun coverage is okay or native text short', async () => {
     const rootDir = makeTempDir();
     const config = makeConfig(rootDir);
-    const nativeText = Array.from({ length: 120 }, (_, index) => `nativeword${index}`).join(' ');
+    const nativeText = Array.from(
+      { length: 120 },
+      (_, index) => `nativeword${index}`,
+    ).join(' ');
     const job = makeJob(rootDir, {
       pages: [
         {
           pageNumber: 1,
-          imagePath: path.join(rootDir, '.ocrtool', 'jobs', 'job-1', 'previews', 'page-0001.png'),
+          imagePath: path.join(
+            rootDir,
+            '.ocrtool',
+            'jobs',
+            'job-1',
+            'previews',
+            'page-0001.png',
+          ),
           nativeText,
           markdown: 'before',
           accepted: false,
@@ -570,13 +712,20 @@ describe('server api', () => {
               severity: 'warning',
               message: 'stale warning',
               coverage: 0.2,
-              missingSnippets: ['stale']
-            }
-          ]
+              missingSnippets: ['stale'],
+            },
+          ],
         },
         {
           pageNumber: 2,
-          imagePath: path.join(rootDir, '.ocrtool', 'jobs', 'job-1', 'previews', 'page-0002.png'),
+          imagePath: path.join(
+            rootDir,
+            '.ocrtool',
+            'jobs',
+            'job-1',
+            'previews',
+            'page-0002.png',
+          ),
           nativeText: 'short native text',
           markdown: 'before short',
           accepted: false,
@@ -588,11 +737,11 @@ describe('server api', () => {
               severity: 'warning',
               message: 'stale warning',
               coverage: 0.2,
-              missingSnippets: ['stale']
-            }
-          ]
-        }
-      ]
+              missingSnippets: ['stale'],
+            },
+          ],
+        },
+      ],
     });
     mkdirSync(path.dirname(job.pages[0]!.imagePath), { recursive: true });
     writeFileSync(job.pages[0]!.imagePath, 'preview');
@@ -604,7 +753,9 @@ describe('server api', () => {
       processPage: vi
         .fn()
         .mockResolvedValueOnce({ markdown: nativeText })
-        .mockResolvedValueOnce({ markdown: 'totally different but short native page' })
+        .mockResolvedValueOnce({
+          markdown: 'totally different but short native page',
+        }),
     };
 
     const app = createServer(config, {
@@ -614,24 +765,30 @@ describe('server api', () => {
         getDefaultAdapter: vi.fn(),
         getAdapter: vi.fn(() => goodAdapter),
         listConfiguredEngines: vi.fn(() => ['deepseek-ocr']),
-        listAdapters: vi.fn(() => [])
-      }))
+        listAdapters: vi.fn(() => []),
+      })),
     });
 
     await withServer(app, async (baseUrl) => {
-      const responseOne = await fetch(`${baseUrl}/api/jobs/job-1/pages/1/rerun`, {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ engine: 'deepseek-ocr' })
-      });
+      const responseOne = await fetch(
+        `${baseUrl}/api/jobs/job-1/pages/1/rerun`,
+        {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ engine: 'deepseek-ocr' }),
+        },
+      );
       expect(responseOne.status).toBe(200);
       expect((await responseOne.json()).page.qualityWarnings).toBeUndefined();
 
-      const responseTwo = await fetch(`${baseUrl}/api/jobs/job-1/pages/2/rerun`, {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ engine: 'deepseek-ocr' })
-      });
+      const responseTwo = await fetch(
+        `${baseUrl}/api/jobs/job-1/pages/2/rerun`,
+        {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ engine: 'deepseek-ocr' }),
+        },
+      );
       expect(responseTwo.status).toBe(200);
       expect((await responseTwo.json()).page.qualityWarnings).toBeUndefined();
     });

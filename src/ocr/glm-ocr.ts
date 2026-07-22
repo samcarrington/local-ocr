@@ -1,7 +1,11 @@
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 
-import type { GlmOcrEngineConfig, OcrAdapter, OcrResult } from '../core/types.js';
+import type {
+  GlmOcrEngineConfig,
+  OcrAdapter,
+  OcrResult,
+} from '../core/types.js';
 import { assertLocalHost, isLocalHost } from './local-host.js';
 
 const AVAILABILITY_TIMEOUT_MS = 1_500;
@@ -27,7 +31,7 @@ const MIME_BY_EXTENSION: Record<string, string> = {
   '.jpg': 'image/jpeg',
   '.jpeg': 'image/jpeg',
   '.webp': 'image/webp',
-  '.gif': 'image/gif'
+  '.gif': 'image/gif',
 };
 
 export class GlmOcrAdapter implements OcrAdapter {
@@ -41,12 +45,15 @@ export class GlmOcrAdapter implements OcrAdapter {
     }
 
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), AVAILABILITY_TIMEOUT_MS);
+    const timeout = setTimeout(
+      () => controller.abort(),
+      AVAILABILITY_TIMEOUT_MS,
+    );
 
     try {
       const response = await fetch(this.resolveUrl('/v1/models'), {
         method: 'GET',
-        signal: controller.signal
+        signal: controller.signal,
       });
 
       if (!response.ok) {
@@ -54,7 +61,9 @@ export class GlmOcrAdapter implements OcrAdapter {
       }
 
       const payload = (await response.json()) as ModelsResponse;
-      return listModelIds(payload).includes(normalizeModelName(this.config.model));
+      return listModelIds(payload).includes(
+        normalizeModelName(this.config.model),
+      );
     } catch {
       return false;
     } finally {
@@ -66,13 +75,16 @@ export class GlmOcrAdapter implements OcrAdapter {
     imagePath: string,
     _options?: {
       mode?: 'markdown' | 'plain' | 'layout';
-    }
+    },
   ): Promise<OcrResult> {
     assertLocalHost(this.config.serverHost, LOCAL_HOST_ERROR_PREFIX);
 
     const dataUrl = await this.readImageAsDataUrl(imagePath);
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), this.config.chatTimeoutMs ?? DEFAULT_CHAT_TIMEOUT_MS);
+    const timeout = setTimeout(
+      () => controller.abort(),
+      this.config.chatTimeoutMs ?? DEFAULT_CHAT_TIMEOUT_MS,
+    );
 
     let response: Response;
 
@@ -80,7 +92,7 @@ export class GlmOcrAdapter implements OcrAdapter {
       response = await fetch(this.resolveUrl('/v1/chat/completions'), {
         method: 'POST',
         headers: {
-          'content-type': 'application/json'
+          'content-type': 'application/json',
         },
         body: JSON.stringify({
           model: this.config.model,
@@ -93,21 +105,23 @@ export class GlmOcrAdapter implements OcrAdapter {
               content: [
                 {
                   type: 'text',
-                  text: GLM_OCR_PROMPT
+                  text: GLM_OCR_PROMPT,
                 },
                 {
                   type: 'image_url',
-                  image_url: { url: dataUrl }
-                }
-              ]
-            }
-          ]
+                  image_url: { url: dataUrl },
+                },
+              ],
+            },
+          ],
         }),
-        signal: controller.signal
+        signal: controller.signal,
       });
     } catch (error) {
       const reason = error instanceof Error ? error.message : String(error);
-      throw new Error(`GLM-OCR unavailable at ${this.config.serverHost}: ${reason}`);
+      throw new Error(
+        `GLM-OCR unavailable at ${this.config.serverHost}: ${reason}`,
+      );
     } finally {
       clearTimeout(timeout);
     }
@@ -115,7 +129,7 @@ export class GlmOcrAdapter implements OcrAdapter {
     if (!response.ok) {
       const details = await safeResponseText(response);
       throw new Error(
-        `GLM-OCR request failed (${response.status} ${response.statusText})${details ? `: ${details}` : ''}`
+        `GLM-OCR request failed (${response.status} ${response.statusText})${details ? `: ${details}` : ''}`,
       );
     }
 
@@ -131,12 +145,16 @@ export class GlmOcrAdapter implements OcrAdapter {
 
   private async readImageAsDataUrl(imagePath: string): Promise<string> {
     const base64 = await readFile(imagePath, { encoding: 'base64' });
-    const mime = MIME_BY_EXTENSION[path.extname(imagePath).toLowerCase()] ?? 'image/png';
+    const mime =
+      MIME_BY_EXTENSION[path.extname(imagePath).toLowerCase()] ?? 'image/png';
     return `data:${mime};base64,${base64}`;
   }
 
   private resolveUrl(pathname: string): string {
-    return new URL(pathname, withTrailingSlash(this.config.serverHost)).toString();
+    return new URL(
+      pathname,
+      withTrailingSlash(this.config.serverHost),
+    ).toString();
   }
 }
 
@@ -161,7 +179,9 @@ function cleanOcrText(content: string | null | undefined): string {
 function listModelIds(payload: ModelsResponse): string[] {
   return (payload.data ?? [])
     .map((model) => model.id)
-    .filter((value): value is string => typeof value === 'string' && value.length > 0)
+    .filter(
+      (value): value is string => typeof value === 'string' && value.length > 0,
+    )
     .map(normalizeModelName);
 }
 

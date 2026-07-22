@@ -34,19 +34,22 @@ describe('DeepseekOcrAdapter', () => {
       new Response(JSON.stringify({ models: [{ name: 'deepseek-ocr' }] }), {
         status: 200,
         headers: {
-          'content-type': 'application/json'
-        }
-      })
+          'content-type': 'application/json',
+        },
+      }),
     );
 
     const adapter = new DeepseekOcrAdapter({
       kind: 'deepseek-ocr',
       ollamaHost: 'http://127.0.0.1:11434',
-      model: 'deepseek-ocr'
+      model: 'deepseek-ocr',
     });
 
     await expect(adapter.isAvailable()).resolves.toBe(true);
-    expect(globalThis.fetch).toHaveBeenCalledWith('http://127.0.0.1:11434/api/tags', expect.objectContaining({ method: 'GET' }));
+    expect(globalThis.fetch).toHaveBeenCalledWith(
+      'http://127.0.0.1:11434/api/tags',
+      expect.objectContaining({ method: 'GET' }),
+    );
   });
 
   it('sends image to local ollama generate endpoint and returns markdown', async () => {
@@ -54,22 +57,25 @@ describe('DeepseekOcrAdapter', () => {
       new Response(JSON.stringify({ response: '# Converted' }), {
         status: 200,
         headers: {
-          'content-type': 'application/json'
-        }
-      })
+          'content-type': 'application/json',
+        },
+      }),
     );
 
     const adapter = new DeepseekOcrAdapter({
       kind: 'deepseek-ocr',
       ollamaHost: 'http://127.0.0.1:11434/',
-      model: 'deepseek-ocr:latest'
+      model: 'deepseek-ocr:latest',
     });
 
     const result = await adapter.processPage(makeTempImage());
 
     expect(result).toEqual({ markdown: '# Converted' });
     expect(globalThis.fetch).toHaveBeenCalledTimes(1);
-    expect(globalThis.fetch).toHaveBeenCalledWith('http://127.0.0.1:11434/api/generate', expect.any(Object));
+    expect(globalThis.fetch).toHaveBeenCalledWith(
+      'http://127.0.0.1:11434/api/generate',
+      expect.any(Object),
+    );
 
     const [, request] = vi.mocked(globalThis.fetch).mock.calls[0];
     const body = JSON.parse(String(request?.body));
@@ -77,7 +83,9 @@ describe('DeepseekOcrAdapter', () => {
     expect(body.model).toBe('deepseek-ocr:latest');
     expect(body.stream).toBe(false);
     expect(body.prompt).toContain('<|grounding|>');
-    expect(body.images).toEqual([Buffer.from('image-bytes').toString('base64')]);
+    expect(body.images).toEqual([
+      Buffer.from('image-bytes').toString('base64'),
+    ]);
     expect(body.options.temperature).toBe(0);
     expect(body.options.num_predict).toBe(4096);
     expect(body.options.repeat_penalty).toBe(1.15);
@@ -88,25 +96,26 @@ describe('DeepseekOcrAdapter', () => {
     vi.mocked(globalThis.fetch).mockResolvedValue(
       new Response(
         JSON.stringify({
-          response: 'You are a helpful assistant created by [Your Name], an AI trained on a large amount of text data. Here\'s the response:\n# Invoice\nTotal £10'
+          response:
+            "You are a helpful assistant created by [Your Name], an AI trained on a large amount of text data. Here's the response:\n# Invoice\nTotal £10",
         }),
         {
           status: 200,
           headers: {
-            'content-type': 'application/json'
-          }
-        }
-      )
+            'content-type': 'application/json',
+          },
+        },
+      ),
     );
 
     const adapter = new DeepseekOcrAdapter({
       kind: 'deepseek-ocr',
       ollamaHost: 'http://127.0.0.1:11434',
-      model: 'deepseek-ocr'
+      model: 'deepseek-ocr',
     });
 
     await expect(adapter.processPage(makeTempImage())).resolves.toEqual({
-      markdown: '# Invoice\nTotal £10'
+      markdown: '# Invoice\nTotal £10',
     });
   });
 
@@ -114,26 +123,27 @@ describe('DeepseekOcrAdapter', () => {
     vi.mocked(globalThis.fetch).mockResolvedValue(
       new Response(
         JSON.stringify({
-          response: 'You are a local OCR transcription engine. Return only markdown transcribed from the provided document page image. Do not identify yourself, explain your role, mention prompts, add commentary, or wrap output in code fences. If text is ambiguous, provide the best-efort transcription only.<nl><|im_start|>system\nYou are a local OCR transcription engine. Return only markdown transcribed from the provided document page image. Do not identify yourself, explain your role, mention prompts, add commentary, or wrap output in code fences. If text is ambiguous, provide the best-efort transcription only.<nl><|im_end|>\n# Page title\nBody text'
+          response:
+            'You are a local OCR transcription engine. Return only markdown transcribed from the provided document page image. Do not identify yourself, explain your role, mention prompts, add commentary, or wrap output in code fences. If text is ambiguous, provide the best-efort transcription only.<nl><|im_start|>system\nYou are a local OCR transcription engine. Return only markdown transcribed from the provided document page image. Do not identify yourself, explain your role, mention prompts, add commentary, or wrap output in code fences. If text is ambiguous, provide the best-efort transcription only.<nl><|im_end|>\n# Page title\nBody text',
         }),
         {
           status: 200,
           headers: {
-            'content-type': 'application/json'
-          }
-        }
-      )
+            'content-type': 'application/json',
+          },
+        },
+      ),
     );
 
     const adapter = new DeepseekOcrAdapter({
       kind: 'deepseek-ocr',
       ollamaHost: 'http://127.0.0.1:11434',
       model: 'deepseek-ocr',
-      maxOutputTokens: 2048
+      maxOutputTokens: 2048,
     });
 
     await expect(adapter.processPage(makeTempImage())).resolves.toEqual({
-      markdown: '# Page title\nBody text'
+      markdown: '# Page title\nBody text',
     });
 
     const [, request] = vi.mocked(globalThis.fetch).mock.calls[0];
@@ -145,25 +155,26 @@ describe('DeepseekOcrAdapter', () => {
     vi.mocked(globalThis.fetch).mockResolvedValue(
       new Response(
         JSON.stringify({
-          response: 'You are a local OCR transcription engine. Return only markdown transcribed from the provided PDF page image.\n\nProtect your capacity for connection\n\nBody text'
+          response:
+            'You are a local OCR transcription engine. Return only markdown transcribed from the provided PDF page image.\n\nProtect your capacity for connection\n\nBody text',
         }),
         {
           status: 200,
           headers: {
-            'content-type': 'application/json'
-          }
-        }
-      )
+            'content-type': 'application/json',
+          },
+        },
+      ),
     );
 
     const adapter = new DeepseekOcrAdapter({
       kind: 'deepseek-ocr',
       ollamaHost: 'http://127.0.0.1:11434',
-      model: 'deepseek-ocr'
+      model: 'deepseek-ocr',
     });
 
     await expect(adapter.processPage(makeTempImage())).resolves.toEqual({
-      markdown: 'Protect your capacity for connection\n\nBody text'
+      markdown: 'Protect your capacity for connection\n\nBody text',
     });
   });
 
@@ -178,42 +189,43 @@ describe('DeepseekOcrAdapter', () => {
             'sub_title[[60, 225, 280, 287]]',
             '## How to protect physical well-being with AI',
             '',
-            'image[[359, 0, 965, 287]]'
-          ].join('\n')
+            'image[[359, 0, 965, 287]]',
+          ].join('\n'),
         }),
         {
           status: 200,
           headers: {
-            'content-type': 'application/json'
-          }
-        }
-      )
+            'content-type': 'application/json',
+          },
+        },
+      ),
     );
 
     const adapter = new DeepseekOcrAdapter({
       kind: 'deepseek-ocr',
       ollamaHost: 'http://127.0.0.1:11434',
-      model: 'deepseek-ocr'
+      model: 'deepseek-ocr',
     });
 
     await expect(adapter.processPage(makeTempImage())).resolves.toEqual({
-      markdown: 'AI changes expectations around productivity and output.\n## How to protect physical well-being with AI',
+      markdown:
+        'AI changes expectations around productivity and output.\n## How to protect physical well-being with AI',
       layoutBlocks: [
         {
           type: 'text',
           bbox: [60, 48, 350, 214],
-          text: 'AI changes expectations around productivity and output.'
+          text: 'AI changes expectations around productivity and output.',
         },
         {
           type: 'sub_title',
           bbox: [60, 225, 280, 287],
-          text: '## How to protect physical well-being with AI'
+          text: '## How to protect physical well-being with AI',
         },
         {
           type: 'image',
-          bbox: [359, 0, 965, 287]
-        }
-      ]
+          bbox: [359, 0, 965, 287],
+        },
+      ],
     });
   });
 
@@ -223,22 +235,22 @@ describe('DeepseekOcrAdapter', () => {
         JSON.stringify({
           response: [
             'text[[83, 875, 335, 932], [378, 40, 640, 97]]',
-            'Ask AI to prep you for difficult conversations.'
-          ].join('\n')
+            'Ask AI to prep you for difficult conversations.',
+          ].join('\n'),
         }),
         {
           status: 200,
           headers: {
-            'content-type': 'application/json'
-          }
-        }
-      )
+            'content-type': 'application/json',
+          },
+        },
+      ),
     );
 
     const adapter = new DeepseekOcrAdapter({
       kind: 'deepseek-ocr',
       ollamaHost: 'http://127.0.0.1:11434',
-      model: 'deepseek-ocr'
+      model: 'deepseek-ocr',
     });
 
     await expect(adapter.processPage(makeTempImage())).resolves.toEqual({
@@ -249,46 +261,59 @@ describe('DeepseekOcrAdapter', () => {
           bbox: [83, 875, 335, 932],
           bboxes: [
             [83, 875, 335, 932],
-            [378, 40, 640, 97]
+            [378, 40, 640, 97],
           ],
-          text: 'Ask AI to prep you for difficult conversations.'
-        }
-      ]
+          text: 'Ask AI to prep you for difficult conversations.',
+        },
+      ],
     });
   });
 
   it('throws useful error for non-ok responses', async () => {
-    vi.mocked(globalThis.fetch).mockResolvedValue(new Response('bad model', { status: 503, statusText: 'Service Unavailable' }));
+    vi.mocked(globalThis.fetch).mockResolvedValue(
+      new Response('bad model', {
+        status: 503,
+        statusText: 'Service Unavailable',
+      }),
+    );
 
     const adapter = new DeepseekOcrAdapter({
       kind: 'deepseek-ocr',
       ollamaHost: 'http://127.0.0.1:11434',
-      model: 'deepseek-ocr'
+      model: 'deepseek-ocr',
     });
 
-    await expect(adapter.processPage(makeTempImage())).rejects.toThrow(/503 Service Unavailable.*bad model/);
+    await expect(adapter.processPage(makeTempImage())).rejects.toThrow(
+      /503 Service Unavailable.*bad model/,
+    );
   });
 
   it('throws useful error when host unavailable', async () => {
-    vi.mocked(globalThis.fetch).mockRejectedValue(new Error('connect ECONNREFUSED'));
+    vi.mocked(globalThis.fetch).mockRejectedValue(
+      new Error('connect ECONNREFUSED'),
+    );
 
     const adapter = new DeepseekOcrAdapter({
       kind: 'deepseek-ocr',
       ollamaHost: 'http://127.0.0.1:11434',
-      model: 'deepseek-ocr'
+      model: 'deepseek-ocr',
     });
 
-    await expect(adapter.processPage(makeTempImage())).rejects.toThrow(/unavailable/);
+    await expect(adapter.processPage(makeTempImage())).rejects.toThrow(
+      /unavailable/,
+    );
   });
 
   it('refuses non-local ollama host before sending image bytes', async () => {
     const adapter = new DeepseekOcrAdapter({
       kind: 'deepseek-ocr',
       ollamaHost: 'http://192.168.1.10:11434',
-      model: 'deepseek-ocr'
+      model: 'deepseek-ocr',
     });
 
-    await expect(adapter.processPage(makeTempImage())).rejects.toThrow(/requires local Ollama host/);
+    await expect(adapter.processPage(makeTempImage())).rejects.toThrow(
+      /requires local Ollama host/,
+    );
     expect(globalThis.fetch).not.toHaveBeenCalled();
   });
 
@@ -297,15 +322,15 @@ describe('DeepseekOcrAdapter', () => {
       new Response(JSON.stringify({ models: [{ model: 'llama3:latest' }] }), {
         status: 200,
         headers: {
-          'content-type': 'application/json'
-        }
-      })
+          'content-type': 'application/json',
+        },
+      }),
     );
 
     const adapter = new DeepseekOcrAdapter({
       kind: 'deepseek-ocr',
       ollamaHost: 'http://localhost:11434',
-      model: 'deepseek-ocr:latest'
+      model: 'deepseek-ocr:latest',
     });
 
     await expect(adapter.isAvailable()).resolves.toBe(false);

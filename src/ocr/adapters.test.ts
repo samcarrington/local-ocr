@@ -15,19 +15,19 @@ function makeConfig(): AppConfig {
     engines: {
       tesseract: {
         kind: 'tesseract',
-        lang: 'eng'
+        lang: 'eng',
       },
       'deepseek-ocr': {
         kind: 'deepseek-ocr',
         ollamaHost: 'http://127.0.0.1:11434',
-        model: 'deepseek-ocr'
+        model: 'deepseek-ocr',
       },
       'glm-ocr': {
         kind: 'glm-ocr',
         serverHost: 'http://127.0.0.1:8080',
-        model: 'mlx-community/GLM-OCR-bf16'
-      }
-    }
+        model: 'mlx-community/GLM-OCR-bf16',
+      },
+    },
   };
 }
 
@@ -41,14 +41,14 @@ describe('createOcrAdapterRegistry', () => {
     expect(registry.listAdapters().map((adapter) => adapter.name)).toEqual([
       'tesseract',
       'deepseek-ocr',
-      'glm-ocr'
+      'glm-ocr',
     ]);
   });
 
   it('uses glm-ocr as the default adapter when configured', () => {
     const registry = createOcrAdapterRegistry({
       ...makeConfig(),
-      defaultEngine: 'glm-ocr'
+      defaultEngine: 'glm-ocr',
     });
 
     expect(registry.getDefaultAdapter().name).toBe('glm-ocr');

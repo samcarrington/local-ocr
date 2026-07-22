@@ -3,7 +3,11 @@ import path from 'node:path';
 
 import { createWorker } from 'tesseract.js';
 
-import type { OcrAdapter, OcrResult, TesseractEngineConfig } from '../core/types.js';
+import type {
+  OcrAdapter,
+  OcrResult,
+  TesseractEngineConfig,
+} from '../core/types.js';
 
 type TesseractRecognizeResult = {
   data?: {
@@ -30,7 +34,7 @@ export class TesseractOcrAdapter implements OcrAdapter {
     imagePath: string,
     options?: {
       mode?: 'markdown' | 'plain' | 'layout';
-    }
+    },
   ): Promise<OcrResult> {
     const trainedData = this.getValidatedTrainedDataPath(true);
     if (!trainedData) {
@@ -39,41 +43,48 @@ export class TesseractOcrAdapter implements OcrAdapter {
     const worker = await createWorker(this.config.lang, 1, {
       langPath: trainedData.langPath,
       gzip: trainedData.gzip,
-      cacheMethod: 'none'
+      cacheMethod: 'none',
     });
 
     try {
-      const result = (await worker.recognize(imagePath)) as TesseractRecognizeResult;
+      const result = (await worker.recognize(
+        imagePath,
+      )) as TesseractRecognizeResult;
       const text = normalizeText(result.data?.text ?? '', options?.mode);
       const confidence = normalizeConfidence(result.data?.confidence);
 
       return {
         markdown: text,
-        ...(confidence === undefined ? {} : { confidence })
+        ...(confidence === undefined ? {} : { confidence }),
       };
     } finally {
       await worker.terminate();
     }
   }
 
-  private getValidatedTrainedDataPath(throwOnError = false): ValidatedTrainedData | undefined {
+  private getValidatedTrainedDataPath(
+    throwOnError = false,
+  ): ValidatedTrainedData | undefined {
     const configuredPath = this.config.trainedDataPath?.trim();
 
     if (!configuredPath) {
       return this.handleConfigError(
         'Tesseract requires engines.tesseract.trainedDataPath pointing to local traineddata assets. Remote download fallback is disabled.',
-        throwOnError
+        throwOnError,
       );
     }
 
     if (/^https?:\/\//i.test(configuredPath)) {
       return this.handleConfigError(
         `Tesseract trainedDataPath must be local filesystem path, received URL: ${configuredPath}`,
-        throwOnError
+        throwOnError,
       );
     }
 
-    const trainedDataFile = path.join(configuredPath, `${this.config.lang}.traineddata`);
+    const trainedDataFile = path.join(
+      configuredPath,
+      `${this.config.lang}.traineddata`,
+    );
     const compressedTrainedDataFile = `${trainedDataFile}.gz`;
 
     if (existsSync(trainedDataFile)) {
@@ -86,7 +97,7 @@ export class TesseractOcrAdapter implements OcrAdapter {
 
     return this.handleConfigError(
       `Tesseract traineddata missing: ${trainedDataFile} or ${compressedTrainedDataFile}`,
-      throwOnError
+      throwOnError,
     );
   }
 
@@ -99,7 +110,10 @@ export class TesseractOcrAdapter implements OcrAdapter {
   }
 }
 
-function normalizeText(text: string, mode: 'markdown' | 'plain' | 'layout' = 'markdown'): string {
+function normalizeText(
+  text: string,
+  mode: 'markdown' | 'plain' | 'layout' = 'markdown',
+): string {
   const trimmed = text.trim();
 
   if (mode === 'plain') {
@@ -109,7 +123,9 @@ function normalizeText(text: string, mode: 'markdown' | 'plain' | 'layout' = 'ma
   return trimmed;
 }
 
-function normalizeConfidence(confidence: number | undefined): number | undefined {
+function normalizeConfidence(
+  confidence: number | undefined,
+): number | undefined {
   if (typeof confidence !== 'number' || Number.isNaN(confidence)) {
     return undefined;
   }

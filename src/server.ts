@@ -1,15 +1,17 @@
-import express from 'express';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
-
-import { createApiRouter, installJsonErrorHandler } from './api.js';
+import express from 'express';
 import type { ApiDependencies } from './api.js';
+import { createApiRouter, installJsonErrorHandler } from './api.js';
 import { loadConfig } from './core/config.js';
 import type { AppConfig } from './core/types.js';
 
 const LOCAL_HOSTS = new Set(['127.0.0.1', 'localhost', '::1']);
 
-export function createServer(config: AppConfig = loadConfig(), apiDependencies?: Partial<ApiDependencies>) {
+export function createServer(
+  config: AppConfig = loadConfig(),
+  apiDependencies?: Partial<ApiDependencies>,
+) {
   assertLocalHost(config.host);
   const app = express();
   const publicDir = path.resolve(process.cwd(), 'public');
@@ -41,7 +43,9 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   const app = createServer(config);
 
   app.listen(config.port, config.host, () => {
-    console.log(`local-ocr scaffold listening on http://${config.host}:${config.port}`);
+    console.log(
+      `local-ocr scaffold listening on http://${config.host}:${config.port}`,
+    );
   });
 }
 

@@ -1,8 +1,10 @@
 {
   "name": "local-ocr",
-  "version": "0.1.0",
-  "private": true,
-  "type": "module",
+  "version": "0.9.0",
+  "private": false,
+  "author": "Sam Carrington <sam.carrington@frog.co>",
+  "description": "Local OCR tool for PDFs and images, supporting multiple OCR adapters.",
+  "license": "MIT",
   "scripts": {
     "dev": "tsx watch src/server.ts",
     "build": "tsc -p tsconfig.json",
@@ -16,18 +18,18 @@
     "node": ">=20"
   },
   "dependencies": {
-    "@napi-rs/canvas": "^0.1.80",
-    "express": "^4.21.2",
-    "pdfjs-dist": "^4.10.38",
-    "tesseract.js": "^6.0.1",
-    "yaml": "^2.8.0",
-    "zod": "^3.24.1"
+    "@napi-rs/canvas": "1.0.2",
+    "express": "5.2.1",
+    "pdfjs-dist": "6.1.200",
+    "tesseract.js": "7.0.0",
+    "yaml": "2.9.0",
+    "zod": "4.4.3"
   },
   "devDependencies": {
-    "@types/express": "^4.17.23",
-    "@types/node": "^24.0.15",
-    "tsx": "^4.20.3",
-    "typescript": "^5.8.3",
-    "vitest": "^2.1.8"
+    "@types/express": "5.0.6",
+    "@types/node": "24.13.3",
+    "tsx": "4.23.1",
+    "typescript": "7.0.2",
+    "vitest": "4.1.10"
   }
 }

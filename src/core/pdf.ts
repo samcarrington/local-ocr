@@ -1,9 +1,9 @@
-import { createRequire } from 'node:module';
 import { mkdir, writeFile } from 'node:fs/promises';
+import { createRequire } from 'node:module';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 
-import { Canvas, createCanvas } from '@napi-rs/canvas';
+import { type Canvas, createCanvas } from '@napi-rs/canvas';
 import { getDocument, OPS } from 'pdfjs-dist/legacy/build/pdf.mjs';
 
 const DEFAULT_PREVIEW_SCALE = 1.5;
@@ -15,18 +15,20 @@ const MIN_IMAGE_DEVICE_PX = 32;
 // pdf.js type defs omit some members that exist at runtime; unknown names are
 // dropped rather than breaking the build.
 const IMAGE_OP_CODES = new Set<number>(
-  ([
-    'paintImageXObject',
-    'paintInlineImageXObject',
-    'paintImageMaskXObject',
-    'paintImageMaskXObjectGroup',
-    'paintSolidColorImageMask',
-    'paintInlineImageXObjectGroup',
-    'paintImageXObjectRepeat',
-    'paintImageMaskXObjectRepeat'
-  ] as const)
+  (
+    [
+      'paintImageXObject',
+      'paintInlineImageXObject',
+      'paintImageMaskXObject',
+      'paintImageMaskXObjectGroup',
+      'paintSolidColorImageMask',
+      'paintInlineImageXObjectGroup',
+      'paintImageXObjectRepeat',
+      'paintImageMaskXObjectRepeat',
+    ] as const
+  )
     .map((name) => (OPS as unknown as Record<string, number | undefined>)[name])
-    .filter((code): code is number => typeof code === 'number')
+    .filter((code): code is number => typeof code === 'number'),
 );
 const require = createRequire(import.meta.url);
 const STANDARD_FONT_DATA_URL = resolveStandardFontDataUrl();
@@ -124,12 +126,12 @@ const nodeCanvasFactory: CanvasFactory = {
   destroy(instance) {
     instance.canvas.width = 0;
     instance.canvas.height = 0;
-  }
+  },
 };
 
 export async function extractPdfPages(
   pdfPath: string,
-  options: ExtractPdfOptions
+  options: ExtractPdfOptions,
 ): Promise<PdfPageExtract[]> {
   await mkdir(options.previewDir, { recursive: true });
 
@@ -138,7 +140,7 @@ export async function extractPdfPages(
     disableFontFace: true,
     useSystemFonts: true,
     isEvalSupported: false,
-    standardFontDataUrl: STANDARD_FONT_DATA_URL
+    standardFontDataUrl: STANDARD_FONT_DATA_URL,
   } as Parameters<typeof getDocument>[0]);
 
   const pdf = await loadingTask.promise;
@@ -157,14 +159,14 @@ export async function extractPdfPages(
           index,
           options.previewDir,
           options.previewScale,
-          options.extractImages ?? true
+          options.extractImages ?? true,
         );
 
         pages.push({
           pageNumber: index,
           nativeText,
           previewImagePath,
-          images
+          images,
         });
       } finally {
         page.cleanup();
@@ -179,7 +181,10 @@ export async function extractPdfPages(
 
 function resolveStandardFontDataUrl(): string {
   const pdfjsPackagePath = require.resolve('pdfjs-dist/package.json');
-  const standardFontsDir = path.join(path.dirname(pdfjsPackagePath), 'standard_fonts');
+  const standardFontsDir = path.join(
+    path.dirname(pdfjsPackagePath),
+    'standard_fonts',
+  );
 
   return pathToFileURL(`${standardFontsDir}${path.sep}`).toString();
 }
@@ -203,7 +208,7 @@ async function renderPage(
   pageNumber: number,
   previewDir: string,
   scale = DEFAULT_PREVIEW_SCALE,
-  extractImages = true
+  extractImages = true,
 ): Promise<{ previewImagePath: string; images: PdfPageImage[] }> {
   const viewport = page.getViewport({ scale });
   const canvasFactory = nodeCanvasFactory;
@@ -216,14 +221,25 @@ async function renderPage(
       canvasContext: canvas.context as unknown as CanvasRenderingContext2D,
       viewport,
       canvasFactory,
-      background: 'white'
+      background: 'white',
     }).promise;
 
-    const previewImagePath = path.join(previewDir, `page-${String(pageNumber).padStart(4, '0')}.png`);
+    const previewImagePath = path.join(
+      previewDir,
+      `page-${String(pageNumber).padStart(4, '0')}.png`,
+    );
     await writeFile(previewImagePath, canvas.canvas.toBuffer('image/png'));
 
     const images = extractImages
-      ? await extractPageImages(page, canvas.canvas, pageNumber, previewDir, viewport, deviceWidth, deviceHeight)
+      ? await extractPageImages(
+          page,
+          canvas.canvas,
+          pageNumber,
+          previewDir,
+          viewport,
+          deviceWidth,
+          deviceHeight,
+        )
       : [];
 
     return { previewImagePath, images };
@@ -239,18 +255,25 @@ async function extractPageImages(
   previewDir: string,
   viewport: PdfViewport,
   deviceWidth: number,
-  deviceHeight: number
+  deviceHeight: number,
 ): Promise<PdfPageImage[]> {
   let regions: Array<[number, number, number, number]>;
 
   try {
     const opList = await page.getOperatorList();
-    regions = computeImageRegions(opList, viewport.transform as Matrix, deviceWidth, deviceHeight);
+    regions = computeImageRegions(
+      opList,
+      viewport.transform as Matrix,
+      deviceWidth,
+      deviceHeight,
+    );
   } catch (error) {
     // Image geometry is best-effort; a failure here must not break the preview
     // pipeline. Degrade to "no figures" and let text/preview continue.
     const reason = error instanceof Error ? error.message : String(error);
-    console.warn(`[pdf] image extraction failed for page ${pageNumber}: ${reason}`);
+    console.warn(
+      `[pdf] image extraction failed for page ${pageNumber}: ${reason}`,
+    );
     return [];
   }
 
@@ -258,7 +281,10 @@ async function extractPageImages(
 
   for (const [regionIndex, bbox] of regions.entries()) {
     const crop = cropRegion(renderedCanvas, bbox);
-    const imagePath = path.join(previewDir, `page-${String(pageNumber).padStart(4, '0')}-image-${String(regionIndex + 1).padStart(3, '0')}.png`);
+    const imagePath = path.join(
+      previewDir,
+      `page-${String(pageNumber).padStart(4, '0')}-image-${String(regionIndex + 1).padStart(3, '0')}.png`,
+    );
     await writeFile(imagePath, crop.toBuffer('image/png'));
     images.push({ bbox, imagePath });
   }
@@ -277,7 +303,7 @@ export function computeImageRegions(
   opList: PdfOperatorList,
   viewportTransform: Matrix,
   deviceWidth: number,
-  deviceHeight: number
+  deviceHeight: number,
 ): Array<[number, number, number, number]> {
   const regions: Array<[number, number, number, number]> = [];
   const stack: Matrix[] = [];
@@ -305,7 +331,16 @@ export function computeImageRegions(
       continue;
     }
 
-    regions.push(...computeRegionsForImageOp(fn, opList.argsArray[index], ctm, viewportTransform, deviceWidth, deviceHeight));
+    regions.push(
+      ...computeRegionsForImageOp(
+        fn,
+        opList.argsArray[index],
+        ctm,
+        viewportTransform,
+        deviceWidth,
+        deviceHeight,
+      ),
+    );
   }
 
   return regions;
@@ -317,26 +352,62 @@ function computeRegionsForImageOp(
   ctm: Matrix,
   viewportTransform: Matrix,
   deviceWidth: number,
-  deviceHeight: number
+  deviceHeight: number,
 ): Array<[number, number, number, number]> {
   if (fn === OPS.paintInlineImageXObjectGroup) {
-    return computeInlineImageGroupRegions(args, ctm, viewportTransform, deviceWidth, deviceHeight);
+    return computeInlineImageGroupRegions(
+      args,
+      ctm,
+      viewportTransform,
+      deviceWidth,
+      deviceHeight,
+    );
   }
 
   if (fn === OPS.paintImageMaskXObjectGroup) {
-    return computeImageMaskGroupRegions(args, ctm, viewportTransform, deviceWidth, deviceHeight);
+    return computeImageMaskGroupRegions(
+      args,
+      ctm,
+      viewportTransform,
+      deviceWidth,
+      deviceHeight,
+    );
   }
 
   if (fn === OPS.paintImageXObjectRepeat) {
-    return computeImageRepeatRegions(args, ctm, viewportTransform, deviceWidth, deviceHeight, false);
+    return computeImageRepeatRegions(
+      args,
+      ctm,
+      viewportTransform,
+      deviceWidth,
+      deviceHeight,
+      false,
+    );
   }
 
   if (fn === OPS.paintImageMaskXObjectRepeat) {
-    return computeImageRepeatRegions(args, ctm, viewportTransform, deviceWidth, deviceHeight, true);
+    return computeImageRepeatRegions(
+      args,
+      ctm,
+      viewportTransform,
+      deviceWidth,
+      deviceHeight,
+      true,
+    );
   }
 
-  return [computeRegion(multiplyMatrix(viewportTransform, ctm), 0, 0, 1, 1, deviceWidth, deviceHeight)].filter(
-    (region): region is [number, number, number, number] => region !== null
+  return [
+    computeRegion(
+      multiplyMatrix(viewportTransform, ctm),
+      0,
+      0,
+      1,
+      1,
+      deviceWidth,
+      deviceHeight,
+    ),
+  ].filter(
+    (region): region is [number, number, number, number] => region !== null,
   );
 }
 
@@ -345,7 +416,7 @@ function computeInlineImageGroupRegions(
   ctm: Matrix,
   viewportTransform: Matrix,
   deviceWidth: number,
-  deviceHeight: number
+  deviceHeight: number,
 ): Array<[number, number, number, number]> {
   const map = Array.isArray(args[1]) ? (args[1] as InlineImageGroupItem[]) : [];
 
@@ -356,7 +427,15 @@ function computeInlineImageGroupRegions(
       return [];
     }
 
-    const region = computeRegion(multiplyMatrix(multiplyMatrix(viewportTransform, ctm), transform), 0, 0, 1, 1, deviceWidth, deviceHeight);
+    const region = computeRegion(
+      multiplyMatrix(multiplyMatrix(viewportTransform, ctm), transform),
+      0,
+      0,
+      1,
+      1,
+      deviceWidth,
+      deviceHeight,
+    );
     return region ? [region] : [];
   });
 }
@@ -366,9 +445,11 @@ function computeImageMaskGroupRegions(
   ctm: Matrix,
   viewportTransform: Matrix,
   deviceWidth: number,
-  deviceHeight: number
+  deviceHeight: number,
 ): Array<[number, number, number, number]> {
-  const images = Array.isArray(args[0]) ? (args[0] as ImageMaskGroupItem[]) : [];
+  const images = Array.isArray(args[0])
+    ? (args[0] as ImageMaskGroupItem[])
+    : [];
 
   return images.flatMap((item) => {
     const transform = readMatrix(item?.transform);
@@ -377,7 +458,15 @@ function computeImageMaskGroupRegions(
       return [];
     }
 
-    const region = computeRegion(multiplyMatrix(multiplyMatrix(viewportTransform, ctm), transform), 0, 0, 1, 1, deviceWidth, deviceHeight);
+    const region = computeRegion(
+      multiplyMatrix(multiplyMatrix(viewportTransform, ctm), transform),
+      0,
+      0,
+      1,
+      1,
+      deviceWidth,
+      deviceHeight,
+    );
     return region ? [region] : [];
   });
 }
@@ -388,7 +477,7 @@ function computeImageRepeatRegions(
   viewportTransform: Matrix,
   deviceWidth: number,
   deviceHeight: number,
-  hasSkew: boolean
+  hasSkew: boolean,
 ): Array<[number, number, number, number]> {
   const scaleX = readFiniteNumber(args[1]);
   const skewX = hasSkew ? readFiniteNumber(args[2]) : 0;
@@ -396,13 +485,27 @@ function computeImageRepeatRegions(
   const scaleY = readFiniteNumber(args[hasSkew ? 4 : 2]);
   const positions = readPositions(args[hasSkew ? 5 : 3]);
 
-  if (scaleX === null || skewX === null || skewY === null || scaleY === null || positions.length === 0) {
+  if (
+    scaleX === null ||
+    skewX === null ||
+    skewY === null ||
+    scaleY === null ||
+    positions.length === 0
+  ) {
     return [];
   }
 
   return positions.flatMap(([x, y]) => {
     const transform: Matrix = [scaleX, skewX, skewY, scaleY, x, y];
-    const region = computeRegion(multiplyMatrix(multiplyMatrix(viewportTransform, ctm), transform), 0, 0, 1, 1, deviceWidth, deviceHeight);
+    const region = computeRegion(
+      multiplyMatrix(multiplyMatrix(viewportTransform, ctm), transform),
+      0,
+      0,
+      1,
+      1,
+      deviceWidth,
+      deviceHeight,
+    );
     return region ? [region] : [];
   });
 }
@@ -414,13 +517,13 @@ function computeRegion(
   w: number,
   h: number,
   deviceWidth: number,
-  deviceHeight: number
+  deviceHeight: number,
 ): [number, number, number, number] | null {
   const corners: Array<[number, number]> = [
     applyMatrix(toDevice, x, y),
     applyMatrix(toDevice, x + w, y),
     applyMatrix(toDevice, x + w, y + h),
-    applyMatrix(toDevice, x, y + h)
+    applyMatrix(toDevice, x, y + h),
   ];
   const xs = corners.map((corner) => corner[0]);
   const ys = corners.map((corner) => corner[1]);
@@ -437,7 +540,9 @@ function computeRegion(
 }
 
 function readMatrix(value: unknown): Matrix | null {
-  return Array.isArray(value) && value.length === 6 && value.every((item) => typeof item === 'number' && Number.isFinite(item))
+  return Array.isArray(value) &&
+    value.length === 6 &&
+    value.every((item) => typeof item === 'number' && Number.isFinite(item))
     ? (value as Matrix)
     : null;
 }
@@ -474,7 +579,10 @@ function isFiniteNumberArrayLike(value: unknown): value is ArrayLike<number> {
 
   const arrayLike = value as ArrayLike<unknown>;
   for (let index = 0; index < length; index += 1) {
-    if (typeof arrayLike[index] !== 'number' || !Number.isFinite(arrayLike[index])) {
+    if (
+      typeof arrayLike[index] !== 'number' ||
+      !Number.isFinite(arrayLike[index])
+    ) {
       return false;
     }
   }
@@ -482,12 +590,27 @@ function isFiniteNumberArrayLike(value: unknown): value is ArrayLike<number> {
   return true;
 }
 
-function cropRegion(sourceCanvas: Canvas, bbox: [number, number, number, number]): Canvas {
+function cropRegion(
+  sourceCanvas: Canvas,
+  bbox: [number, number, number, number],
+): Canvas {
   const [x0, y0, x1, y1] = bbox;
   const width = Math.max(1, Math.round(x1 - x0));
   const height = Math.max(1, Math.round(y1 - y0));
   const out = createCanvas(width, height);
-  out.getContext('2d').drawImage(sourceCanvas, Math.round(x0), Math.round(y0), width, height, 0, 0, width, height);
+  out
+    .getContext('2d')
+    .drawImage(
+      sourceCanvas,
+      Math.round(x0),
+      Math.round(y0),
+      width,
+      height,
+      0,
+      0,
+      width,
+      height,
+    );
   return out;
 }
 
@@ -500,7 +623,7 @@ function multiplyMatrix(m1: Matrix, m2: Matrix): Matrix {
     m1[0] * m2[2] + m1[2] * m2[3],
     m1[1] * m2[2] + m1[3] * m2[3],
     m1[0] * m2[4] + m1[2] * m2[5] + m1[4],
-    m1[1] * m2[4] + m1[3] * m2[5] + m1[5]
+    m1[1] * m2[4] + m1[3] * m2[5] + m1[5],
   ];
 }
 

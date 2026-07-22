@@ -1,4 +1,10 @@
-import { existsSync, mkdtempSync, mkdirSync, readdirSync, writeFileSync } from 'node:fs';
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  writeFileSync,
+} from 'node:fs';
 import { readFile, rm } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
@@ -11,7 +17,9 @@ import type { AppConfig, DraftJob } from './types.js';
 const tempDirs: string[] = [];
 
 afterEach(async () => {
-  await Promise.all(tempDirs.splice(0).map((dir) => rm(dir, { recursive: true, force: true })));
+  await Promise.all(
+    tempDirs.splice(0).map((dir) => rm(dir, { recursive: true, force: true })),
+  );
 });
 
 function makeTempDir(): string {
@@ -32,14 +40,14 @@ function makeConfig(rootDir: string): AppConfig {
     engines: {
       tesseract: {
         kind: 'tesseract',
-        lang: 'eng'
+        lang: 'eng',
       },
       'deepseek-ocr': {
         kind: 'deepseek-ocr',
         ollamaHost: 'http://127.0.0.1:11434',
-        model: 'deepseek-ocr'
-      }
-    }
+        model: 'deepseek-ocr',
+      },
+    },
   };
 }
 
@@ -71,7 +79,7 @@ describe('commitJob', () => {
           markdown: 'Second page accepted.',
           accepted: true,
           status: 'accepted',
-          engine: 'deepseek-ocr'
+          engine: 'deepseek-ocr',
         },
         {
           pageNumber: 1,
@@ -84,9 +92,9 @@ describe('commitJob', () => {
           figures: [
             {
               bbox: [0, 0, 10, 10],
-              imagePath: figureSourcePath
-            }
-          ]
+              imagePath: figureSourcePath,
+            },
+          ],
         },
         {
           pageNumber: 3,
@@ -95,7 +103,7 @@ describe('commitJob', () => {
           markdown: 'Ignored pending page body.',
           accepted: false,
           status: 'pending',
-          engine: 'tesseract'
+          engine: 'tesseract',
         },
         {
           pageNumber: 4,
@@ -104,21 +112,27 @@ describe('commitJob', () => {
           markdown: 'Ignored failed page body.',
           accepted: false,
           status: 'failed',
-          engine: 'tesseract'
-        }
-      ]
+          engine: 'tesseract',
+        },
+      ],
     };
 
     const result = await commitJob(config, job, {
-      convertedAt: new Date('2026-07-13T12:34:56.000Z')
+      convertedAt: new Date('2026-07-13T12:34:56.000Z'),
     });
 
-    const copiedFigurePath = path.join(path.dirname(result.markdownPath), 'images', 'page-001-figure-001.png');
+    const copiedFigurePath = path.join(
+      path.dirname(result.markdownPath),
+      'images',
+      'page-001-figure-001.png',
+    );
 
     expect(result.movedSourcePdf).toBe(false);
     expect(result.processedPdfPath).toBeNull();
     expect(existsSync(sourcePdfPath)).toBe(true);
-    expect(existsSync(path.join(path.dirname(result.markdownPath), 'images'))).toBe(true);
+    expect(
+      existsSync(path.join(path.dirname(result.markdownPath), 'images')),
+    ).toBe(true);
     expect(existsSync(copiedFigurePath)).toBe(true);
     expect(await readFile(copiedFigurePath, 'utf8')).toBe('figure');
     expect(await readFile(result.markdownPath, 'utf8')).toBe(`---
@@ -156,21 +170,27 @@ Second page accepted.
           nativeText: '',
           markdown: 'All done.',
           accepted: true,
-          engine: 'tesseract'
-        }
-      ]
+          engine: 'tesseract',
+        },
+      ],
     };
 
     const result = await commitJob(config, job, {
-      convertedAt: new Date('2026-07-13T01:02:03.000Z')
+      convertedAt: new Date('2026-07-13T01:02:03.000Z'),
     });
 
     expect(result.movedSourcePdf).toBe(true);
-    expect(result.processedPdfPath).toBe(path.join(config.inboxPath, 'processed', 'done.pdf'));
+    expect(result.processedPdfPath).toBe(
+      path.join(config.inboxPath, 'processed', 'done.pdf'),
+    );
     expect(existsSync(sourcePdfPath)).toBe(false);
     expect(existsSync(result.processedPdfPath!)).toBe(true);
     expect(await readFile(result.markdownPath, 'utf8')).toContain('All done.');
-    expect(readdirSync(path.dirname(result.markdownPath)).filter((entry) => entry.endsWith('.tmp'))).toEqual([]);
+    expect(
+      readdirSync(path.dirname(result.markdownPath)).filter((entry) =>
+        entry.endsWith('.tmp'),
+      ),
+    ).toEqual([]);
   });
 
   it('sanitizes executable raw html while preserving markdown and safe html', async () => {
@@ -192,16 +212,18 @@ Second page accepted.
             '# Title\n\n<div class="note" onclick="alert(1)">Safe **markdown** HTML</div>\n<script>bad()</script>\n<iframe src="x"></iframe>\n<style>.bad{}</style>\n<a href="javascript:bad()">bad link</a>\n<img src="https://example.test/x.png" alt="remote">\n<img src="ftp://example.test/x.png" alt="ftp">\n<img src="file:///tmp/x.png" alt="file">\n<img src="data:image/png;base64,abc" alt="data">\n<img src="images/local.png" alt="local">\n<img src="./foo.png" alt="dot local">\n<img src="../foo.png" alt="parent local">',
           accepted: true,
           status: 'accepted',
-          engine: 'tesseract'
-        }
-      ]
+          engine: 'tesseract',
+        },
+      ],
     };
 
     const result = await commitJob(config, job);
     const markdown = await readFile(result.markdownPath, 'utf8');
 
     expect(markdown).toContain('# Title');
-    expect(markdown).toContain('<div class="note">Safe **markdown** HTML</div>');
+    expect(markdown).toContain(
+      '<div class="note">Safe **markdown** HTML</div>',
+    );
     expect(markdown).toContain('<a>bad link</a>');
     expect(markdown).toContain('<img alt="remote">');
     expect(markdown).toContain('<img alt="ftp">');
@@ -210,7 +232,9 @@ Second page accepted.
     expect(markdown).toContain('<img src="images/local.png" alt="local">');
     expect(markdown).toContain('<img src="./foo.png" alt="dot local">');
     expect(markdown).toContain('<img src="../foo.png" alt="parent local">');
-    expect(markdown).not.toMatch(/<script|bad\(\)|<iframe|<style|onclick=|javascript:|https:\/\/example\.test|ftp:\/\/example\.test|file:\/\/\/tmp|data:image/i);
+    expect(markdown).not.toMatch(
+      /<script|bad\(\)|<iframe|<style|onclick=|javascript:|https:\/\/example\.test|ftp:\/\/example\.test|file:\/\/\/tmp|data:image/i,
+    );
   });
 
   it('strips style attributes from safe raw html while retaining allowed table and figure markup', async () => {
@@ -238,9 +262,9 @@ Second page accepted.
             '<figure><img src="images/local.png" alt="Local"><figcaption>Caption</figcaption></figure>',
           accepted: true,
           status: 'accepted',
-          engine: 'tesseract'
-        }
-      ]
+          engine: 'tesseract',
+        },
+      ],
     };
 
     const result = await commitJob(config, job);
@@ -250,9 +274,15 @@ Second page accepted.
     expect(markdown.match(/<div>x<\/div>/g)).toHaveLength(3);
     expect(markdown).toContain('<div class="x">x</div>');
     expect(markdown).toContain('<div data-style="kept">y</div>');
-    expect(markdown).toContain('<table><thead><tr><th scope="col">H</th></tr></thead><tbody><tr><td data-note="kept">Cell</td></tr></tbody></table>');
-    expect(markdown).toContain('<figure><img src="images/local.png" alt="Local"><figcaption>Caption</figcaption></figure>');
-    expect(markdown).not.toMatch(/(?:\s+|\/+)+style(?:\s|\/|>|=)|background-image|https:\/\/attacker\.test/i);
+    expect(markdown).toContain(
+      '<table><thead><tr><th scope="col">H</th></tr></thead><tbody><tr><td data-note="kept">Cell</td></tr></tbody></table>',
+    );
+    expect(markdown).toContain(
+      '<figure><img src="images/local.png" alt="Local"><figcaption>Caption</figcaption></figure>',
+    );
+    expect(markdown).not.toMatch(
+      /(?:\s+|\/+)+style(?:\s|\/|>|=)|background-image|https:\/\/attacker\.test/i,
+    );
   });
 
   it('strips obfuscated executable html and unsafe raw image urls', async () => {
@@ -274,9 +304,9 @@ Second page accepted.
             '<script src="bad.js"/>\n<script>alert(1)\n<a href="java&#x09;script&#58;bad()">encoded</a>\n<a href=" javascript:spaced()">spaced link</a>\n<img src=" https://example.test/spaced.png" alt="spaced remote">\n<img src="//example.test/a.png" srcset="//example.test/a.png 1x, images/local.png 2x" alt="proto">\n<img srcset="https://example.test/a.png 1x, data:image/png;base64,abc 2x" alt="remote srcset">\n<img srcset="images/one.png 1x, images/two.png 2x" alt="local srcset">',
           accepted: true,
           status: 'accepted',
-          engine: 'tesseract'
-        }
-      ]
+          engine: 'tesseract',
+        },
+      ],
     };
 
     const result = await commitJob(config, job);
@@ -288,7 +318,9 @@ Second page accepted.
     expect(markdown).toContain('<img alt="proto">');
     expect(markdown).toContain('<img alt="remote srcset">');
     expect(markdown).toContain('<img alt="local srcset">');
-    expect(markdown).not.toMatch(/<script|alert\(1\)|javascript:|java&#x09;script|spaced\.png|srcset=|\/\/example\.test|https:\/\/example\.test|data:image/i);
+    expect(markdown).not.toMatch(
+      /<script|alert\(1\)|javascript:|java&#x09;script|spaced\.png|srcset=|\/\/example\.test|https:\/\/example\.test|data:image/i,
+    );
   });
 
   it('sanitizes unsafe inline markdown links and images', async () => {
@@ -319,9 +351,9 @@ Second page accepted.
             '[note](../notes/safe.md)',
           accepted: true,
           status: 'accepted',
-          engine: 'tesseract'
-        }
-      ]
+          engine: 'tesseract',
+        },
+      ],
     };
 
     const result = await commitJob(config, job);
@@ -334,7 +366,9 @@ Second page accepted.
     expect(markdown).toContain('[encoded]()');
     expect(markdown).toContain('[spaced]()');
     expect(markdown).toContain('[note](../notes/safe.md)');
-    expect(markdown).not.toMatch(/https:\/\/example\.test|file:\/\/|\\\\example\.test|javascript\\?:|java&#x09;script/i);
+    expect(markdown).not.toMatch(
+      /https:\/\/example\.test|file:\/\/|\\\\example\.test|javascript\\?:|java&#x09;script/i,
+    );
   });
 
   it('sanitizes markdown reference image destinations and nested-alt inline images', async () => {
@@ -366,9 +400,9 @@ Second page accepted.
             '![safe [inner] (draft)](images/local.png)',
           accepted: true,
           status: 'accepted',
-          engine: 'tesseract'
-        }
-      ]
+          engine: 'tesseract',
+        },
+      ],
     };
 
     const result = await commitJob(config, job);
@@ -384,7 +418,9 @@ Second page accepted.
     expect(markdown).toContain('[doc]: ../notes/safe.md');
     expect(markdown).toContain('![chart [inner] (draft)]()');
     expect(markdown).toContain('![safe [inner] (draft)](images/local.png)');
-    expect(markdown).not.toMatch(/\[(?:remote|bad\\\]|file|data|proto)\]:|https:\/\/attacker\.test|file:\/\/|data:image|\/\/attacker\.test/i);
+    expect(markdown).not.toMatch(
+      /\[(?:remote|bad\\\]|file|data|proto)\]:|https:\/\/attacker\.test|file:\/\/|data:image|\/\/attacker\.test/i,
+    );
   });
 
   it('strips unsafe svg xlink href urls', async () => {
@@ -409,9 +445,9 @@ Second page accepted.
             '<a href="/normal">normal</a>',
           accepted: true,
           status: 'accepted',
-          engine: 'tesseract'
-        }
-      ]
+          engine: 'tesseract',
+        },
+      ],
     };
 
     const result = await commitJob(config, job);
@@ -421,7 +457,9 @@ Second page accepted.
     expect(markdown).toContain('<a>encoded</a>');
     expect(markdown).toContain('<a xlink:href="#safe">safe</a>');
     expect(markdown).toContain('<a href="/normal">normal</a>');
-    expect(markdown).not.toMatch(/<svg|<\/svg|javascript:|java&#x09;script|xlink:href="javascript/i);
+    expect(markdown).not.toMatch(
+      /<svg|<\/svg|javascript:|java&#x09;script|xlink:href="javascript/i,
+    );
   });
 
   it('strips malformed and disallowed raw html tags before attribute sanitization', async () => {
@@ -446,9 +484,9 @@ Second page accepted.
             '<span data-x="1">safe span</span>',
           accepted: true,
           status: 'accepted',
-          engine: 'tesseract'
-        }
-      ]
+          engine: 'tesseract',
+        },
+      ],
     };
 
     const result = await commitJob(config, job);
@@ -458,7 +496,9 @@ Second page accepted.
     expect(markdown).toContain('x');
     expect(markdown).toContain('custom');
     expect(markdown).toContain('<span data-x="1">safe span</span>');
-    expect(markdown).not.toMatch(/<scr|<\/scr|onerror|<math|<\/math|<mi|<\/mi|<custom-tag|<\/custom-tag/i);
+    expect(markdown).not.toMatch(
+      /<scr|<\/scr|onerror|<math|<\/math|<mi|<\/mi|<custom-tag|<\/custom-tag/i,
+    );
   });
 
   it('preserves normal table figure and local image markup through raw html allowlist', async () => {
@@ -481,16 +521,20 @@ Second page accepted.
             '<figure><img src="images/chart.png" alt="Chart"><figcaption><strong>Chart</strong></figcaption></figure>',
           accepted: true,
           status: 'accepted',
-          engine: 'tesseract'
-        }
-      ]
+          engine: 'tesseract',
+        },
+      ],
     };
 
     const result = await commitJob(config, job);
     const markdown = await readFile(result.markdownPath, 'utf8');
 
-    expect(markdown).toContain('<table><caption>Data</caption><thead><tr><th>A</th></tr></thead><tbody><tr><td>B</td></tr></tbody></table>');
-    expect(markdown).toContain('<figure><img src="images/chart.png" alt="Chart"><figcaption><strong>Chart</strong></figcaption></figure>');
+    expect(markdown).toContain(
+      '<table><caption>Data</caption><thead><tr><th>A</th></tr></thead><tbody><tr><td>B</td></tr></tbody></table>',
+    );
+    expect(markdown).toContain(
+      '<figure><img src="images/chart.png" alt="Chart"><figcaption><strong>Chart</strong></figcaption></figure>',
+    );
   });
 
   it('sanitizes img tags with greater-than characters inside quoted attributes', async () => {
@@ -510,14 +554,14 @@ Second page accepted.
           nativeText: '',
           markdown:
             '<img alt=">" src="https://example.test/escaped.png">\n' +
-            "<img alt='>' src=\"https://example.test/single.png\">\n" +
+            '<img alt=\'>\' src="https://example.test/single.png">\n' +
             '<img alt=">" src="images/local.png">\n' +
-            "<img alt='>' src=\"images/single-local.png\">",
+            '<img alt=\'>\' src="images/single-local.png">',
           accepted: true,
           status: 'accepted',
-          engine: 'tesseract'
-        }
-      ]
+          engine: 'tesseract',
+        },
+      ],
     };
 
     const result = await commitJob(config, job);
@@ -526,7 +570,7 @@ Second page accepted.
     expect(markdown).toContain('<img alt=">">');
     expect(markdown).toContain("<img alt='>'>");
     expect(markdown).toContain('<img alt=">" src="images/local.png">');
-    expect(markdown).toContain("<img alt='>' src=\"images/single-local.png\">");
+    expect(markdown).toContain('<img alt=\'>\' src="images/single-local.png">');
     expect(markdown).not.toMatch(/https:\/\/example\.test/i);
   });
 
@@ -550,16 +594,20 @@ Second page accepted.
             '<img src="images/self-closing.png" alt="self closing" />',
           accepted: true,
           status: 'accepted',
-          engine: 'tesseract'
-        }
-      ]
+          engine: 'tesseract',
+        },
+      ],
     };
 
     const result = await commitJob(config, job);
     const markdown = await readFile(result.markdownPath, 'utf8');
 
-    expect(markdown).toContain('<img src="images/local.png" alt="slash event">');
-    expect(markdown).toContain('<img src="images/self-closing.png" alt="self closing" />');
+    expect(markdown).toContain(
+      '<img src="images/local.png" alt="slash event">',
+    );
+    expect(markdown).toContain(
+      '<img src="images/self-closing.png" alt="self closing" />',
+    );
     expect(markdown).not.toMatch(/onerror|alert\(1\)/i);
   });
 
@@ -586,9 +634,9 @@ Second page accepted.
             '<img/src="images/self-closing.png" alt="self closing" />',
           accepted: true,
           status: 'accepted',
-          engine: 'tesseract'
-        }
-      ]
+          engine: 'tesseract',
+        },
+      ],
     };
 
     const result = await commitJob(config, job);
@@ -598,8 +646,12 @@ Second page accepted.
     expect(markdown).toContain('<a>bad xlink</a>');
     expect(markdown).toContain('<img alt="slash src">');
     expect(markdown).toContain('<img alt="slash srcset">');
-    expect(markdown).toContain('<img src="images/self-closing.png" alt="self closing" />');
-    expect(markdown).not.toMatch(/<svg|<\/svg|href=|xlink:href=|javascript:|https:\/\/example\.test/i);
+    expect(markdown).toContain(
+      '<img src="images/self-closing.png" alt="self closing" />',
+    );
+    expect(markdown).not.toMatch(
+      /<svg|<\/svg|href=|xlink:href=|javascript:|https:\/\/example\.test/i,
+    );
   });
 
   it('strips unquoted remote raw image urls while preserving unquoted local paths', async () => {
@@ -625,9 +677,9 @@ Second page accepted.
             '<img src=images/local.png srcset=//example.test/x,images/local.png alt=local>',
           accepted: true,
           status: 'accepted',
-          engine: 'tesseract'
-        }
-      ]
+          engine: 'tesseract',
+        },
+      ],
     };
 
     const result = await commitJob(config, job);
@@ -638,7 +690,9 @@ Second page accepted.
     expect(markdown).toContain('<img alt=https>');
     expect(markdown).toContain('<img alt=data>');
     expect(markdown).toContain('<img src=images/local.png alt=local>');
-    expect(markdown).not.toMatch(/src=\/\/example\.test|src=https?:\/\/example\.test|src=data:|srcset=/i);
+    expect(markdown).not.toMatch(
+      /src=\/\/example\.test|src=https?:\/\/example\.test|src=data:|srcset=/i,
+    );
   });
 
   it('strips entity-encoded C0 and C1 controls before unsafe URL checks', async () => {
@@ -660,9 +714,9 @@ Second page accepted.
             '<a href="&#14;javascript:bad()">c0 link</a>\n<img src="&#14;https://example.test/c0.png" alt="c0 src">\n<img src="&#x85;https://example.test/c1.png" alt="c1 src">\n<img srcset="&#14;https://example.test/c0.png 1x, images/local.png 2x" alt="c0 srcset">',
           accepted: true,
           status: 'accepted',
-          engine: 'tesseract'
-        }
-      ]
+          engine: 'tesseract',
+        },
+      ],
     };
 
     const result = await commitJob(config, job);
@@ -672,7 +726,9 @@ Second page accepted.
     expect(markdown).toContain('<img alt="c0 src">');
     expect(markdown).toContain('<img alt="c1 src">');
     expect(markdown).toContain('<img alt="c0 srcset">');
-    expect(markdown).not.toMatch(/href=|srcset=|&#14;|&#x85;|javascript:|https:\/\/example\.test/i);
+    expect(markdown).not.toMatch(
+      /href=|srcset=|&#14;|&#x85;|javascript:|https:\/\/example\.test/i,
+    );
   });
 
   it('strips entity-encoded protocol-relative raw image urls while preserving local values', async () => {
@@ -694,9 +750,9 @@ Second page accepted.
             '<img src="&sol;&sol;example.test/x.png" alt="encoded proto">\n<img src="images/local.png" srcset="images/one.png 1x, images/two.png 2x" alt="local">',
           accepted: true,
           status: 'accepted',
-          engine: 'tesseract'
-        }
-      ]
+          engine: 'tesseract',
+        },
+      ],
     };
 
     const result = await commitJob(config, job);
@@ -710,7 +766,10 @@ Second page accepted.
   it('strips raw html srcset attributes while preserving safe local src', async () => {
     const rootDir = makeTempDir();
     const config = makeConfig(rootDir);
-    const sourcePdfPath = createPdf(rootDir, 'encoded-srcset-comma-external.pdf');
+    const sourcePdfPath = createPdf(
+      rootDir,
+      'encoded-srcset-comma-external.pdf',
+    );
     const job: DraftJob = {
       id: 'job-encoded-srcset-comma-external',
       sourcePdfPath,
@@ -726,16 +785,20 @@ Second page accepted.
             '<img src="images/base.png" srcset="images/local.png 1x&#34; onerror=alert(1)&#44; https://example.test/remote.png 2x" alt="encoded quote srcset">',
           accepted: true,
           status: 'accepted',
-          engine: 'tesseract'
-        }
-      ]
+          engine: 'tesseract',
+        },
+      ],
     };
 
     const result = await commitJob(config, job);
     const markdown = await readFile(result.markdownPath, 'utf8');
 
-    expect(markdown).toContain('<img src="images/base.png" alt="encoded quote srcset">');
-    expect(markdown).not.toMatch(/srcset=|onerror|alert\(1\)|https:\/\/example\.test|&#34;|&#44;/i);
+    expect(markdown).toContain(
+      '<img src="images/base.png" alt="encoded quote srcset">',
+    );
+    expect(markdown).not.toMatch(
+      /srcset=|onerror|alert\(1\)|https:\/\/example\.test|&#34;|&#44;/i,
+    );
   });
 
   it('strips local srcset candidates separated by entity-encoded commas', async () => {
@@ -757,15 +820,17 @@ Second page accepted.
             '<img src="images/base.png" srcset="images/one.png 1x&#44; images/two.png 2x" alt="encoded comma local">',
           accepted: true,
           status: 'accepted',
-          engine: 'tesseract'
-        }
-      ]
+          engine: 'tesseract',
+        },
+      ],
     };
 
     const result = await commitJob(config, job);
     const markdown = await readFile(result.markdownPath, 'utf8');
 
-    expect(markdown).toContain('<img src="images/base.png" alt="encoded comma local">');
+    expect(markdown).toContain(
+      '<img src="images/base.png" alt="encoded comma local">',
+    );
     expect(markdown).not.toMatch(/srcset=/i);
   });
 
@@ -789,9 +854,9 @@ Second page accepted.
             '<img src="images\\local.png" srcset="images\\one.png 1x, images/two.png 2x" alt="local">',
           accepted: true,
           status: 'accepted',
-          engine: 'tesseract'
-        }
-      ]
+          engine: 'tesseract',
+        },
+      ],
     };
 
     const result = await commitJob(config, job);
@@ -827,7 +892,7 @@ Second page accepted.
           accepted: true,
           status: 'accepted',
           engine: 'deepseek-ocr',
-          figures: [{ bbox: [0, 0, 10, 10], imagePath: acceptedCrop }]
+          figures: [{ bbox: [0, 0, 10, 10], imagePath: acceptedCrop }],
         },
         {
           pageNumber: 2,
@@ -837,7 +902,7 @@ Second page accepted.
           accepted: false,
           status: 'pending',
           engine: 'deepseek-ocr',
-          figures: [{ bbox: [0, 0, 10, 10], imagePath: pendingCrop }]
+          figures: [{ bbox: [0, 0, 10, 10], imagePath: pendingCrop }],
         },
         {
           pageNumber: 3,
@@ -847,9 +912,9 @@ Second page accepted.
           accepted: false,
           status: 'failed',
           engine: 'deepseek-ocr',
-          figures: [{ bbox: [0, 0, 10, 10], imagePath: failedCrop }]
-        }
-      ]
+          figures: [{ bbox: [0, 0, 10, 10], imagePath: failedCrop }],
+        },
+      ],
     };
 
     const result = await commitJob(config, job);
@@ -861,9 +926,15 @@ Second page accepted.
     expect(markdown).toContain('[[OCR FAILED: page 3]]');
     expect(markdown).not.toContain('page-002-figure');
     expect(markdown).not.toContain('page-003-figure');
-    expect(existsSync(path.join(outputDir, 'images', 'page-001-figure-001.png'))).toBe(true);
-    expect(existsSync(path.join(outputDir, 'images', 'page-002-figure-001.png'))).toBe(false);
-    expect(existsSync(path.join(outputDir, 'images', 'page-003-figure-001.png'))).toBe(false);
+    expect(
+      existsSync(path.join(outputDir, 'images', 'page-001-figure-001.png')),
+    ).toBe(true);
+    expect(
+      existsSync(path.join(outputDir, 'images', 'page-002-figure-001.png')),
+    ).toBe(false);
+    expect(
+      existsSync(path.join(outputDir, 'images', 'page-003-figure-001.png')),
+    ).toBe(false);
   });
 
   it('does not duplicate existing markdown figure links', async () => {
@@ -883,24 +954,31 @@ Second page accepted.
           pageNumber: 1,
           imagePath: 'page-1.png',
           nativeText: '',
-          markdown: 'Has figure already.\n\n![](images/page-001-figure-001.png)',
+          markdown:
+            'Has figure already.\n\n![](images/page-001-figure-001.png)',
           accepted: true,
           status: 'accepted',
           engine: 'tesseract',
           figures: [
             {
               bbox: [0, 0, 10, 10],
-              imagePath: figureSourcePath
-            }
-          ]
-        }
-      ]
+              imagePath: figureSourcePath,
+            },
+          ],
+        },
+      ],
     };
 
     const result = await commitJob(config, job);
 
-    expect(await readFile(result.markdownPath, 'utf8')).toContain('Has figure already.\n\n![](images/page-001-figure-001.png)');
-    expect((await readFile(result.markdownPath, 'utf8')).match(/!\[\]\(images\/page-001-figure-001\.png\)/g)).toHaveLength(1);
+    expect(await readFile(result.markdownPath, 'utf8')).toContain(
+      'Has figure already.\n\n![](images/page-001-figure-001.png)',
+    );
+    expect(
+      (await readFile(result.markdownPath, 'utf8')).match(
+        /!\[\]\(images\/page-001-figure-001\.png\)/g,
+      ),
+    ).toHaveLength(1);
   });
 
   it('rewrites inline placeholder image srcs to committed crop files in order', async () => {
@@ -929,25 +1007,35 @@ Second page accepted.
           engine: 'nuextract3-ocr',
           figures: [
             { bbox: [0, 0, 10, 10], imagePath: cropOne },
-            { bbox: [0, 0, 10, 10], imagePath: cropTwo }
-          ]
-        }
-      ]
+            { bbox: [0, 0, 10, 10], imagePath: cropTwo },
+          ],
+        },
+      ],
     };
 
     const result = await commitJob(config, job);
     const markdown = await readFile(result.markdownPath, 'utf8');
     const imagesDir = path.join(path.dirname(result.markdownPath), 'images');
 
-    expect(markdown).toContain('<img src="images/page-001-figure-001.png" alt="A logo"/>');
-    expect(markdown).toContain('<img src="images/page-001-figure-002.png" alt="A chart"/>');
+    expect(markdown).toContain(
+      '<img src="images/page-001-figure-001.png" alt="A logo"/>',
+    );
+    expect(markdown).toContain(
+      '<img src="images/page-001-figure-002.png" alt="A chart"/>',
+    );
     expect(markdown).not.toContain('img_1.png');
     expect(markdown).not.toContain('img_2.png');
     // No duplicate appended links when rewriting inline refs.
     expect(markdown).not.toContain('![](images/');
-    expect(existsSync(path.join(imagesDir, 'page-001-figure-001.png'))).toBe(true);
-    expect(await readFile(path.join(imagesDir, 'page-001-figure-001.png'), 'utf8')).toBe('crop-one');
-    expect(await readFile(path.join(imagesDir, 'page-001-figure-002.png'), 'utf8')).toBe('crop-two');
+    expect(existsSync(path.join(imagesDir, 'page-001-figure-001.png'))).toBe(
+      true,
+    );
+    expect(
+      await readFile(path.join(imagesDir, 'page-001-figure-001.png'), 'utf8'),
+    ).toBe('crop-one');
+    expect(
+      await readFile(path.join(imagesDir, 'page-001-figure-002.png'), 'utf8'),
+    ).toBe('crop-two');
   });
 
   it('rewrites single-quoted and unquoted placeholder image srcs without appending duplicate fallback links', async () => {
@@ -969,23 +1057,28 @@ Second page accepted.
           pageNumber: 1,
           imagePath: 'page-1.png',
           nativeText: '',
-          markdown: "<figure><img alt='one' src='img_1.png' data-id='a'></figure>\n<figure><img alt=two src=img_2.png data-id=b></figure>",
+          markdown:
+            "<figure><img alt='one' src='img_1.png' data-id='a'></figure>\n<figure><img alt=two src=img_2.png data-id=b></figure>",
           accepted: true,
           status: 'accepted',
           engine: 'nuextract3-ocr',
           figures: [
             { bbox: [0, 0, 10, 10], imagePath: cropOne },
-            { bbox: [0, 0, 10, 10], imagePath: cropTwo }
-          ]
-        }
-      ]
+            { bbox: [0, 0, 10, 10], imagePath: cropTwo },
+          ],
+        },
+      ],
     };
 
     const result = await commitJob(config, job);
     const markdown = await readFile(result.markdownPath, 'utf8');
 
-    expect(markdown).toContain("<img alt='one' src='images/page-001-figure-001.png' data-id='a'>");
-    expect(markdown).toContain('<img alt=two src=images/page-001-figure-002.png data-id=b>');
+    expect(markdown).toContain(
+      "<img alt='one' src='images/page-001-figure-001.png' data-id='a'>",
+    );
+    expect(markdown).toContain(
+      '<img alt=two src=images/page-001-figure-002.png data-id=b>',
+    );
     expect(markdown).not.toContain('img_1.png');
     expect(markdown).not.toContain('img_2.png');
     expect(markdown).not.toContain('![](images/');
@@ -1022,18 +1115,24 @@ Second page accepted.
           figures: [
             { bbox: [0, 0, 10, 10], imagePath: cropOne },
             { bbox: [0, 0, 10, 10], imagePath: cropTwo },
-            { bbox: [0, 0, 10, 10], imagePath: cropThree }
-          ]
-        }
-      ]
+            { bbox: [0, 0, 10, 10], imagePath: cropThree },
+          ],
+        },
+      ],
     };
 
     const result = await commitJob(config, job);
     const markdown = await readFile(result.markdownPath, 'utf8');
 
-    expect(markdown).toContain('<img class="first" src="images/page-001-figure-001.png" alt="one" data-after="kept">');
-    expect(markdown).toContain("<img class='second' src='images/page-001-figure-002.png' alt='two' data-after='kept'>");
-    expect(markdown).toContain('<img class=third src=images/page-001-figure-003.png alt=three data-after=kept>');
+    expect(markdown).toContain(
+      '<img class="first" src="images/page-001-figure-001.png" alt="one" data-after="kept">',
+    );
+    expect(markdown).toContain(
+      "<img class='second' src='images/page-001-figure-002.png' alt='two' data-after='kept'>",
+    );
+    expect(markdown).toContain(
+      '<img class=third src=images/page-001-figure-003.png alt=three data-after=kept>',
+    );
     expect(markdown).not.toContain('img_1.png');
     expect(markdown).not.toContain('img_2.png');
     expect(markdown).not.toContain('img_3.png');
@@ -1064,9 +1163,9 @@ Second page accepted.
           accepted: true,
           status: 'accepted',
           engine: 'nuextract3-ocr',
-          figures: [{ bbox: [0, 0, 10, 10], imagePath: cropOne }]
-        }
-      ]
+          figures: [{ bbox: [0, 0, 10, 10], imagePath: cropOne }],
+        },
+      ],
     };
 
     const result = await commitJob(config, job);
@@ -1095,19 +1194,22 @@ Second page accepted.
           pageNumber: 1,
           imagePath: 'page-1.png',
           nativeText: '',
-          markdown: '<img src="img_1.png" alt="one"/>\n<img src="img_2.png" alt="two"/>',
+          markdown:
+            '<img src="img_1.png" alt="one"/>\n<img src="img_2.png" alt="two"/>',
           accepted: true,
           status: 'accepted',
           engine: 'nuextract3-ocr',
-          figures: [{ bbox: [0, 0, 10, 10], imagePath: cropOne }]
-        }
-      ]
+          figures: [{ bbox: [0, 0, 10, 10], imagePath: cropOne }],
+        },
+      ],
     };
 
     const result = await commitJob(config, job);
     const markdown = await readFile(result.markdownPath, 'utf8');
 
-    expect(markdown).toContain('<img src="images/page-001-figure-001.png" alt="one"/>');
+    expect(markdown).toContain(
+      '<img src="images/page-001-figure-001.png" alt="one"/>',
+    );
     expect(markdown).toContain('<img src="img_2.png" alt="two"/>');
   });
 
@@ -1129,17 +1231,19 @@ Second page accepted.
           markdown: 'Native only',
           accepted: false,
           status: 'pending',
-          engine: 'native'
-        }
-      ]
+          engine: 'native',
+        },
+      ],
     };
 
     const result = await commitJob(config, job, {
-      convertedAt: new Date('2026-07-13T10:11:12.000Z')
+      convertedAt: new Date('2026-07-13T10:11:12.000Z'),
     });
 
     expect(result.movedSourcePdf).toBe(false);
-    expect(await readFile(result.markdownPath, 'utf8')).toContain('ocr_engine: "native"');
+    expect(await readFile(result.markdownPath, 'utf8')).toContain(
+      'ocr_engine: "native"',
+    );
   });
 
   it('uses accepted flag deterministically when accepted contradicts status', async () => {
@@ -1160,14 +1264,16 @@ Second page accepted.
           markdown: 'Accepted wins.',
           accepted: true,
           status: 'failed',
-          engine: 'tesseract'
-        }
-      ]
+          engine: 'tesseract',
+        },
+      ],
     };
 
     const result = await commitJob(config, job);
 
     expect(result.movedSourcePdf).toBe(true);
-    expect(await readFile(result.markdownPath, 'utf8')).toContain('Accepted wins.');
+    expect(await readFile(result.markdownPath, 'utf8')).toContain(
+      'Accepted wins.',
+    );
   });
 });

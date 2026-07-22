@@ -11,7 +11,9 @@ export interface OcrAdapterRegistry {
   listAdapters(): OcrAdapter[];
 }
 
-export function createOcrAdapterRegistry(config: AppConfig): OcrAdapterRegistry {
+export function createOcrAdapterRegistry(
+  config: AppConfig,
+): OcrAdapterRegistry {
   const adapters = new Map<EngineName, OcrAdapter>();
 
   const tesseractConfig = getEngineConfig(config, 'tesseract');
@@ -43,11 +45,14 @@ export function createOcrAdapterRegistry(config: AppConfig): OcrAdapterRegistry 
     },
     listAdapters() {
       return [...adapters.values()];
-    }
+    },
   };
 }
 
-function getRequiredAdapter(adapters: Map<EngineName, OcrAdapter>, name: EngineName): OcrAdapter {
+function getRequiredAdapter(
+  adapters: Map<EngineName, OcrAdapter>,
+  name: EngineName,
+): OcrAdapter {
   const adapter = adapters.get(name);
 
   if (!adapter) {
