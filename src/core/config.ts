@@ -24,10 +24,10 @@ const deepseekEngineSchema = z.object({
 
 const glmEngineSchema = z.object({
   kind: z.literal('glm-ocr'),
-  mode: z.enum(['selfhosted', 'mlx']).default('selfhosted'),
-  apiHost: z.string().min(1).optional(),
-  apiPort: z.number().int().min(1).max(65535).optional(),
-  model: z.string().min(1).optional()
+  serverHost: z.string().min(1).default('http://127.0.0.1:8080'),
+  model: z.string().min(1).default('mlx-community/GLM-OCR-bf16'),
+  chatTimeoutMs: z.number().int().min(1_000).default(180_000),
+  maxOutputTokens: z.number().int().min(128).max(16_384).default(4096)
 }).strict();
 
 const nuextract3EngineSchema = z.object({

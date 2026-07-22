@@ -77,10 +77,10 @@ export interface DeepseekOcrEngineConfig {
 
 export interface GlmOcrEngineConfig {
   kind: 'glm-ocr';
-  mode: 'selfhosted' | 'mlx';
-  apiHost?: string;
-  apiPort?: number;
-  model?: string;
+  serverHost: string;
+  model: string;
+  chatTimeoutMs?: number;
+  maxOutputTokens?: number;
 }
 
 export interface Nuextract3OcrEngineConfig {

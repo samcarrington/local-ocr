@@ -1,6 +1,7 @@
 import { getEngineConfig } from '../core/config.js';
 import type { AppConfig, EngineName, OcrAdapter } from '../core/types.js';
 import { DeepseekOcrAdapter } from './deepseek.js';
+import { GlmOcrAdapter } from './glm-ocr.js';
 import { Nuextract3OcrAdapter } from './nuextract3.js';
 import { TesseractOcrAdapter } from './tesseract.js';
 
@@ -26,6 +27,11 @@ export function createOcrAdapterRegistry(config: AppConfig): OcrAdapterRegistry 
   const nuextract3Config = getEngineConfig(config, 'nuextract3-ocr');
   if (nuextract3Config) {
     adapters.set('nuextract3-ocr', new Nuextract3OcrAdapter(nuextract3Config));
+  }
+
+  const glmConfig = getEngineConfig(config, 'glm-ocr');
+  if (glmConfig) {
+    adapters.set('glm-ocr', new GlmOcrAdapter(glmConfig));
   }
 
   return {

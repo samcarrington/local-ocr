@@ -21,6 +21,11 @@ function makeConfig(): AppConfig {
         kind: 'deepseek-ocr',
         ollamaHost: 'http://127.0.0.1:11434',
         model: 'deepseek-ocr'
+      },
+      'glm-ocr': {
+        kind: 'glm-ocr',
+        serverHost: 'http://127.0.0.1:8080',
+        model: 'mlx-community/GLM-OCR-bf16'
       }
     }
   };
@@ -32,25 +37,20 @@ describe('createOcrAdapterRegistry', () => {
 
     expect(registry.getDefaultAdapter().name).toBe('deepseek-ocr');
     expect(registry.getAdapter('tesseract').name).toBe('tesseract');
-    expect(registry.listAdapters().map((adapter) => adapter.name)).toEqual(['tesseract', 'deepseek-ocr']);
+    expect(registry.getAdapter('glm-ocr').name).toBe('glm-ocr');
+    expect(registry.listAdapters().map((adapter) => adapter.name)).toEqual([
+      'tesseract',
+      'deepseek-ocr',
+      'glm-ocr'
+    ]);
   });
 
-  it('throws for configured but unsupported adapter lookups', () => {
+  it('uses glm-ocr as the default adapter when configured', () => {
     const registry = createOcrAdapterRegistry({
       ...makeConfig(),
-      engines: {
-        tesseract: {
-          kind: 'tesseract',
-          lang: 'eng'
-        },
-        'glm-ocr': {
-          kind: 'glm-ocr',
-          mode: 'selfhosted'
-        }
-      },
-      defaultEngine: 'tesseract'
+      defaultEngine: 'glm-ocr'
     });
 
-    expect(() => registry.getAdapter('glm-ocr')).toThrow(/not configured/);
+    expect(registry.getDefaultAdapter().name).toBe('glm-ocr');
   });
 });

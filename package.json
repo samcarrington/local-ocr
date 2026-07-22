@@ -9,7 +9,8 @@
     "start": "node dist/server.js",
     "test": "vitest run",
     "setup:tesseract": "node scripts/download-tessdata.mjs eng ./tessdata",
-    "serve:nuextract3": "tsx scripts/serve-nuextract3.ts"
+    "serve:nuextract3": "tsx scripts/serve-nuextract3.ts",
+    "serve:glm-ocr": "tsx scripts/serve-glm-ocr.ts"
   },
   "engines": {
     "node": ">=20"
