@@ -372,14 +372,12 @@ function computeImageMaskGroupRegions(
 
   return images.flatMap((item) => {
     const transform = readMatrix(item?.transform);
-    const width = readFiniteNumber(item?.width) ?? readFiniteNumber(item?.image?.width) ?? readFiniteNumber(item?.img?.width) ?? 1;
-    const height = readFiniteNumber(item?.height) ?? readFiniteNumber(item?.image?.height) ?? readFiniteNumber(item?.img?.height) ?? 1;
 
     if (!transform) {
       return [];
     }
 
-    const region = computeRegion(multiplyMatrix(multiplyMatrix(viewportTransform, ctm), transform), 0, 0, width, height, deviceWidth, deviceHeight);
+    const region = computeRegion(multiplyMatrix(multiplyMatrix(viewportTransform, ctm), transform), 0, 0, 1, 1, deviceWidth, deviceHeight);
     return region ? [region] : [];
   });
 }

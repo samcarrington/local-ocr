@@ -152,23 +152,25 @@ describe('computeImageRegions', () => {
     ]);
   });
 
-  it('expands image mask groups from each item transform and dimensions', () => {
+  it('expands image mask groups from each item unit-square transform under current CTM', () => {
     const ops = makeOpList([
       [OPS.transform, [2, 0, 0, 3, 5, 7]],
       [
         OPS.paintImageMaskXObjectGroup,
         [
           [
-            { transform: [1, 0, 0, 1, 10, 20], width: 100, height: 50 },
-            { transform: [2, 0, 0, 2, 200, 100], img: { width: 40, height: 30 } }
+            { transform: [40, 0, 0, 50, 10, 20], width: 100, height: 50 },
+            { transform: [40, 0, 0, 50, 10, 20], width: 7, height: 13 },
+            { transform: [30, 0, 0, 20, 200, 100], img: { width: 40, height: 30 } }
           ]
         ]
       ]
     ]);
 
     expect(computeImageRegions(ops, NO_TRANSFORM, 1000, 1000)).toEqual([
-      [25, 67, 225, 217],
-      [405, 307, 565, 487]
+      [25, 67, 105, 217],
+      [25, 67, 105, 217],
+      [405, 307, 465, 367]
     ]);
   });
 
