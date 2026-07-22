@@ -208,10 +208,11 @@ function sanitizeImageTag(tag: string): string {
     )
     .replace(/(?:\s+|\/+)+srcset\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, (attribute) => {
       const value = getAttributeValue(attribute);
-      if (normalizeUrlForSchemeCheck(value).includes('data:')) {
+      const decodedValue = decodeHtmlEntities(value);
+      if (normalizeUrlForSchemeCheck(decodedValue).includes('data:')) {
         return '';
       }
-      const safeCandidates = value
+      const safeCandidates = decodedValue
         .split(',')
         .map((candidate) => candidate.trim())
         .filter((candidate) => candidate && !isRemoteImageUrl(candidate.split(/\s+/)[0] ?? ''));

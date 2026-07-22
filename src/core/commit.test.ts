@@ -565,6 +565,69 @@ Second page accepted.
     expect(markdown).not.toMatch(/&sol;&sol;example\.test|\/\/example\.test/i);
   });
 
+  it('strips external srcset candidates separated by entity-encoded commas', async () => {
+    const rootDir = makeTempDir();
+    const config = makeConfig(rootDir);
+    const sourcePdfPath = createPdf(rootDir, 'encoded-srcset-comma-external.pdf');
+    const job: DraftJob = {
+      id: 'job-encoded-srcset-comma-external',
+      sourcePdfPath,
+      status: 'pending_review',
+      createdAt: '2026-07-13T00:00:00.000Z',
+      updatedAt: '2026-07-13T00:00:00.000Z',
+      pages: [
+        {
+          pageNumber: 1,
+          imagePath: 'page-1.png',
+          nativeText: '',
+          markdown:
+            '<img srcset="images/local.png 1x&#44; https://example.test/remote.png 2x" alt="encoded comma external">',
+          accepted: true,
+          status: 'accepted',
+          engine: 'tesseract'
+        }
+      ]
+    };
+
+    const result = await commitJob(config, job);
+    const markdown = await readFile(result.markdownPath, 'utf8');
+
+    expect(markdown).toContain('<img srcset="images/local.png 1x" alt="encoded comma external">');
+    expect(markdown).not.toMatch(/https:\/\/example\.test|&#44;/i);
+  });
+
+  it('preserves local srcset candidates separated by entity-encoded commas', async () => {
+    const rootDir = makeTempDir();
+    const config = makeConfig(rootDir);
+    const sourcePdfPath = createPdf(rootDir, 'encoded-srcset-comma-local.pdf');
+    const job: DraftJob = {
+      id: 'job-encoded-srcset-comma-local',
+      sourcePdfPath,
+      status: 'pending_review',
+      createdAt: '2026-07-13T00:00:00.000Z',
+      updatedAt: '2026-07-13T00:00:00.000Z',
+      pages: [
+        {
+          pageNumber: 1,
+          imagePath: 'page-1.png',
+          nativeText: '',
+          markdown:
+            '<img src="images/base.png" srcset="images/one.png 1x&#44; images/two.png 2x" alt="encoded comma local">',
+          accepted: true,
+          status: 'accepted',
+          engine: 'tesseract'
+        }
+      ]
+    };
+
+    const result = await commitJob(config, job);
+    const markdown = await readFile(result.markdownPath, 'utf8');
+
+    expect(markdown).toContain(
+      '<img src="images/base.png" srcset="images/one.png 1x, images/two.png 2x" alt="encoded comma local">'
+    );
+  });
+
   it('strips backslash-normalized protocol-relative raw image urls while preserving local paths', async () => {
     const rootDir = makeTempDir();
     const config = makeConfig(rootDir);
