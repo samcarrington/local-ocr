@@ -57,6 +57,18 @@ function getPageMarkdown(page: DraftPage): string {
   return `[[OCR PENDING: page ${page.pageNumber}]]`;
 }
 
+function sanitizeCommittedMarkdown(markdown: string): string {
+  return markdown
+    .replace(/<script\b[^>]*>[\s\S]*?<\/script\s*>/gi, '')
+    .replace(/<(?:iframe|object|embed|link|meta|style|base)\b[^>]*>[\s\S]*?<\/(?:iframe|object|embed|link|meta|style|base)\s*>/gi, '')
+    .replace(/<\/?(?:iframe|object|embed|link|meta|style|base)\b[^>]*>/gi, '')
+    .replace(/\s+on[a-z][\w:-]*\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, '')
+    .replace(/\s+(?:href|src)\s*=\s*(?:"\s*javascript:[^"]*"|'\s*javascript:[^']*'|\s*javascript:[^\s>]+)/gi, '')
+    .replace(/<img\b[^>]*>/gi, (tag) =>
+      tag.replace(/\s+src\s*=\s*(?:"\s*(?:https?:|data:)[^"]*"|'\s*(?:https?:|data:)[^']*'|\s*(?:https?:|data:)[^\s>]+)/i, '')
+    );
+}
+
 function getFigureFileName(pageNumber: number, figureIndex: number, imagePath: string): string {
   const extension = path.extname(imagePath) || '.png';
   return `page-${String(pageNumber).padStart(3, '0')}-figure-${String(figureIndex).padStart(3, '0')}${extension}`;
@@ -134,6 +146,10 @@ async function copyPageFigures(outputDir: string, pages: DraftPage[]): Promise<v
   await mkdir(imagesDir, { recursive: true });
 
   for (const page of pages) {
+    if (getPageStatus(page) !== 'accepted') {
+      continue;
+    }
+
     for (const [index, figure] of (page.figures ?? []).entries()) {
       const targetPath = path.join(imagesDir, getFigureFileName(page.pageNumber, index + 1, figure.imagePath));
       await copyFile(figure.imagePath, targetPath);
@@ -147,7 +163,13 @@ function renderMarkdown(job: DraftJob, convertedAt: string): string {
   const body = job.pages
     .slice()
     .sort((left, right) => left.pageNumber - right.pageNumber)
-    .map((page) => applyFigureImages(getPageMarkdown(page), page.pageNumber, page.figures).trim())
+    .map((page) => {
+      if (getPageStatus(page) !== 'accepted') {
+        return getPageMarkdown(page).trim();
+      }
+
+      return applyFigureImages(sanitizeCommittedMarkdown(page.markdown), page.pageNumber, page.figures).trim();
+    })
     .join('\n\n');
 
   return [

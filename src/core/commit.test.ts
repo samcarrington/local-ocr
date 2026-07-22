@@ -173,6 +173,106 @@ Second page accepted.
     expect(readdirSync(path.dirname(result.markdownPath)).filter((entry) => entry.endsWith('.tmp'))).toEqual([]);
   });
 
+  it('sanitizes executable raw html while preserving markdown and safe html', async () => {
+    const rootDir = makeTempDir();
+    const config = makeConfig(rootDir);
+    const sourcePdfPath = createPdf(rootDir, 'unsafe.pdf');
+    const job: DraftJob = {
+      id: 'job-unsafe',
+      sourcePdfPath,
+      status: 'pending_review',
+      createdAt: '2026-07-13T00:00:00.000Z',
+      updatedAt: '2026-07-13T00:00:00.000Z',
+      pages: [
+        {
+          pageNumber: 1,
+          imagePath: 'page-1.png',
+          nativeText: '',
+          markdown:
+            '# Title\n\n<div class="note" onclick="alert(1)">Safe **markdown** HTML</div>\n<script>bad()</script>\n<iframe src="x"></iframe>\n<style>.bad{}</style>\n<a href="javascript:bad()">bad link</a>\n<img src="https://example.test/x.png" alt="remote">\n<img src="data:image/png;base64,abc" alt="data">\n<img src="images/local.png" alt="local">',
+          accepted: true,
+          status: 'accepted',
+          engine: 'tesseract'
+        }
+      ]
+    };
+
+    const result = await commitJob(config, job);
+    const markdown = await readFile(result.markdownPath, 'utf8');
+
+    expect(markdown).toContain('# Title');
+    expect(markdown).toContain('<div class="note">Safe **markdown** HTML</div>');
+    expect(markdown).toContain('<a>bad link</a>');
+    expect(markdown).toContain('<img alt="remote">');
+    expect(markdown).toContain('<img alt="data">');
+    expect(markdown).toContain('<img src="images/local.png" alt="local">');
+    expect(markdown).not.toMatch(/<script|bad\(\)|<iframe|<style|onclick=|javascript:|https:\/\/example\.test|data:image/i);
+  });
+
+  it('does not copy or wire figures from pending and failed pages during partial commits', async () => {
+    const rootDir = makeTempDir();
+    const config = makeConfig(rootDir);
+    const sourcePdfPath = createPdf(rootDir, 'partial-figures.pdf');
+    const acceptedCrop = path.join(rootDir, 'accepted.png');
+    const pendingCrop = path.join(rootDir, 'pending.png');
+    const failedCrop = path.join(rootDir, 'failed.png');
+    writeFileSync(acceptedCrop, 'accepted');
+    writeFileSync(pendingCrop, 'pending');
+    writeFileSync(failedCrop, 'failed');
+    const job: DraftJob = {
+      id: 'job-partial-figures',
+      sourcePdfPath,
+      status: 'pending_review',
+      createdAt: '2026-07-13T00:00:00.000Z',
+      updatedAt: '2026-07-13T00:00:00.000Z',
+      pages: [
+        {
+          pageNumber: 1,
+          imagePath: 'page-1.png',
+          nativeText: '',
+          markdown: 'Accepted page.',
+          accepted: true,
+          status: 'accepted',
+          engine: 'deepseek-ocr',
+          figures: [{ bbox: [0, 0, 10, 10], imagePath: acceptedCrop }]
+        },
+        {
+          pageNumber: 2,
+          imagePath: 'page-2.png',
+          nativeText: '',
+          markdown: '<img src="pending.png" alt="pending">',
+          accepted: false,
+          status: 'pending',
+          engine: 'deepseek-ocr',
+          figures: [{ bbox: [0, 0, 10, 10], imagePath: pendingCrop }]
+        },
+        {
+          pageNumber: 3,
+          imagePath: 'page-3.png',
+          nativeText: '',
+          markdown: '<img src="failed.png" alt="failed">',
+          accepted: false,
+          status: 'failed',
+          engine: 'deepseek-ocr',
+          figures: [{ bbox: [0, 0, 10, 10], imagePath: failedCrop }]
+        }
+      ]
+    };
+
+    const result = await commitJob(config, job);
+    const outputDir = path.dirname(result.markdownPath);
+    const markdown = await readFile(result.markdownPath, 'utf8');
+
+    expect(markdown).toContain('![](images/page-001-figure-001.png)');
+    expect(markdown).toContain('[[OCR PENDING: page 2]]');
+    expect(markdown).toContain('[[OCR FAILED: page 3]]');
+    expect(markdown).not.toContain('page-002-figure');
+    expect(markdown).not.toContain('page-003-figure');
+    expect(existsSync(path.join(outputDir, 'images', 'page-001-figure-001.png'))).toBe(true);
+    expect(existsSync(path.join(outputDir, 'images', 'page-002-figure-001.png'))).toBe(false);
+    expect(existsSync(path.join(outputDir, 'images', 'page-003-figure-001.png'))).toBe(false);
+  });
+
   it('does not duplicate existing markdown figure links', async () => {
     const rootDir = makeTempDir();
     const config = makeConfig(rootDir);
