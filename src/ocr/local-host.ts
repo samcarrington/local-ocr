@@ -16,6 +16,12 @@ export function isLocalHost(host: string): boolean {
   }
 }
 
+export function formatHttpHost(hostname: string, port: number): string {
+  const normalizedHostname = normalizeHostname(hostname);
+  const host = normalizedHostname.includes(':') ? `[${normalizedHostname}]` : normalizedHostname;
+  return `http://${host}:${port}`;
+}
+
 /**
  * Throws when `host` is not loopback. `errorPrefix` names the adapter/host so the
  * thrown message reads naturally, e.g.
