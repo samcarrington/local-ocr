@@ -324,15 +324,15 @@ function computeRegionsForImageOp(
   }
 
   if (fn === OPS.paintImageMaskXObjectGroup) {
-    return computeImageMaskGroupRegions(args, viewportTransform, deviceWidth, deviceHeight);
+    return computeImageMaskGroupRegions(args, ctm, viewportTransform, deviceWidth, deviceHeight);
   }
 
   if (fn === OPS.paintImageXObjectRepeat) {
-    return computeImageRepeatRegions(args, viewportTransform, deviceWidth, deviceHeight, false);
+    return computeImageRepeatRegions(args, ctm, viewportTransform, deviceWidth, deviceHeight, false);
   }
 
   if (fn === OPS.paintImageMaskXObjectRepeat) {
-    return computeImageRepeatRegions(args, viewportTransform, deviceWidth, deviceHeight, true);
+    return computeImageRepeatRegions(args, ctm, viewportTransform, deviceWidth, deviceHeight, true);
   }
 
   return [computeRegion(multiplyMatrix(viewportTransform, ctm), 0, 0, 1, 1, deviceWidth, deviceHeight)].filter(
@@ -363,6 +363,7 @@ function computeInlineImageGroupRegions(
 
 function computeImageMaskGroupRegions(
   args: unknown[],
+  ctm: Matrix,
   viewportTransform: Matrix,
   deviceWidth: number,
   deviceHeight: number
@@ -378,13 +379,14 @@ function computeImageMaskGroupRegions(
       return [];
     }
 
-    const region = computeRegion(multiplyMatrix(viewportTransform, transform), 0, 0, width, height, deviceWidth, deviceHeight);
+    const region = computeRegion(multiplyMatrix(multiplyMatrix(viewportTransform, ctm), transform), 0, 0, width, height, deviceWidth, deviceHeight);
     return region ? [region] : [];
   });
 }
 
 function computeImageRepeatRegions(
   args: unknown[],
+  ctm: Matrix,
   viewportTransform: Matrix,
   deviceWidth: number,
   deviceHeight: number,
@@ -402,7 +404,7 @@ function computeImageRepeatRegions(
 
   return positions.flatMap(([x, y]) => {
     const transform: Matrix = [scaleX, skewX, skewY, scaleY, x, y];
-    const region = computeRegion(multiplyMatrix(viewportTransform, transform), 0, 0, 1, 1, deviceWidth, deviceHeight);
+    const region = computeRegion(multiplyMatrix(multiplyMatrix(viewportTransform, ctm), transform), 0, 0, 1, 1, deviceWidth, deviceHeight);
     return region ? [region] : [];
   });
 }
