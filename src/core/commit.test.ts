@@ -391,6 +391,45 @@ Second page accepted.
     expect(markdown).not.toMatch(/href=|xlink:href=|javascript:|https:\/\/example\.test/i);
   });
 
+  it('strips unquoted remote raw image urls while preserving unquoted local paths', async () => {
+    const rootDir = makeTempDir();
+    const config = makeConfig(rootDir);
+    const sourcePdfPath = createPdf(rootDir, 'unquoted-image-urls.pdf');
+    const job: DraftJob = {
+      id: 'job-unquoted-image-urls',
+      sourcePdfPath,
+      status: 'pending_review',
+      createdAt: '2026-07-13T00:00:00.000Z',
+      updatedAt: '2026-07-13T00:00:00.000Z',
+      pages: [
+        {
+          pageNumber: 1,
+          imagePath: 'page-1.png',
+          nativeText: '',
+          markdown:
+            '<img src=//example.test/x alt=proto>\n' +
+            '<img src=http://example.test/x alt=http>\n' +
+            '<img src=https://example.test/x alt=https>\n' +
+            '<img src=data:image/png;base64,abc alt=data>\n' +
+            '<img src=images/local.png srcset=//example.test/x,images/local.png alt=local>',
+          accepted: true,
+          status: 'accepted',
+          engine: 'tesseract'
+        }
+      ]
+    };
+
+    const result = await commitJob(config, job);
+    const markdown = await readFile(result.markdownPath, 'utf8');
+
+    expect(markdown).toContain('<img alt=proto>');
+    expect(markdown).toContain('<img alt=http>');
+    expect(markdown).toContain('<img alt=https>');
+    expect(markdown).toContain('<img alt=data>');
+    expect(markdown).toContain('<img src=images/local.png srcset=images/local.png alt=local>');
+    expect(markdown).not.toMatch(/src=\/\/example\.test|src=https?:\/\/example\.test|src=data:|srcset=\/\/example\.test/i);
+  });
+
   it('strips entity-encoded C0 and C1 controls before unsafe URL checks', async () => {
     const rootDir = makeTempDir();
     const config = makeConfig(rootDir);

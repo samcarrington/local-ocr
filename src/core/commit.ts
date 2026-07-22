@@ -128,7 +128,7 @@ function scanImgTags(markdown: string): Array<{ start: number; end: number }> {
 }
 
 function getAttributeValue(attribute: string): string {
-  const match = /^[\s/]*[\w:-]+\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s\/>]+))/i.exec(attribute);
+  const match = /^[\s/]*[\w:-]+\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/i.exec(attribute);
   return match?.[1] ?? match?.[2] ?? match?.[3] ?? '';
 }
 
@@ -165,10 +165,10 @@ function isRemoteImageUrl(value: string): boolean {
 
 function sanitizeImageTag(tag: string): string {
   return tag
-    .replace(/(?:\s+|\/+)+src\s*=\s*(?:"[^"]*"|'[^']*'|[^\s\/>]+)/gi, (attribute) =>
+    .replace(/(?:\s+|\/+)+src\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, (attribute) =>
       isRemoteImageUrl(getAttributeValue(attribute)) ? '' : normalizeAttributeDelimiter(attribute)
     )
-    .replace(/(?:\s+|\/+)+srcset\s*=\s*(?:"[^"]*"|'[^']*'|[^\s\/>]+)/gi, (attribute) => {
+    .replace(/(?:\s+|\/+)+srcset\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, (attribute) => {
       const value = getAttributeValue(attribute);
       if (normalizeUrlForSchemeCheck(value).includes('data:')) {
         return '';
