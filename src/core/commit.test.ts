@@ -245,6 +245,43 @@ Second page accepted.
     expect(markdown).not.toMatch(/<script|alert\(1\)|javascript:|java&#x09;script|spaced\.png|\/\/example\.test|https:\/\/example\.test|data:image/i);
   });
 
+  it('sanitizes img tags with greater-than characters inside quoted attributes', async () => {
+    const rootDir = makeTempDir();
+    const config = makeConfig(rootDir);
+    const sourcePdfPath = createPdf(rootDir, 'quoted-greater-than.pdf');
+    const job: DraftJob = {
+      id: 'job-quoted-greater-than',
+      sourcePdfPath,
+      status: 'pending_review',
+      createdAt: '2026-07-13T00:00:00.000Z',
+      updatedAt: '2026-07-13T00:00:00.000Z',
+      pages: [
+        {
+          pageNumber: 1,
+          imagePath: 'page-1.png',
+          nativeText: '',
+          markdown:
+            '<img alt=">" src="https://example.test/escaped.png">\n' +
+            "<img alt='>' src=\"https://example.test/single.png\">\n" +
+            '<img alt=">" src="images/local.png">\n' +
+            "<img alt='>' src=\"images/single-local.png\">",
+          accepted: true,
+          status: 'accepted',
+          engine: 'tesseract'
+        }
+      ]
+    };
+
+    const result = await commitJob(config, job);
+    const markdown = await readFile(result.markdownPath, 'utf8');
+
+    expect(markdown).toContain('<img alt=">">');
+    expect(markdown).toContain("<img alt='>'>");
+    expect(markdown).toContain('<img alt=">" src="images/local.png">');
+    expect(markdown).toContain("<img alt='>' src=\"images/single-local.png\">");
+    expect(markdown).not.toMatch(/https:\/\/example\.test/i);
+  });
+
   it('strips entity-encoded C0 and C1 controls before unsafe URL checks', async () => {
     const rootDir = makeTempDir();
     const config = makeConfig(rootDir);

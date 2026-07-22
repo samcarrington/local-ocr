@@ -58,7 +58,7 @@ function getPageMarkdown(page: DraftPage): string {
 }
 
 function sanitizeCommittedMarkdown(markdown: string): string {
-  return markdown
+  const sanitized = markdown
     .replace(/<script\b[^>]*>[\s\S]*?<\/script\s*>/gi, '')
     .replace(/<script\b[^>]*\/?>(?:[^\n<]*)/gi, '')
     .replace(/<\/?script\b[^>]*>/gi, '')
@@ -67,8 +67,64 @@ function sanitizeCommittedMarkdown(markdown: string): string {
     .replace(/\s+on[a-z][\w:-]*\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, '')
     .replace(/\s+(?:href|src)\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, (attribute) =>
       isJavaScriptUrl(getAttributeValue(attribute)) ? '' : attribute
-    )
-    .replace(/<img\b[^>]*>/gi, sanitizeImageTag);
+    );
+
+  return replaceImgTags(sanitized, sanitizeImageTag);
+}
+
+function replaceImgTags(markdown: string, replacer: (tag: string) => string): string {
+  let result = '';
+  let cursor = 0;
+
+  for (const tag of scanImgTags(markdown)) {
+    result += markdown.slice(cursor, tag.start) + replacer(markdown.slice(tag.start, tag.end));
+    cursor = tag.end;
+  }
+
+  return result + markdown.slice(cursor);
+}
+
+function scanImgTags(markdown: string): Array<{ start: number; end: number }> {
+  const tags: Array<{ start: number; end: number }> = [];
+  let cursor = 0;
+
+  while (cursor < markdown.length) {
+    const start = markdown.toLowerCase().indexOf('<img', cursor);
+    if (start === -1) break;
+
+    const next = markdown[start + 4];
+    if (next && /[\w:-]/.test(next)) {
+      cursor = start + 4;
+      continue;
+    }
+
+    let quote: '"' | "'" | undefined;
+    for (let index = start + 4; index < markdown.length; index += 1) {
+      const char = markdown[index];
+
+      if (quote) {
+        if (char === quote) quote = undefined;
+        continue;
+      }
+
+      if (char === '"' || char === "'") {
+        quote = char;
+        continue;
+      }
+
+      if (char === '>') {
+        tags.push({ start, end: index + 1 });
+        cursor = index + 1;
+        break;
+      }
+
+      if (index === markdown.length - 1) {
+        cursor = start + 4;
+      }
+    }
+  }
+
+  return tags;
 }
 
 function getAttributeValue(attribute: string): string {
