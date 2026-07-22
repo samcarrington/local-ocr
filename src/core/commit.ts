@@ -69,7 +69,7 @@ function sanitizeCommittedMarkdown(markdown: string): string {
 
   const attributeSanitized = allowlisted
     .replace(/(?:\s+|\/+)+on[a-z][\w:-]*\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, '')
-    .replace(/(?:\s+|\/+)+style\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, '')
+    .replace(/(?:\s+|\/+)+style(?=\s|\/|>|=)(?:\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+))?/gi, '')
     .replace(/(?:\s+|\/+)+(?:href|xlink:href|src)\s*=\s*(?:"[^"]*"|'[^']*'|[^\s\/>]+)/gi, (attribute) =>
       isJavaScriptUrl(getAttributeValue(attribute)) ? '' : normalizeAttributeDelimiter(attribute)
     );
