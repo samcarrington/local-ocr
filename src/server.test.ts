@@ -817,7 +817,7 @@ describe('server api', () => {
     });
   });
 
-  it('creates document jobs from supported files', async () => {
+  it('persists document jobs and resumes pending conversion jobs', async () => {
     const rootDir = makeTempDir();
     const config = makeConfig(rootDir);
     mkdirSync(config.inboxPath, { recursive: true });
@@ -836,19 +836,47 @@ describe('server api', () => {
         engine: 'anydoc',
       }],
     });
-    const createDocumentDraftJob = vi.fn(async () => documentJob);
-    const app = createServer(config, { createDocumentDraftJob });
+    const convertDocumentToMarkdown = vi.fn(async (_filePath: string) => ({
+      markdown: 'converted',
+    }));
+    const createDocumentDraftJob = vi.fn(async (filePath: string) => {
+      await convertDocumentToMarkdown(filePath);
+      return documentJob;
+    });
+    const app = createServer(config, {
+      createDocumentDraftJob,
+      convertDocumentToMarkdown,
+    });
 
     await withServer(app, async (baseUrl) => {
-      const response = await fetch(`${baseUrl}/api/jobs`, {
+      const firstResponse = await fetch(`${baseUrl}/api/jobs`, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ file: 'x.docx', mode: 'document' }),
       });
-      expect(response.status).toBe(201);
-      expect(await response.json()).toEqual({ job: documentJob });
+      expect(firstResponse.status).toBe(201);
+      expect(await firstResponse.json()).toEqual({ job: documentJob });
+
+      const loadedResponse = await fetch(
+        `${baseUrl}/api/jobs/${documentJob.id}`,
+      );
+      expect(loadedResponse.status).toBe(200);
+      expect((await loadedResponse.json()).job).toEqual(documentJob);
+
+      const secondResponse = await fetch(`${baseUrl}/api/jobs`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ file: 'x.docx', mode: 'document' }),
+      });
+      expect(secondResponse.status).toBe(200);
+      expect(await secondResponse.json()).toEqual({
+        job: documentJob,
+        resumed: true,
+      });
     });
     expect(createDocumentDraftJob).toHaveBeenCalledWith(documentPath, config);
+    expect(createDocumentDraftJob).toHaveBeenCalledOnce();
+    expect(convertDocumentToMarkdown).toHaveBeenCalledOnce();
   });
 
   it('rejects pages mode for non-PDF files', async () => {

@@ -114,6 +114,7 @@ export function createApiRouter(
       } catch (error) {
         throw documentConversionApiError(error);
       }
+      await deps.saveJob(config, job);
       res.status(201).json({ job });
     }),
   );
