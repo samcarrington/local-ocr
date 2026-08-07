@@ -5,6 +5,8 @@ port: 4312
 defaultEngine: tesseract
 nativeTextMinChars: 24
 textExtractionMode: auto # auto skips OCR when native text is good; ocr forces rendered-image OCR for every page
+# anydoc whole-document conversion has no configuration: it is always available for supported file types.
+# It is deterministic and is not a selectable engines entry like tesseract, deepseek-ocr, glm-ocr, or nuextract3-ocr.
 engines:
   tesseract:
     kind: tesseract

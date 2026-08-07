@@ -1,4 +1,4 @@
-import { mkdtempSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { access, readdir, readFile, rm } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
@@ -43,7 +43,8 @@ function makeConfig(rootDir: string): AppConfig {
 function makeJob(id: string): DraftJob {
   return {
     id,
-    sourcePdfPath: `/tmp/${id}.pdf`,
+    kind: 'pdf-pages',
+    sourceFilePath: `/tmp/${id}.pdf`,
     status: 'pending_review',
     createdAt: '2026-07-13T00:00:00.000Z',
     updatedAt: '2026-07-13T00:00:00.000Z',
@@ -112,6 +113,51 @@ describe('job store', () => {
     const jobs = await listJobs(config);
 
     expect(jobs.map((job) => job.id)).toEqual(['a-job', 'b-job']);
+  });
+
+  it('normalizes legacy jobs when loading by id', async () => {
+    const rootDir = makeTempDir();
+    const config = makeConfig(rootDir);
+    const job = makeJob('legacy-load');
+    const legacyJob = { ...job } as Record<string, unknown>;
+    delete legacyJob.kind;
+    legacyJob.sourcePdfPath = legacyJob.sourceFilePath;
+    delete legacyJob.sourceFilePath;
+
+    mkdirSync(config.jobStorePath, { recursive: true });
+    writeFileSync(
+      path.join(config.jobStorePath, 'legacy-load.json'),
+      JSON.stringify(legacyJob),
+      'utf8',
+    );
+
+    const loaded = await loadJob(config, job.id);
+
+    expect(loaded?.kind).toBe('pdf-pages');
+    expect(loaded?.sourceFilePath).toBe(job.sourceFilePath);
+  });
+
+  it('normalizes legacy jobs when listing', async () => {
+    const rootDir = makeTempDir();
+    const config = makeConfig(rootDir);
+    const job = makeJob('legacy-list');
+    const legacyJob = { ...job } as Record<string, unknown>;
+    delete legacyJob.kind;
+    legacyJob.sourcePdfPath = legacyJob.sourceFilePath;
+    delete legacyJob.sourceFilePath;
+
+    mkdirSync(config.jobStorePath, { recursive: true });
+    writeFileSync(
+      path.join(config.jobStorePath, 'legacy-list.json'),
+      JSON.stringify(legacyJob),
+      'utf8',
+    );
+
+    const jobs = await listJobs(config);
+    const loaded = jobs.find((listedJob) => listedJob.id === job.id);
+
+    expect(loaded?.kind).toBe('pdf-pages');
+    expect(loaded?.sourceFilePath).toBe(job.sourceFilePath);
   });
 
   it('deletes jobs and tolerates missing entries', async () => {

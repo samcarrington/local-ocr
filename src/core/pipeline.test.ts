@@ -8,6 +8,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { extractPdfPages } from './pdf.js';
 import type { AppConfig, OcrAdapter } from './types.js';
+import { DocumentConversionError } from '../convert/anydoc.js';
 
 const tempDirs: string[] = [];
 
@@ -15,6 +16,7 @@ afterEach(async () => {
   vi.restoreAllMocks();
   vi.resetModules();
   vi.doUnmock('./pdf.js');
+  vi.doUnmock('../convert/anydoc.js');
   await Promise.all(
     tempDirs.splice(0).map((dir) => rm(dir, { recursive: true, force: true })),
   );
@@ -422,5 +424,87 @@ describe('createDraftJob', () => {
         { persist: false },
       ),
     ).rejects.toThrow(/inboxPath/);
+  });
+});
+
+describe('createDocumentDraftJob', () => {
+  it('creates a one-page document draft from converted Markdown', async () => {
+    const rootDir = makeTempDir();
+    const config = makeConfig(rootDir);
+    mkdirSync(config.inboxPath, { recursive: true });
+    const documentPath = path.join(config.inboxPath, 'report.docx');
+    writeFileSync(documentPath, 'mock-document');
+    const convertDocumentToMarkdown = vi.fn(async () => ({
+      markdown: '# Converted report',
+    }));
+
+    vi.resetModules();
+    vi.doMock('../convert/anydoc.js', () => ({
+      convertDocumentToMarkdown,
+    }));
+    const { createDocumentDraftJob } = await import('./pipeline.js');
+
+    const job = await createDocumentDraftJob(documentPath, config);
+
+    expect(convertDocumentToMarkdown).toHaveBeenCalledWith(documentPath);
+    expect(job).toMatchObject({
+      kind: 'document',
+      sourceFilePath: documentPath,
+      status: 'pending_review',
+      pages: [
+        {
+          pageNumber: 1,
+          nativeText: '',
+          markdown: '# Converted report',
+          accepted: false,
+          status: 'pending',
+          engine: 'anydoc',
+        },
+      ],
+    });
+    expect(job.pages).toHaveLength(1);
+    expect(job.pages[0]).not.toHaveProperty('imagePath');
+    expect(job.createdAt).toBe(job.updatedAt);
+    expect(job.id).toEqual(expect.any(String));
+  });
+
+  it('rejects document paths outside inbox', async () => {
+    const rootDir = makeTempDir();
+    const config = makeConfig(rootDir);
+    const outsideDocumentPath = path.join(rootDir, 'outside.docx');
+
+    vi.resetModules();
+    vi.doMock('../convert/anydoc.js', () => ({
+      convertDocumentToMarkdown: vi.fn(),
+    }));
+    const { createDocumentDraftJob } = await import('./pipeline.js');
+
+    await expect(
+      createDocumentDraftJob(outsideDocumentPath, config),
+    ).rejects.toThrow(/inboxPath/);
+  });
+
+  it('propagates DocumentConversionError unchanged', async () => {
+    const rootDir = makeTempDir();
+    const config = makeConfig(rootDir);
+    mkdirSync(config.inboxPath, { recursive: true });
+    const documentPath = path.join(config.inboxPath, 'encrypted.docx');
+    writeFileSync(documentPath, 'mock-document');
+    const conversionError = new DocumentConversionError(
+      422,
+      'This document is password-protected or encrypted and cannot be converted.',
+    );
+
+    vi.resetModules();
+    vi.doMock('../convert/anydoc.js', () => ({
+      convertDocumentToMarkdown: vi.fn(async () => {
+        throw conversionError;
+      }),
+    }));
+    const { createDocumentDraftJob } = await import('./pipeline.js');
+
+    await expect(
+      createDocumentDraftJob(documentPath, config),
+    ).rejects.toBe(conversionError);
   });
 });

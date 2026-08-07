@@ -80,6 +80,20 @@ engines:
 - DeepSeek adapter rejects non-local Ollama hosts before any image leaves process.
 - GLM-OCR and NuExtract3 adapters reject non-local mlx-vlm hosts before any image leaves process.
 
+## Whole-document conversion (anydoc)
+
+Whole-document conversion uses firecrawl's native `anydoc` npm package to convert supported files directly to Markdown in one step. It is fully local and offline - no network calls are made, consistent with this project's no-cloud-calls stance. This is an alternative to the per-page OCR review pipeline used for PDFs.
+
+Supported extensions:
+
+`.doc`, `.docx`, `.docm`, `.ppt`, `.pps`, `.pot`, `.pptx`, `.pptm`, `.ppsx`, `.ppsm`, `.xls`, `.xlsx`, `.xlsm`, `.xlsb`, `.odt`, `.ods`, `.odp`, `.rtf`, `.epub`
+
+For PDFs, **Review pages** remains the default per-page OCR flow. When a PDF already has a good text layer, **Quick convert (native text)** runs that PDF through `anydoc` instead. Scanned or image-only PDFs fail native conversion with a clear error pointing back to **Review pages**; this is expected, not a bug.
+
+Known v1 limitation: embedded images in converted documents appear as alt text only. No image files are extracted, unlike the PDF pipeline's per-page figure extraction.
+
+Document-kind jobs write to `inbox/<name>--<ext>/<name>--<ext>.md`. For example, `report.docx` becomes `inbox/report--docx/report--docx.md`. This differs from the PDF convention, `inbox/<name>/<name>.md`, to avoid collisions between a source file and its own output directory.
+
 ### `glm-ocr` config keys
 
 | Key | Default | Notes |
@@ -143,7 +157,9 @@ The adapter posts the page image to `POST {serverHost}/v1/chat/completions` in N
 ## API
 
 - `GET /api/pdfs` — list top-level inbox PDF filenames.
-- `POST /api/jobs` with `{ "pdf": "file.pdf" }` — create review job from inbox PDF, or resume existing `pending_review` job for same PDF.
+- `GET /api/documents` — list supported whole-document files in the top-level inbox.
+- `POST /api/jobs` with `{ "file": "file.pdf", "mode": "pages" }` — create a per-page PDF review job. `mode` defaults to `pages`; PDFs also accept `document` for Quick convert (native text).
+- `POST /api/jobs` with `{ "file": "file.docx", "mode": "document" }` — create a whole-document conversion job for a supported non-PDF file. Non-PDF files require `mode: "document"`.
 - `GET /api/jobs/:id` — load draft job.
 - `GET /api/jobs/:id/pages/:page/preview` — return preview PNG for page.
 - `POST /api/jobs/:id/pages/:page/rerun` with `{ "engine": "tesseract" }` — rerun OCR for one page. Low native-text coverage now saves OCR output but adds page warning metadata with missing native snippets for manual comparison.

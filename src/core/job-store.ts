@@ -25,7 +25,8 @@ function serializeJob(job: DraftJob): string {
   return `${JSON.stringify(
     {
       id: job.id,
-      sourcePdfPath: job.sourcePdfPath,
+      kind: job.kind,
+      sourceFilePath: job.sourceFilePath,
       status: job.status,
       createdAt: job.createdAt,
       updatedAt: job.updatedAt,
@@ -46,6 +47,21 @@ function serializeJob(job: DraftJob): string {
     null,
     2,
   )}\n`;
+}
+
+function normalizeJob(raw: unknown): DraftJob {
+  const job = raw as Record<string, unknown>;
+  const normalized = { ...job };
+
+  if (!('kind' in normalized)) {
+    normalized.kind = 'pdf-pages';
+  }
+
+  if (!('sourceFilePath' in normalized) && 'sourcePdfPath' in normalized) {
+    normalized.sourceFilePath = normalized.sourcePdfPath;
+  }
+
+  return normalized as unknown as DraftJob;
 }
 
 async function writeFileAtomic(
@@ -72,7 +88,7 @@ export async function loadJob(
 ): Promise<DraftJob | null> {
   try {
     const contents = await readFile(getJobFilePath(config, jobId), 'utf8');
-    return JSON.parse(contents) as DraftJob;
+    return normalizeJob(JSON.parse(contents));
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
       return null;
@@ -116,7 +132,7 @@ export async function listJobs(config: AppConfig): Promise<DraftJob[]> {
               path.join(config.jobStorePath, fileName),
               'utf8',
             );
-            return JSON.parse(contents) as DraftJob;
+            return normalizeJob(JSON.parse(contents));
           } catch (error) {
             if (error instanceof SyntaxError) {
               return null;

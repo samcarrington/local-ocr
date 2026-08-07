@@ -1,5 +1,6 @@
 const state = {
   pdfs: [],
+  documents: [],
   selectedPdf: '',
   job: null,
   currentPageNumber: 1,
@@ -11,6 +12,8 @@ const elements = {
   statusBanner: document.querySelector('#status-banner'),
   pdfList: document.querySelector('#pdf-list'),
   pdfListEmpty: document.querySelector('#pdf-list-empty'),
+  documentList: document.querySelector('#document-list'),
+  documentListEmpty: document.querySelector('#document-list-empty'),
   refreshPdfs: document.querySelector('#refresh-pdfs'),
   emptyState: document.querySelector('#empty-state'),
   reviewState: document.querySelector('#review-state'),
@@ -23,6 +26,7 @@ const elements = {
   commitJob: document.querySelector('#commit-job'),
   discardJob: document.querySelector('#discard-job'),
   pagePreview: document.querySelector('#page-preview'),
+  previewPanel: document.querySelector('#preview-panel'),
   confidenceText: document.querySelector('#confidence-text'),
   engineText: document.querySelector('#engine-text'),
   warningPanel: document.querySelector('#warning-panel'),
@@ -32,10 +36,11 @@ const elements = {
   markdownRaw: document.querySelector('#markdown-raw'),
   previousPage: document.querySelector('#previous-page'),
   nextPage: document.querySelector('#next-page'),
-  pageList: document.querySelector('#page-list')
+  pageList: document.querySelector('#page-list'),
+  pageNav: document.querySelector('#page-nav')
 };
 
-elements.refreshPdfs.addEventListener('click', () => loadPdfs());
+elements.refreshPdfs.addEventListener('click', () => loadInbox());
 elements.rerunPage.addEventListener('click', () => rerunCurrentPage());
 elements.adapterSelect.addEventListener('change', () => {
   const page = getCurrentPage();
@@ -48,15 +53,20 @@ elements.discardJob.addEventListener('click', () => discardCurrentJob());
 elements.previousPage.addEventListener('click', () => movePage(-1));
 elements.nextPage.addEventListener('click', () => movePage(1));
 
-void loadPdfs();
+void loadInbox();
 
-async function loadPdfs() {
-  setStatus('Loading PDFs…');
+async function loadInbox() {
+  setStatus('Loading inbox…');
   try {
-    const response = await fetchJson('/api/pdfs');
-    state.pdfs = Array.isArray(response.pdfs) ? response.pdfs : [];
+    const [pdfResponse, documentResponse] = await Promise.all([
+      fetchJson('/api/pdfs'),
+      fetchJson('/api/documents')
+    ]);
+    state.pdfs = Array.isArray(pdfResponse.pdfs) ? pdfResponse.pdfs : [];
+    state.documents = Array.isArray(documentResponse.documents) ? documentResponse.documents : [];
     renderPdfList();
-    setStatus(state.pdfs.length ? 'Select PDF to start review.' : 'No PDFs found in inbox.');
+    renderDocumentList();
+    setStatus(state.pdfs.length || state.documents.length ? 'Select an inbox file to start.' : 'No files found in inbox.');
   } catch (error) {
     setStatus(readError(error));
   }
@@ -68,42 +78,64 @@ function renderPdfList() {
 
   for (const pdf of state.pdfs) {
     const item = document.createElement('li');
-    const button = document.createElement('button');
-    button.type = 'button';
-    button.textContent = pdf;
-    button.className = pdf === state.selectedPdf ? 'active' : '';
-    button.setAttribute('aria-pressed', String(pdf === state.selectedPdf));
-    button.addEventListener('click', () => startJob(pdf));
-    item.append(button);
+    const reviewButton = document.createElement('button');
+    reviewButton.type = 'button';
+    reviewButton.textContent = 'Review pages';
+    reviewButton.className = pdf === state.selectedPdf ? 'active' : '';
+    reviewButton.setAttribute('aria-pressed', String(pdf === state.selectedPdf));
+    reviewButton.addEventListener('click', () => startJob(pdf, 'pages'));
+    const label = document.createElement('span');
+    label.textContent = pdf;
+    const quickButton = document.createElement('button');
+    quickButton.type = 'button';
+    quickButton.textContent = 'Quick convert (native text)';
+    quickButton.addEventListener('click', () => startJob(pdf, 'document'));
+    item.append(label, reviewButton, quickButton);
     elements.pdfList.append(item);
   }
 }
 
-async function startJob(pdf) {
-  if (state.job && state.job.status === 'pending_review' && readFileName(state.job.sourcePdfPath) === pdf) {
-    state.selectedPdf = pdf;
+function renderDocumentList() {
+  elements.documentList.innerHTML = '';
+  elements.documentListEmpty.hidden = state.documents.length > 0;
+
+  for (const file of state.documents) {
+    const item = document.createElement('li');
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.textContent = file;
+    button.className = file === state.selectedPdf ? 'active' : '';
+    button.addEventListener('click', () => startJob(file, 'document'));
+    item.append(button);
+    elements.documentList.append(item);
+  }
+}
+
+async function startJob(file, mode) {
+  if (state.job && state.job.status === 'pending_review' && state.job.kind === (mode === 'pages' ? 'pdf-pages' : 'document') && readFileName(state.job.sourceFilePath) === file) {
+    state.selectedPdf = file;
     state.currentPageNumber = nextReviewPageNumber(state.job) ?? state.currentPageNumber;
     renderPdfList();
     render();
-    setStatus(`Resumed existing review for ${pdf}.`);
+    setStatus(`Resumed existing review for ${file}.`);
     return;
   }
 
-  state.selectedPdf = pdf;
+  state.selectedPdf = file;
   renderPdfList();
-  setBusy(true, `Creating draft for ${pdf}…`);
+  setBusy(true, `Creating draft for ${file}…`);
 
   try {
     const response = await fetchJson('/api/jobs', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ pdf })
+      body: JSON.stringify({ file, mode })
     });
 
     state.job = response.job;
     state.currentPageNumber = nextReviewPageNumber(state.job) ?? 1;
     render();
-    setStatus(response.resumed ? `Resumed existing review for ${pdf}.` : `Draft ready for ${pdf}.`);
+    setStatus(response.resumed ? `Resumed existing review for ${file}.` : `Draft ready for ${file}.`);
   } catch (error) {
     setStatus(readError(error));
   } finally {
@@ -114,20 +146,20 @@ async function startJob(pdf) {
 async function rerunCurrentPage() {
   const page = getCurrentPage();
   if (!state.job || !page) return;
-  const selectedEngine = readSelectedEngine(state.job.id, page);
+  const selectedEngine = state.job.kind === 'document' ? null : readSelectedEngine(state.job.id, page);
 
-  setBusy(true, `Rerunning page ${page.pageNumber}…`);
+  setBusy(true, state.job.kind === 'document' ? 'Reconvert document…' : `Rerunning page ${page.pageNumber}…`);
   try {
     const response = await fetchJson(`/api/jobs/${encodeURIComponent(state.job.id)}/pages/${page.pageNumber}/rerun`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ engine: selectedEngine })
+      body: state.job.kind === 'document' ? undefined : JSON.stringify({ engine: selectedEngine })
     });
 
     state.job = response.job;
-    state.selectedEngines.set(pageEngineKey(state.job.id, page.pageNumber), selectedEngine);
+    if (selectedEngine) state.selectedEngines.set(pageEngineKey(state.job.id, page.pageNumber), selectedEngine);
     render();
-    setStatus(`Reran page ${page.pageNumber} with ${selectedEngine}.`);
+    setStatus(state.job.kind === 'document' ? 'Document reconverted.' : `Reran page ${page.pageNumber} with ${selectedEngine}.`);
   } catch (error) {
     setStatus(readError(error));
   } finally {
@@ -168,7 +200,7 @@ async function commitCurrentJob() {
     state.job = response.job;
     render();
     setStatus(`Committed accepted pages to ${response.outputPath}.`);
-    await loadPdfs();
+    await loadInbox();
   } catch (error) {
     setStatus(readError(error));
   } finally {
@@ -187,7 +219,7 @@ async function discardCurrentJob() {
     state.currentPageNumber = 1;
     render();
     setStatus('Draft discarded.');
-    await loadPdfs();
+    await loadInbox();
   } catch (error) {
     setStatus(readError(error));
   } finally {
@@ -219,16 +251,26 @@ function render() {
     return;
   }
 
-  elements.jobMeta.textContent = `${readFileName(job.sourcePdfPath)} · job ${job.id}`;
+  const isDocument = job.kind === 'document';
+  elements.jobMeta.textContent = `${readFileName(job.sourceFilePath)} · job ${job.id}`;
   elements.progressText.textContent = `${acceptedCount} of ${job.pages.length} accepted`;
-  elements.pagePosition.textContent = `Page ${page.pageNumber} of ${job.pages.length}`;
+  elements.pagePosition.textContent = isDocument ? 'Whole document' : `Page ${page.pageNumber} of ${job.pages.length}`;
   elements.previousPage.disabled = state.loading || page.pageNumber === job.pages[0]?.pageNumber;
   elements.nextPage.disabled = state.loading || page.pageNumber === job.pages[job.pages.length - 1]?.pageNumber;
   elements.rerunPage.disabled = state.loading;
   elements.acceptPage.disabled = state.loading || page.accepted;
+  elements.previewPanel.hidden = isDocument;
+  elements.pageNav.hidden = isDocument;
+  elements.adapterSelect.closest('.field').hidden = isDocument;
+  elements.rerunPage.textContent = isDocument ? 'Reconvert document' : 'Rerun page';
+  elements.acceptPage.textContent = isDocument ? 'Accept document' : 'Accept page';
 
-  elements.pagePreview.src = previewUrl(job.id, page.pageNumber);
-  elements.pagePreview.alt = `Preview of page ${page.pageNumber} from ${readFileName(job.sourcePdfPath)}`;
+  if (!isDocument) {
+    elements.pagePreview.src = previewUrl(job.id, page.pageNumber);
+    elements.pagePreview.alt = `Preview of page ${page.pageNumber} from ${readFileName(job.sourceFilePath)}`;
+  } else {
+    elements.pagePreview.removeAttribute('src');
+  }
   elements.confidenceText.textContent = typeof page.confidence === 'number'
     ? `Confidence ${Math.round(page.confidence * 100)}%`
     : '';
@@ -236,7 +278,7 @@ function render() {
   renderWarnings(page);
   elements.markdownRaw.textContent = page.markdown || '(empty markdown)';
   elements.markdownRender.replaceChildren(renderMarkdown(page.markdown));
-  elements.adapterSelect.value = readSelectedEngine(job.id, page);
+  if (!isDocument) elements.adapterSelect.value = readSelectedEngine(job.id, page);
 
   renderPageList(job, page.pageNumber);
 }

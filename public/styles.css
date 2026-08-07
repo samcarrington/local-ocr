@@ -122,6 +122,12 @@ select {
   min-height: 18rem;
 }
 
+.sidebar {
+  display: grid;
+  align-content: start;
+  gap: 1.5rem;
+}
+
 .pdf-list,
 .page-list {
   list-style: none;
@@ -141,6 +147,15 @@ select {
   text-align: left;
 }
 
+.pdf-list li {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.pdf-list li > span {
+  overflow-wrap: anywhere;
+}
+
 .pdf-list button.active,
 .page-list button.active {
   border-color: #2f6fed;
@@ -157,6 +172,10 @@ select {
   grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.05fr);
   gap: 1rem;
   margin-top: 1rem;
+}
+
+.content-grid:has(.preview-panel[hidden]) {
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .preview-panel,

@@ -17,13 +17,23 @@
       </header>
 
       <main class="layout">
-        <aside class="panel sidebar" aria-labelledby="pdf-list-heading">
-          <div class="panel-header">
-            <h2 id="pdf-list-heading">Inbox PDFs</h2>
-            <button id="refresh-pdfs" type="button">Refresh</button>
-          </div>
-          <ul id="pdf-list" class="pdf-list"></ul>
-          <p id="pdf-list-empty" class="muted" hidden>No PDFs found.</p>
+        <aside class="panel sidebar">
+          <section class="inbox-list-panel" aria-labelledby="pdf-list-heading">
+            <div class="panel-header">
+              <h2 id="pdf-list-heading">Inbox PDFs</h2>
+              <button id="refresh-pdfs" type="button">Refresh</button>
+            </div>
+            <ul id="pdf-list" class="pdf-list"></ul>
+            <p id="pdf-list-empty" class="muted" hidden>No PDFs found.</p>
+          </section>
+
+          <section class="inbox-list-panel" aria-labelledby="document-list-heading">
+            <div class="panel-header">
+              <h2 id="document-list-heading">Inbox Documents</h2>
+            </div>
+            <ul id="document-list" class="pdf-list"></ul>
+            <p id="document-list-empty" class="muted" hidden>No documents found.</p>
+          </section>
         </aside>
 
         <section class="panel reviewer" aria-labelledby="review-heading">
@@ -65,7 +75,7 @@
             </div>
 
             <div class="content-grid">
-              <section class="preview-panel" aria-labelledby="preview-heading">
+              <section id="preview-panel" class="preview-panel" aria-labelledby="preview-heading">
                 <div class="section-header">
                   <h3 id="preview-heading">Source preview</h3>
                   <p id="confidence-text" class="muted"></p>
@@ -91,7 +101,7 @@
               </section>
             </div>
 
-            <nav class="page-nav" aria-label="Pages">
+            <nav id="page-nav" class="page-nav" aria-label="Pages">
               <button id="previous-page" type="button">Previous</button>
               <ol id="page-list" class="page-list"></ol>
               <button id="next-page" type="button">Next</button>
