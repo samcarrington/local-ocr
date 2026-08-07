@@ -4,6 +4,7 @@ import path from 'node:path';
 
 import type { OcrAdapterRegistry } from '../ocr/adapters.js';
 import { createOcrAdapterRegistry } from '../ocr/adapters.js';
+import { convertDocumentToMarkdown } from '../convert/anydoc.js';
 import { saveJob } from './job-store.js';
 import { extractPdfPages } from './pdf.js';
 import type { AppConfig, DraftJob, DraftPage, OcrAdapter } from './types.js';
@@ -38,7 +39,8 @@ export async function createDraftJob(
 
   const job: DraftJob = {
     id: jobId,
-    sourcePdfPath: pdfPath,
+    kind: 'pdf-pages',
+    sourceFilePath: pdfPath,
     status: 'pending_review',
     createdAt: timestamp,
     updatedAt: timestamp,
@@ -48,6 +50,37 @@ export async function createDraftJob(
   if (options.persist ?? true) {
     await saveJob(config, job);
   }
+
+  return job;
+}
+
+export async function createDocumentDraftJob(
+  filePath: string,
+  config: AppConfig,
+): Promise<DraftJob> {
+  assertPdfPathWithinInbox(filePath, config.inboxPath);
+
+  const { markdown } = await convertDocumentToMarkdown(filePath);
+  const jobId = randomUUID();
+  const timestamp = new Date().toISOString();
+  const job: DraftJob = {
+    id: jobId,
+    kind: 'document',
+    sourceFilePath: filePath,
+    status: 'pending_review',
+    createdAt: timestamp,
+    updatedAt: timestamp,
+    pages: [
+      {
+        pageNumber: 1,
+        nativeText: '',
+        markdown,
+        accepted: false,
+        status: 'pending',
+        engine: 'anydoc',
+      },
+    ],
+  };
 
   return job;
 }

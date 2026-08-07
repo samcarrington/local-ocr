@@ -5,7 +5,10 @@ import express from 'express';
 
 import { commitJob } from './core/commit.js';
 import { deleteJob, listJobs, loadJob, saveJob } from './core/job-store.js';
-import { createDraftJob } from './core/pipeline.js';
+import {
+  createDocumentDraftJob,
+  createDraftJob,
+} from './core/pipeline.js';
 import type {
   AppConfig,
   DraftJob,
@@ -16,6 +19,11 @@ import type {
 } from './core/types.js';
 import type { OcrAdapterRegistry } from './ocr/adapters.js';
 import { createOcrAdapterRegistry } from './ocr/adapters.js';
+import {
+  convertDocumentToMarkdown,
+  DocumentConversionError,
+  isAnydocSupportedExtension,
+} from './convert/anydoc.js';
 
 interface ApiError extends Error {
   statusCode?: number;
@@ -23,6 +31,8 @@ interface ApiError extends Error {
 
 export interface ApiDependencies {
   createDraftJob: typeof createDraftJob;
+  createDocumentDraftJob: typeof createDocumentDraftJob;
+  convertDocumentToMarkdown: typeof convertDocumentToMarkdown;
   loadJob: typeof loadJob;
   listJobs: typeof listJobs;
   saveJob: typeof saveJob;
@@ -33,6 +43,8 @@ export interface ApiDependencies {
 
 const DEFAULT_DEPENDENCIES: ApiDependencies = {
   createDraftJob,
+  createDocumentDraftJob,
+  convertDocumentToMarkdown,
   loadJob,
   listJobs,
   saveJob,
@@ -56,29 +68,52 @@ export function createApiRouter(
     }),
   );
 
+  router.get(
+    '/documents',
+    asyncHandler(async (_req, res) => {
+      const documents = await listInboxDocuments(config.inboxPath);
+      res.json({ documents });
+    }),
+  );
+
   router.post(
     '/jobs',
     asyncHandler(async (req, res) => {
-      const pdf = readRequiredString(req.body?.pdf, 'pdf');
-      const pdfPath = resolveInboxPdfPath(config.inboxPath, pdf);
+      const file = readRequiredString(req.body?.file, 'file');
+      const mode = readJobMode(req.body?.mode);
+      const filePath = resolveInboxFilePath(config.inboxPath, file);
 
-      await assertExistingFile(pdfPath, 404, `PDF not found: ${pdf}`);
+      await assertExistingFile(filePath, 404, `File not found: ${file}`);
+      const isPdf = path.extname(file).toLowerCase() === '.pdf';
+      if (!isPdf && mode !== 'document') {
+        throw createError(400, 'Non-PDF files require mode: document');
+      }
+      const kind = isPdf && mode === 'pages' ? 'pdf-pages' : 'document';
 
-      const existingJob = await findPendingReviewJobForPdf(
+      const existingJob = await findPendingReviewJobForFile(
         deps,
         config,
-        pdfPath,
+        filePath,
+        kind,
       );
       if (existingJob) {
         res.status(200).json({ job: existingJob, resumed: true });
         return;
       }
 
-      const job = await deps.createDraftJob(
-        pdfPath,
-        config,
-        deps.createAdapterRegistry(config),
-      );
+      let job: DraftJob;
+      try {
+        job =
+          kind === 'pdf-pages'
+            ? await deps.createDraftJob(
+                filePath,
+                config,
+                deps.createAdapterRegistry(config),
+              )
+            : await deps.createDocumentDraftJob(filePath, config);
+      } catch (error) {
+        throw documentConversionApiError(error);
+      }
       res.status(201).json({ job });
     }),
   );
@@ -97,12 +132,18 @@ export function createApiRouter(
       const job = await requireJob(deps, config, req.params.id);
       const page = getPage(job, req.params.page);
 
+      if (!page.imagePath) {
+        throw createError(404, 'No preview image available for this page.');
+      }
       await assertExistingFile(
         page.imagePath,
         404,
         `Preview not found for page ${page.pageNumber}`,
       );
-      res.sendFile(path.resolve(page.imagePath));
+      const previewPath = path.resolve(page.imagePath);
+      res.sendFile(path.basename(previewPath), {
+        root: path.dirname(previewPath),
+      });
     }),
   );
 
@@ -112,9 +153,26 @@ export function createApiRouter(
       const job = await requireJob(deps, config, req.params.id);
       assertJobNotCommitted(job);
       const page = getPage(job, req.params.page);
-      const engine = readEngine(req.body?.engine);
-      const adapter = deps.createAdapterRegistry(config).getAdapter(engine);
-      const result = await processPageForRerun(adapter, page.imagePath, engine);
+      let result: {
+        markdown: string;
+        confidence?: number;
+        figures?: DraftPage['figures'];
+        layoutBlocks?: DraftPage['layoutBlocks'];
+      };
+      let engine: DraftPage['engine'];
+      if (job.kind === 'document') {
+        try {
+          result = await deps.convertDocumentToMarkdown(job.sourceFilePath);
+        } catch (error) {
+          throw documentConversionApiError(error);
+        }
+        engine = 'anydoc';
+      } else {
+        const ocrEngine = readEngine(req.body?.engine);
+        const adapter = deps.createAdapterRegistry(config).getAdapter(ocrEngine);
+        result = await processPageForRerun(adapter, page.imagePath!, ocrEngine);
+        engine = ocrEngine;
+      }
       const qualityWarning = buildLowNativeCoverageWarning(
         page.nativeText,
         result.markdown,
@@ -182,13 +240,13 @@ export function createApiRouter(
   router.delete(
     '/jobs/:id',
     asyncHandler(async (req, res) => {
-      const job = await deps.loadJob(config, req.params.id);
+      const job = await deps.loadJob(config, req.params.id as string);
       if (!job) {
         throw createError(404, `Job not found: ${req.params.id}`);
       }
       assertJobNotCommitted(job);
 
-      const deleted = await deps.deleteJob(config, req.params.id);
+      const deleted = await deps.deleteJob(config, req.params.id as string);
       await rm(path.join(config.jobStorePath, encodeURIComponent(job.id)), {
         recursive: true,
         force: true,
@@ -252,20 +310,30 @@ async function listInboxPdfs(inboxPath: string): Promise<string[]> {
   }
 }
 
-function resolveInboxPdfPath(inboxPath: string, pdf: string): string {
-  if (path.basename(pdf) !== pdf || pdf.includes('/') || pdf.includes('\\')) {
-    throw createError(400, 'pdf must be inbox filename only');
+async function listInboxDocuments(inboxPath: string): Promise<string[]> {
+  try {
+    const entries = await readdir(inboxPath, { withFileTypes: true });
+    return entries.filter((entry) => entry.isFile() && isAnydocSupportedExtension(entry.name)).map((entry) => entry.name).sort((left, right) => left.localeCompare(right));
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return [];
+    throw error;
+  }
+}
+
+function resolveInboxFilePath(inboxPath: string, file: string): string {
+  if (path.basename(file) !== file || file.includes('/') || file.includes('\\')) {
+    throw createError(400, 'file must be inbox filename only');
   }
 
   const resolvedInboxPath = path.resolve(inboxPath);
-  const resolvedPdfPath = path.resolve(resolvedInboxPath, pdf);
-  const relativePath = path.relative(resolvedInboxPath, resolvedPdfPath);
+  const resolvedFilePath = path.resolve(resolvedInboxPath, file);
+  const relativePath = path.relative(resolvedInboxPath, resolvedFilePath);
 
   if (relativePath.startsWith('..') || path.isAbsolute(relativePath)) {
-    throw createError(400, 'pdf must stay within inboxPath');
+    throw createError(400, 'file must stay within inboxPath');
   }
 
-  return resolvedPdfPath;
+  return resolvedFilePath;
 }
 
 function readRequiredString(value: unknown, field: string): string {
@@ -274,6 +342,16 @@ function readRequiredString(value: unknown, field: string): string {
   }
 
   return value.trim();
+}
+
+function readJobMode(value: unknown): 'pages' | 'document' {
+  if (value === undefined) {
+    return 'pages';
+  }
+  if (value !== 'pages' && value !== 'document') {
+    throw createError(400, 'mode must be pages or document');
+  }
+  return value;
 }
 
 function readEngine(value: unknown): EngineName {
@@ -290,10 +368,11 @@ function readEngine(value: unknown): EngineName {
   return engine;
 }
 
-async function findPendingReviewJobForPdf(
+async function findPendingReviewJobForFile(
   deps: ApiDependencies,
   config: AppConfig,
-  pdfPath: string,
+  filePath: string,
+  kind: DraftJob['kind'],
 ): Promise<DraftJob | null> {
   const jobs = await deps.listJobs(config);
 
@@ -302,7 +381,8 @@ async function findPendingReviewJobForPdf(
       .filter(
         (job) =>
           job.status === 'pending_review' &&
-          path.resolve(job.sourcePdfPath) === path.resolve(pdfPath),
+          job.kind === kind &&
+          path.resolve(job.sourceFilePath) === path.resolve(filePath),
       )
       .sort((left, right) =>
         right.updatedAt.localeCompare(left.updatedAt),
@@ -310,11 +390,19 @@ async function findPendingReviewJobForPdf(
   );
 }
 
+function documentConversionApiError(error: unknown): ApiError | unknown {
+  if (error instanceof DocumentConversionError) {
+    return createError(error.status, error.message);
+  }
+  return error;
+}
+
 async function requireJob(
   deps: ApiDependencies,
   config: AppConfig,
-  jobId: string,
+  jobId: string | string[],
 ): Promise<DraftJob> {
+  jobId = Array.isArray(jobId) ? jobId[0] ?? '' : jobId;
   const job = await deps.loadJob(config, jobId);
   if (!job) {
     throw createError(404, `Job not found: ${jobId}`);
@@ -323,7 +411,8 @@ async function requireJob(
   return job;
 }
 
-function getPage(job: DraftJob, pageParam: string) {
+function getPage(job: DraftJob, pageParam: string | string[]) {
+  pageParam = Array.isArray(pageParam) ? pageParam[0] ?? '' : pageParam;
   const pageNumber = Number.parseInt(pageParam, 10);
   if (!Number.isInteger(pageNumber) || pageNumber < 1) {
     throw createError(400, 'page must be positive integer');

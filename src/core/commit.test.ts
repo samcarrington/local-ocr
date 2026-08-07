@@ -67,7 +67,8 @@ describe('commitJob', () => {
     writeFileSync(figureSourcePath, 'figure');
     const job: DraftJob = {
       id: 'job-1',
-      sourcePdfPath,
+      kind: 'pdf-pages',
+      sourceFilePath: sourcePdfPath,
       status: 'pending_review',
       createdAt: '2026-07-13T00:00:00.000Z',
       updatedAt: '2026-07-13T00:00:00.000Z',
@@ -136,7 +137,7 @@ describe('commitJob', () => {
     expect(existsSync(copiedFigurePath)).toBe(true);
     expect(await readFile(copiedFigurePath, 'utf8')).toBe('figure');
     expect(await readFile(result.markdownPath, 'utf8')).toBe(`---
-source_pdf: "report.pdf"
+source_file: "report.pdf"
 ocr_engine: "mixed"
 converted_at: "2026-07-13T12:34:56.000Z"
 ---
@@ -159,7 +160,8 @@ Second page accepted.
     const sourcePdfPath = createPdf(rootDir, 'done.pdf');
     const job: DraftJob = {
       id: 'job-2',
-      sourcePdfPath,
+      kind: 'pdf-pages',
+      sourceFilePath: sourcePdfPath,
       status: 'pending_review',
       createdAt: '2026-07-13T00:00:00.000Z',
       updatedAt: '2026-07-13T00:00:00.000Z',
@@ -199,7 +201,8 @@ Second page accepted.
     const sourcePdfPath = createPdf(rootDir, 'unsafe.pdf');
     const job: DraftJob = {
       id: 'job-unsafe',
-      sourcePdfPath,
+      kind: 'pdf-pages',
+      sourceFilePath: sourcePdfPath,
       status: 'pending_review',
       createdAt: '2026-07-13T00:00:00.000Z',
       updatedAt: '2026-07-13T00:00:00.000Z',
@@ -243,7 +246,8 @@ Second page accepted.
     const sourcePdfPath = createPdf(rootDir, 'styled-raw-html.pdf');
     const job: DraftJob = {
       id: 'job-styled-raw-html',
-      sourcePdfPath,
+      kind: 'pdf-pages',
+      sourceFilePath: sourcePdfPath,
       status: 'pending_review',
       createdAt: '2026-07-13T00:00:00.000Z',
       updatedAt: '2026-07-13T00:00:00.000Z',
@@ -291,7 +295,8 @@ Second page accepted.
     const sourcePdfPath = createPdf(rootDir, 'obfuscated-unsafe.pdf');
     const job: DraftJob = {
       id: 'job-obfuscated-unsafe',
-      sourcePdfPath,
+      kind: 'pdf-pages',
+      sourceFilePath: sourcePdfPath,
       status: 'pending_review',
       createdAt: '2026-07-13T00:00:00.000Z',
       updatedAt: '2026-07-13T00:00:00.000Z',
@@ -329,7 +334,8 @@ Second page accepted.
     const sourcePdfPath = createPdf(rootDir, 'markdown-links.pdf');
     const job: DraftJob = {
       id: 'job-markdown-links',
-      sourcePdfPath,
+      kind: 'pdf-pages',
+      sourceFilePath: sourcePdfPath,
       status: 'pending_review',
       createdAt: '2026-07-13T00:00:00.000Z',
       updatedAt: '2026-07-13T00:00:00.000Z',
@@ -377,7 +383,8 @@ Second page accepted.
     const sourcePdfPath = createPdf(rootDir, 'markdown-reference-images.pdf');
     const job: DraftJob = {
       id: 'job-markdown-reference-images',
-      sourcePdfPath,
+      kind: 'pdf-pages',
+      sourceFilePath: sourcePdfPath,
       status: 'pending_review',
       createdAt: '2026-07-13T00:00:00.000Z',
       updatedAt: '2026-07-13T00:00:00.000Z',
@@ -429,7 +436,8 @@ Second page accepted.
     const sourcePdfPath = createPdf(rootDir, 'svg-xlink.pdf');
     const job: DraftJob = {
       id: 'job-svg-xlink',
-      sourcePdfPath,
+      kind: 'pdf-pages',
+      sourceFilePath: sourcePdfPath,
       status: 'pending_review',
       createdAt: '2026-07-13T00:00:00.000Z',
       updatedAt: '2026-07-13T00:00:00.000Z',
@@ -468,7 +476,8 @@ Second page accepted.
     const sourcePdfPath = createPdf(rootDir, 'malformed-tags.pdf');
     const job: DraftJob = {
       id: 'job-malformed-tags',
-      sourcePdfPath,
+      kind: 'pdf-pages',
+      sourceFilePath: sourcePdfPath,
       status: 'pending_review',
       createdAt: '2026-07-13T00:00:00.000Z',
       updatedAt: '2026-07-13T00:00:00.000Z',
@@ -507,7 +516,8 @@ Second page accepted.
     const sourcePdfPath = createPdf(rootDir, 'ordinary-html.pdf');
     const job: DraftJob = {
       id: 'job-ordinary-html',
-      sourcePdfPath,
+      kind: 'pdf-pages',
+      sourceFilePath: sourcePdfPath,
       status: 'pending_review',
       createdAt: '2026-07-13T00:00:00.000Z',
       updatedAt: '2026-07-13T00:00:00.000Z',
@@ -543,7 +553,8 @@ Second page accepted.
     const sourcePdfPath = createPdf(rootDir, 'quoted-greater-than.pdf');
     const job: DraftJob = {
       id: 'job-quoted-greater-than',
-      sourcePdfPath,
+      kind: 'pdf-pages',
+      sourceFilePath: sourcePdfPath,
       status: 'pending_review',
       createdAt: '2026-07-13T00:00:00.000Z',
       updatedAt: '2026-07-13T00:00:00.000Z',
@@ -580,7 +591,8 @@ Second page accepted.
     const sourcePdfPath = createPdf(rootDir, 'slash-event-attribute.pdf');
     const job: DraftJob = {
       id: 'job-slash-event-attribute',
-      sourcePdfPath,
+      kind: 'pdf-pages',
+      sourceFilePath: sourcePdfPath,
       status: 'pending_review',
       createdAt: '2026-07-13T00:00:00.000Z',
       updatedAt: '2026-07-13T00:00:00.000Z',
@@ -617,7 +629,8 @@ Second page accepted.
     const sourcePdfPath = createPdf(rootDir, 'slash-url-attribute.pdf');
     const job: DraftJob = {
       id: 'job-slash-url-attribute',
-      sourcePdfPath,
+      kind: 'pdf-pages',
+      sourceFilePath: sourcePdfPath,
       status: 'pending_review',
       createdAt: '2026-07-13T00:00:00.000Z',
       updatedAt: '2026-07-13T00:00:00.000Z',
@@ -660,7 +673,8 @@ Second page accepted.
     const sourcePdfPath = createPdf(rootDir, 'unquoted-image-urls.pdf');
     const job: DraftJob = {
       id: 'job-unquoted-image-urls',
-      sourcePdfPath,
+      kind: 'pdf-pages',
+      sourceFilePath: sourcePdfPath,
       status: 'pending_review',
       createdAt: '2026-07-13T00:00:00.000Z',
       updatedAt: '2026-07-13T00:00:00.000Z',
@@ -701,7 +715,8 @@ Second page accepted.
     const sourcePdfPath = createPdf(rootDir, 'encoded-controls.pdf');
     const job: DraftJob = {
       id: 'job-encoded-controls',
-      sourcePdfPath,
+      kind: 'pdf-pages',
+      sourceFilePath: sourcePdfPath,
       status: 'pending_review',
       createdAt: '2026-07-13T00:00:00.000Z',
       updatedAt: '2026-07-13T00:00:00.000Z',
@@ -737,7 +752,8 @@ Second page accepted.
     const sourcePdfPath = createPdf(rootDir, 'encoded-protocol-relative.pdf');
     const job: DraftJob = {
       id: 'job-encoded-protocol-relative',
-      sourcePdfPath,
+      kind: 'pdf-pages',
+      sourceFilePath: sourcePdfPath,
       status: 'pending_review',
       createdAt: '2026-07-13T00:00:00.000Z',
       updatedAt: '2026-07-13T00:00:00.000Z',
@@ -772,7 +788,8 @@ Second page accepted.
     );
     const job: DraftJob = {
       id: 'job-encoded-srcset-comma-external',
-      sourcePdfPath,
+      kind: 'pdf-pages',
+      sourceFilePath: sourcePdfPath,
       status: 'pending_review',
       createdAt: '2026-07-13T00:00:00.000Z',
       updatedAt: '2026-07-13T00:00:00.000Z',
@@ -807,7 +824,8 @@ Second page accepted.
     const sourcePdfPath = createPdf(rootDir, 'encoded-srcset-comma-local.pdf');
     const job: DraftJob = {
       id: 'job-encoded-srcset-comma-local',
-      sourcePdfPath,
+      kind: 'pdf-pages',
+      sourceFilePath: sourcePdfPath,
       status: 'pending_review',
       createdAt: '2026-07-13T00:00:00.000Z',
       updatedAt: '2026-07-13T00:00:00.000Z',
@@ -840,7 +858,8 @@ Second page accepted.
     const sourcePdfPath = createPdf(rootDir, 'backslash-protocol-relative.pdf');
     const job: DraftJob = {
       id: 'job-backslash-protocol-relative',
-      sourcePdfPath,
+      kind: 'pdf-pages',
+      sourceFilePath: sourcePdfPath,
       status: 'pending_review',
       createdAt: '2026-07-13T00:00:00.000Z',
       updatedAt: '2026-07-13T00:00:00.000Z',
@@ -879,7 +898,8 @@ Second page accepted.
     writeFileSync(failedCrop, 'failed');
     const job: DraftJob = {
       id: 'job-partial-figures',
-      sourcePdfPath,
+      kind: 'pdf-pages',
+      sourceFilePath: sourcePdfPath,
       status: 'pending_review',
       createdAt: '2026-07-13T00:00:00.000Z',
       updatedAt: '2026-07-13T00:00:00.000Z',
@@ -945,7 +965,8 @@ Second page accepted.
     writeFileSync(figureSourcePath, 'linked-figure');
     const job: DraftJob = {
       id: 'job-5',
-      sourcePdfPath,
+      kind: 'pdf-pages',
+      sourceFilePath: sourcePdfPath,
       status: 'pending_review',
       createdAt: '2026-07-13T00:00:00.000Z',
       updatedAt: '2026-07-13T00:00:00.000Z',
@@ -991,7 +1012,8 @@ Second page accepted.
     writeFileSync(cropTwo, 'crop-two');
     const job: DraftJob = {
       id: 'job-fig',
-      sourcePdfPath,
+      kind: 'pdf-pages',
+      sourceFilePath: sourcePdfPath,
       status: 'pending_review',
       createdAt: '2026-07-13T00:00:00.000Z',
       updatedAt: '2026-07-13T00:00:00.000Z',
@@ -1048,7 +1070,8 @@ Second page accepted.
     writeFileSync(cropTwo, 'quote-two');
     const job: DraftJob = {
       id: 'job-figure-quotes',
-      sourcePdfPath,
+      kind: 'pdf-pages',
+      sourceFilePath: sourcePdfPath,
       status: 'pending_review',
       createdAt: '2026-07-13T00:00:00.000Z',
       updatedAt: '2026-07-13T00:00:00.000Z',
@@ -1096,7 +1119,8 @@ Second page accepted.
     writeFileSync(cropThree, 'form-three');
     const job: DraftJob = {
       id: 'job-figure-quote-forms',
-      sourcePdfPath,
+      kind: 'pdf-pages',
+      sourceFilePath: sourcePdfPath,
       status: 'pending_review',
       createdAt: '2026-07-13T00:00:00.000Z',
       updatedAt: '2026-07-13T00:00:00.000Z',
@@ -1147,7 +1171,8 @@ Second page accepted.
     writeFileSync(cropOne, 'safe-unsafe');
     const job: DraftJob = {
       id: 'job-figure-safe-unsafe',
-      sourcePdfPath,
+      kind: 'pdf-pages',
+      sourceFilePath: sourcePdfPath,
       status: 'pending_review',
       createdAt: '2026-07-13T00:00:00.000Z',
       updatedAt: '2026-07-13T00:00:00.000Z',
@@ -1185,7 +1210,8 @@ Second page accepted.
     writeFileSync(cropOne, 'only');
     const job: DraftJob = {
       id: 'job-mismatch',
-      sourcePdfPath,
+      kind: 'pdf-pages',
+      sourceFilePath: sourcePdfPath,
       status: 'pending_review',
       createdAt: '2026-07-13T00:00:00.000Z',
       updatedAt: '2026-07-13T00:00:00.000Z',
@@ -1219,7 +1245,8 @@ Second page accepted.
     const sourcePdfPath = createPdf(rootDir, 'native.pdf');
     const job: DraftJob = {
       id: 'job-4',
-      sourcePdfPath,
+      kind: 'pdf-pages',
+      sourceFilePath: sourcePdfPath,
       status: 'pending_review',
       createdAt: '2026-07-13T00:00:00.000Z',
       updatedAt: '2026-07-13T00:00:00.000Z',
@@ -1252,7 +1279,8 @@ Second page accepted.
     const sourcePdfPath = createPdf(rootDir, 'contradiction.pdf');
     const job: DraftJob = {
       id: 'job-3',
-      sourcePdfPath,
+      kind: 'pdf-pages',
+      sourceFilePath: sourcePdfPath,
       status: 'pending_review',
       createdAt: '2026-07-13T00:00:00.000Z',
       updatedAt: '2026-07-13T00:00:00.000Z',
@@ -1274,6 +1302,88 @@ Second page accepted.
     expect(result.movedSourcePdf).toBe(true);
     expect(await readFile(result.markdownPath, 'utf8')).toContain(
       'Accepted wins.',
+    );
+  });
+
+  it('commits accepted document jobs to an extension-qualified directory', async () => {
+    const rootDir = makeTempDir();
+    const config = makeConfig(rootDir);
+    const sourceFilePath = createPdf(rootDir, 'report.docx');
+    const job: DraftJob = {
+      id: 'job-document-accepted',
+      kind: 'document',
+      sourceFilePath,
+      status: 'pending_review',
+      createdAt: '2026-08-07T00:00:00.000Z',
+      updatedAt: '2026-08-07T00:00:00.000Z',
+      pages: [
+        {
+          pageNumber: 1,
+          nativeText: '',
+          markdown: '# Converted document',
+          accepted: true,
+          status: 'accepted',
+          engine: 'anydoc',
+        },
+      ],
+    };
+
+    const result = await commitJob(config, job);
+    const expectedOutputDir = path.join(config.inboxPath, 'report--docx');
+    const markdown = await readFile(result.markdownPath, 'utf8');
+
+    expect(result.markdownPath).toBe(
+      path.join(expectedOutputDir, 'report--docx.md'),
+    );
+    expect(existsSync(path.join(config.inboxPath, 'report', 'report.md'))).toBe(
+      false,
+    );
+    expect(markdown).toContain('source_file: "report.docx"');
+    expect(markdown).not.toContain('source_pdf:');
+    expect(markdown).toContain('ocr_engine: "anydoc"');
+    expect(existsSync(path.join(expectedOutputDir, 'images'))).toBe(false);
+    expect(result.movedSourcePdf).toBe(true);
+    expect(existsSync(path.join(config.inboxPath, 'processed', 'report.docx'))).toBe(
+      true,
+    );
+  });
+
+  it('keeps unaccepted document jobs pending without moving the source', async () => {
+    const rootDir = makeTempDir();
+    const config = makeConfig(rootDir);
+    const sourceFilePath = createPdf(rootDir, 'pending.docx');
+    const job: DraftJob = {
+      id: 'job-document-pending',
+      kind: 'document',
+      sourceFilePath,
+      status: 'pending_review',
+      createdAt: '2026-08-07T00:00:00.000Z',
+      updatedAt: '2026-08-07T00:00:00.000Z',
+      pages: [
+        {
+          pageNumber: 1,
+          nativeText: '',
+          markdown: 'Pending body must not be committed.',
+          accepted: false,
+          status: 'pending',
+          engine: 'anydoc',
+        },
+      ],
+    };
+
+    const result = await commitJob(config, job);
+    const markdown = await readFile(result.markdownPath, 'utf8');
+
+    expect(markdown).toContain('[[OCR PENDING: page 1]]');
+    expect(markdown).not.toContain('Pending body must not be committed.');
+    expect(existsSync(sourceFilePath)).toBe(true);
+    expect(result.movedSourcePdf).toBe(false);
+    expect(result.processedPdfPath).toBeNull();
+    expect(existsSync(path.join(config.inboxPath, 'processed', 'pending.docx'))).toBe(
+      false,
+    );
+    expect(existsSync(path.join(path.dirname(result.markdownPath), 'images'))).toBe(
+      false,
     );
   });
 });

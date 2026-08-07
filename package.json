@@ -19,6 +19,7 @@
   },
   "dependencies": {
     "@napi-rs/canvas": "1.0.2",
+    "@firecrawl/anydoc": "0.1.7",
     "express": "5.2.1",
     "pdfjs-dist": "6.1.200",
     "tesseract.js": "7.0.0",
@@ -31,5 +32,6 @@
     "tsx": "4.23.1",
     "typescript": "7.0.2",
     "vitest": "4.1.10"
-  }
+  },
+  "packageManager": "pnpm@11.9.0"
 }

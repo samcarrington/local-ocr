@@ -59,7 +59,8 @@ function makeJob(rootDir: string, overrides: Partial<DraftJob> = {}): DraftJob {
 
   return {
     id: 'job-1',
-    sourcePdfPath: path.join(rootDir, 'inbox', 'report.pdf'),
+    kind: 'pdf-pages',
+    sourceFilePath: path.join(rootDir, 'inbox', 'report.pdf'),
     status: 'pending_review',
     createdAt: '2026-07-13T00:00:00.000Z',
     updatedAt: '2026-07-13T00:00:00.000Z',
@@ -131,7 +132,7 @@ describe('server api', () => {
     const createdJob = makeJob(rootDir, { id: 'created-job' });
     const resumedJob = makeJob(rootDir, {
       id: 'resumed-job',
-      sourcePdfPath: path.join(config.inboxPath, 'a.PDF'),
+      sourceFilePath: path.join(config.inboxPath, 'a.PDF'),
       updatedAt: '2026-07-13T00:01:00.000Z',
     });
     const createDraftJobMock = vi.fn(async () => createdJob);
@@ -149,7 +150,7 @@ describe('server api', () => {
       const resumeResponse = await fetch(`${baseUrl}/api/jobs`, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ pdf: 'a.PDF' }),
+        body: JSON.stringify({ file: 'a.PDF' }),
       });
 
       expect(resumeResponse.status).toBe(200);
@@ -161,7 +162,7 @@ describe('server api', () => {
       const createResponse = await fetch(`${baseUrl}/api/jobs`, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ pdf: 'b.pdf' }),
+        body: JSON.stringify({ file: 'b.pdf' }),
       });
 
       expect(createResponse.status).toBe(201);
@@ -177,12 +178,12 @@ describe('server api', () => {
       const traversalResponse = await fetch(`${baseUrl}/api/jobs`, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ pdf: '../escape.pdf' }),
+        body: JSON.stringify({ file: '../escape.pdf' }),
       });
 
       expect(traversalResponse.status).toBe(400);
       expect(await traversalResponse.json()).toEqual({
-        error: 'pdf must be inbox filename only',
+        error: 'file must be inbox filename only',
       });
     });
   });
@@ -190,7 +191,7 @@ describe('server api', () => {
   it('loads preview, reruns page, accepts, partially commits, fully commits, and still deletes pending jobs', async () => {
     const rootDir = makeTempDir();
     const config = makeConfig(rootDir);
-    const job = makeJob(rootDir);
+    const job = makeJob(rootDir, { id: 'job-1' });
     const draftDeleteJob = makeJob(rootDir, { id: 'draft-delete-job' });
     const rerunResult: OcrResult = {
       markdown: 'rerun markdown',
@@ -217,7 +218,8 @@ describe('server api', () => {
         engine: 'tesseract',
       },
     ];
-    writeFileSync(job.pages[1]!.imagePath, 'preview-2');
+    writeFileSync(job.pages[0]!.imagePath!, 'preview');
+    writeFileSync(job.pages[1]!.imagePath!, 'preview-2');
     const commitJobMock = vi
       .fn()
       .mockResolvedValueOnce({
@@ -626,8 +628,8 @@ describe('server api', () => {
         },
       ],
     });
-    mkdirSync(path.dirname(job.pages[0]!.imagePath), { recursive: true });
-    writeFileSync(job.pages[0]!.imagePath, 'preview');
+    mkdirSync(path.dirname(job.pages[0]!.imagePath!), { recursive: true });
+    writeFileSync(job.pages[0]!.imagePath!, 'preview');
     const saveJobMock = vi.fn(async () => undefined);
     const lossyAdapter: OcrAdapter = {
       name: 'deepseek-ocr',
@@ -743,9 +745,9 @@ describe('server api', () => {
         },
       ],
     });
-    mkdirSync(path.dirname(job.pages[0]!.imagePath), { recursive: true });
-    writeFileSync(job.pages[0]!.imagePath, 'preview');
-    writeFileSync(job.pages[1]!.imagePath, 'preview-2');
+    mkdirSync(path.dirname(job.pages[0]!.imagePath!), { recursive: true });
+    writeFileSync(job.pages[0]!.imagePath!, 'preview');
+    writeFileSync(job.pages[1]!.imagePath!, 'preview-2');
     const saveJobMock = vi.fn(async () => undefined);
     const goodAdapter: OcrAdapter = {
       name: 'deepseek-ocr',
@@ -794,5 +796,172 @@ describe('server api', () => {
     });
 
     expect(saveJobMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('lists supported documents while excluding pdf, csv, and unsupported files', async () => {
+    const rootDir = makeTempDir();
+    const config = makeConfig(rootDir);
+    mkdirSync(config.inboxPath, { recursive: true });
+    for (const file of ['report.docx', 'slides.PPTX', 'notes.rtf', 'scan.pdf', 'data.csv', 'readme.txt']) {
+      writeFileSync(path.join(config.inboxPath, file), file);
+    }
+
+    const app = createServer(config);
+
+    await withServer(app, async (baseUrl) => {
+      const response = await fetch(`${baseUrl}/api/documents`);
+      expect(response.status).toBe(200);
+      expect(await response.json()).toEqual({
+        documents: ['notes.rtf', 'report.docx', 'slides.PPTX'],
+      });
+    });
+  });
+
+  it('creates document jobs from supported files', async () => {
+    const rootDir = makeTempDir();
+    const config = makeConfig(rootDir);
+    mkdirSync(config.inboxPath, { recursive: true });
+    const documentPath = path.join(config.inboxPath, 'x.docx');
+    writeFileSync(documentPath, 'document');
+    const documentJob = makeJob(rootDir, {
+      id: 'document-job',
+      kind: 'document',
+      sourceFilePath: documentPath,
+      pages: [{
+        pageNumber: 1,
+        nativeText: '',
+        markdown: 'converted',
+        accepted: false,
+        status: 'pending',
+        engine: 'anydoc',
+      }],
+    });
+    const createDocumentDraftJob = vi.fn(async () => documentJob);
+    const app = createServer(config, { createDocumentDraftJob });
+
+    await withServer(app, async (baseUrl) => {
+      const response = await fetch(`${baseUrl}/api/jobs`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ file: 'x.docx', mode: 'document' }),
+      });
+      expect(response.status).toBe(201);
+      expect(await response.json()).toEqual({ job: documentJob });
+    });
+    expect(createDocumentDraftJob).toHaveBeenCalledWith(documentPath, config);
+  });
+
+  it('rejects pages mode for non-PDF files', async () => {
+    const rootDir = makeTempDir();
+    const config = makeConfig(rootDir);
+    mkdirSync(config.inboxPath, { recursive: true });
+    writeFileSync(path.join(config.inboxPath, 'x.docx'), 'document');
+    const app = createServer(config);
+
+    await withServer(app, async (baseUrl) => {
+      const response = await fetch(`${baseUrl}/api/jobs`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ file: 'x.docx', mode: 'pages' }),
+      });
+      expect(response.status).toBe(400);
+      expect(await response.json()).toEqual({
+        error: 'Non-PDF files require mode: document',
+      });
+    });
+  });
+
+  it('resumes pending jobs only when source file and kind both match', async () => {
+    const rootDir = makeTempDir();
+    const config = makeConfig(rootDir);
+    mkdirSync(config.inboxPath, { recursive: true });
+    const sourceFilePath = path.join(config.inboxPath, 'same.pdf');
+    writeFileSync(sourceFilePath, 'pdf');
+    const pdfJob = makeJob(rootDir, {
+      id: 'pdf-job',
+      kind: 'pdf-pages',
+      sourceFilePath,
+      updatedAt: '2026-08-07T00:01:00.000Z',
+    });
+    const documentJob = makeJob(rootDir, {
+      id: 'document-job',
+      kind: 'document',
+      sourceFilePath,
+      updatedAt: '2026-08-07T00:02:00.000Z',
+    });
+    const createDraftJob = vi.fn(async () => pdfJob);
+    const createDocumentDraftJob = vi.fn(async () => documentJob);
+    const app = createServer(config, {
+      listJobs: vi.fn(async () => [pdfJob, documentJob]),
+      createDraftJob,
+      createDocumentDraftJob,
+    });
+
+    await withServer(app, async (baseUrl) => {
+      const pagesResponse = await fetch(`${baseUrl}/api/jobs`, {
+        method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ file: 'same.pdf', mode: 'pages' }),
+      });
+      expect(pagesResponse.status).toBe(200);
+      expect((await pagesResponse.json()).job.id).toBe('pdf-job');
+
+      const documentResponse = await fetch(`${baseUrl}/api/jobs`, {
+        method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ file: 'same.pdf', mode: 'document' }),
+      });
+      expect(documentResponse.status).toBe(200);
+      expect((await documentResponse.json()).job.id).toBe('document-job');
+    });
+    expect(createDraftJob).not.toHaveBeenCalled();
+    expect(createDocumentDraftJob).not.toHaveBeenCalled();
+  });
+
+  it('reruns document pages through anydoc conversion', async () => {
+    const rootDir = makeTempDir();
+    const config = makeConfig(rootDir);
+    const documentPath = path.join(config.inboxPath, 'x.docx');
+    mkdirSync(config.inboxPath, { recursive: true });
+    writeFileSync(documentPath, 'document');
+    const job = makeJob(rootDir, {
+      kind: 'document',
+      sourceFilePath: documentPath,
+      pages: [{ pageNumber: 1, nativeText: '', markdown: 'old', accepted: true, engine: 'anydoc' }],
+    });
+    const convertDocumentToMarkdown = vi.fn(async () => ({ markdown: 'new markdown' }));
+    const saveJob = vi.fn(async () => undefined);
+    const adapterRegistry = { getAdapter: vi.fn(), getDefaultAdapter: vi.fn(), listAdapters: vi.fn(() => []) };
+    const app = createServer(config, {
+      loadJob: vi.fn(async () => job),
+      saveJob,
+      convertDocumentToMarkdown,
+      createAdapterRegistry: () => adapterRegistry,
+    });
+
+    await withServer(app, async (baseUrl) => {
+      const response = await fetch(`${baseUrl}/api/jobs/job-1/pages/1/rerun`, {
+        method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}',
+      });
+      expect(response.status).toBe(200);
+      expect((await response.json()).page).toMatchObject({ markdown: 'new markdown', engine: 'anydoc', accepted: false, status: 'pending' });
+    });
+    expect(convertDocumentToMarkdown).toHaveBeenCalledWith(documentPath);
+    expect(adapterRegistry.getAdapter).not.toHaveBeenCalled();
+    expect(saveJob).toHaveBeenCalledOnce();
+  });
+
+  it('returns 404 when document pages have no preview image', async () => {
+    const rootDir = makeTempDir();
+    const config = makeConfig(rootDir);
+    const job = makeJob(rootDir, {
+      kind: 'document',
+      pages: [{ pageNumber: 1, nativeText: '', markdown: 'doc', accepted: false, engine: 'anydoc' }],
+    });
+    const app = createServer(config, { loadJob: vi.fn(async () => job) });
+
+    await withServer(app, async (baseUrl) => {
+      const response = await fetch(`${baseUrl}/api/jobs/job-1/pages/1/preview`);
+      expect(response.status).toBe(404);
+      expect(await response.json()).toEqual({ error: 'No preview image available for this page.' });
+    });
   });
 });

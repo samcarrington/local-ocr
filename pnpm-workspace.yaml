@@ -1,0 +1,4 @@
+allowBuilds:
+  esbuild: true
+  tesseract.js: true
+minimumReleaseAge: 1440 # 2880 # 2 days (in minutes)

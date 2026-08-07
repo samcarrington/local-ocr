@@ -581,7 +581,7 @@ async function copyPageFigures(
 }
 
 function renderMarkdown(job: DraftJob, convertedAt: string): string {
-  const sourcePdf = path.basename(job.sourcePdfPath);
+  const sourceFile = path.basename(job.sourceFilePath);
   const ocrEngine = getOcrProvenance(job);
   const body = job.pages
     .slice()
@@ -601,7 +601,7 @@ function renderMarkdown(job: DraftJob, convertedAt: string): string {
 
   return [
     '---',
-    `source_pdf: ${JSON.stringify(sourcePdf)}`,
+    `source_file: ${JSON.stringify(sourceFile)}`,
     `ocr_engine: ${JSON.stringify(ocrEngine)}`,
     `converted_at: ${JSON.stringify(convertedAt)}`,
     '---',
@@ -616,26 +616,49 @@ export async function commitJob(
   job: DraftJob,
   options?: { convertedAt?: Date },
 ): Promise<CommitJobResult> {
-  const sourceFileName = path.basename(job.sourcePdfPath);
+  const sourceFileName = path.basename(job.sourceFilePath);
   const baseName = path.basename(sourceFileName, path.extname(sourceFileName));
-  const outputDir = path.join(config.inboxPath, baseName);
-  const markdownPath = path.join(outputDir, `${baseName}.md`);
+  const outputName =
+    job.kind === 'document'
+      ? `${baseName}--${path.extname(sourceFileName).slice(1)}`
+      : baseName;
+  const outputDir = path.join(config.inboxPath, outputName);
+  const markdownPath = path.join(outputDir, `${outputName}.md`);
   const processedPdfPath = path.join(
     config.inboxPath,
     'processed',
     sourceFileName,
   );
   const convertedAt = (options?.convertedAt ?? new Date()).toISOString();
-
-  await mkdir(outputDir, { recursive: true });
-  await copyPageFigures(outputDir, job.pages);
-  await writeFileAtomic(markdownPath, renderMarkdown(job, convertedAt));
-
   const allAccepted = job.pages.every(
     (page) => getPageStatus(page) === 'accepted',
   );
+  const temporarySourcePath =
+    job.kind === 'document'
+      ? `${job.sourceFilePath}.${process.pid}.${randomUUID()}.pending`
+      : null;
+
+  if (temporarySourcePath) {
+    await rename(job.sourceFilePath, temporarySourcePath);
+  }
+
+  try {
+    await mkdir(outputDir, { recursive: true });
+    if (job.kind === 'pdf-pages') {
+      await copyPageFigures(outputDir, job.pages);
+    }
+    await writeFileAtomic(markdownPath, renderMarkdown(job, convertedAt));
+  } catch (error) {
+    if (temporarySourcePath) {
+      await rename(temporarySourcePath, job.sourceFilePath);
+    }
+    throw error;
+  }
 
   if (!allAccepted) {
+    if (temporarySourcePath) {
+      await rename(temporarySourcePath, job.sourceFilePath);
+    }
     return {
       outputDir,
       markdownPath,
@@ -645,7 +668,7 @@ export async function commitJob(
   }
 
   await mkdir(path.dirname(processedPdfPath), { recursive: true });
-  await rename(job.sourcePdfPath, processedPdfPath);
+  await rename(temporarySourcePath ?? job.sourceFilePath, processedPdfPath);
 
   return {
     outputDir,

@@ -36,11 +36,11 @@ export interface OcrAdapter {
   ): Promise<OcrResult>;
 }
 
-export type PageEngineName = EngineName | 'native';
+export type PageEngineName = EngineName | 'native' | 'anydoc';
 
 export interface DraftPage {
   pageNumber: number;
-  imagePath: string;
+  imagePath?: string;
   nativeText: string;
   markdown: string;
   accepted: boolean;
@@ -54,7 +54,8 @@ export interface DraftPage {
 
 export interface DraftJob {
   id: string;
-  sourcePdfPath: string;
+  kind: 'pdf-pages' | 'document';
+  sourceFilePath: string;
   status: 'pending_review' | 'committed' | 'discarded';
   createdAt: string;
   updatedAt: string;
