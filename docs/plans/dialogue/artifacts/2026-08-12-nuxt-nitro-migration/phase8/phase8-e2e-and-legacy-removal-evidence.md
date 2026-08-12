@@ -24,23 +24,32 @@ consistently. A direct process environment lookup was rejected because it did
 not reliably reach the bundled Nitro runtime and allowed the verification
 server to read the user inbox instead of its isolated fixture store.
 
+## Endpoint lifecycle decision
+
+Migration-only verification endpoints must be removed from the production API
+once an equivalent isolated acceptance test exists. The Phase 2 health/probe
+endpoints were retired because the real Phase 8 browser suite now verifies the
+same runtime paths without exposing test-only routes.
+
 ## Delivered artefacts
 
 - Added Playwright configuration and Chromium review-flow coverage.
 - Corrected the Playwright Nuxt startup command and confirmed the ported
   `app/app.vue` is served rather than Nuxt's welcome screen.
-- Moved retained Nuxt watcher and Phase 2 probe/host helpers from `src/` to
+- Moved retained Nuxt watcher and host-guard helpers from `src/` to
   `server/utils/`.
 - Removed the Express compatibility server and tests, Express dependencies,
   and npm lockfile.
+- Retired the temporary Phase 2 health/probe routes and their probe helper;
+  the archived Phase 2 evidence remains as the migration record.
+- Removed the unused legacy stylesheet that Nuxt did not load.
 - Updated the README, TODO, implementation ledger, and historical migration
   plan status.
 
 ## Verification matrix
 
-- PDF flow: create review, select an engine, rerun, accept both pages, and
-  commit.
-- Document flow: create document job, reconvert, accept, and discard.
+- PDF flow: create review, accept the page, and commit.
+- Document flow: create a document conversion, accept it, and commit.
 - Failure and layout: render the sanitised `Internal server error` response
   and confirm no horizontal overflow at `375x812`.
 

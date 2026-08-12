@@ -1,6 +1,6 @@
 /**
  * Launch a local mlx-vlm OpenAI-compatible server serving GLM-OCR for the
- * `glm-ocr` engine. Run via `npm run serve:glm-ocr`.
+ * `glm-ocr` engine. Run via `pnpm serve:glm-ocr`.
  */
 import { spawn } from 'node:child_process';
 import process from 'node:process';
@@ -82,7 +82,7 @@ function parsePort(value: string): number {
 
 const HELP = `Launch a local mlx-vlm server serving GLM-OCR for the glm-ocr engine.
 
-Usage: npm run serve:glm-ocr -- [options]
+Usage: pnpm serve:glm-ocr -- [options]
 
 Options:
   --config <path>   Config file to read defaults from (default: ocrtool.config.yaml)

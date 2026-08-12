@@ -1,6 +1,6 @@
 /**
  * Launch a local mlx-vlm OpenAI-compatible server serving NuExtract3 for the
- * `nuextract3-ocr` engine. Run via `npm run serve:nuextract3`.
+ * `nuextract3-ocr` engine. Run via `pnpm serve:nuextract3`.
  *
  * Model / host / port default to the `nuextract3-ocr` block in your
  * ocrtool.config.yaml (falling back to schema defaults when unconfigured), so
@@ -89,7 +89,7 @@ function parsePort(value: string): number {
 
 const HELP = `Launch a local mlx-vlm server serving NuExtract3 for the nuextract3-ocr engine.
 
-Usage: npm run serve:nuextract3 -- [options]
+Usage: pnpm serve:nuextract3 -- [options]
 
 Options:
   --config <path>   Config file to read defaults from (default: ocrtool.config.yaml)
