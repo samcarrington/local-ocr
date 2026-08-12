@@ -86,16 +86,16 @@ Exit gate:
 
 | Item                                                 | Owner         | Status      | Gate evidence |
 | ---------------------------------------------------- | ------------- | ----------- | ------------- |
-| Extract OCR service/dependencies/runtime/api-errors  | owner-backend | not-started | TODO          |
-| Implement Nitro API routes with shared error wrapper | owner-backend | not-started | TODO          |
-| Preserve exact URL/status/body contracts             | owner-backend | not-started | TODO          |
-| Validate sanitized 5xx and logging behavior          | owner-test    | not-started | TODO          |
-| Validate preview path security checks                | owner-test    | not-started | TODO          |
+| Extract OCR service/dependencies/runtime/api-errors  | owner-backend | done | Added `server/services/ocr-service.ts`, dependency/runtime wiring, and `server/utils/api-errors.ts`. |
+| Implement Nitro API routes with shared error wrapper | owner-backend | done | Added all planned route files with `server/utils/nitro-api.ts`. |
+| Preserve exact URL/status/body contracts             | owner-backend | done | URLs and status codes are preserved; native Nitro error envelope deliberately supersedes legacy error-body parity (Phase 5 error-boundary decision). |
+| Validate sanitized 5xx and logging behavior          | owner-test    | done | Shared API wrapper sanitises 5xx, retains the safe error object in Nitro `data`, and `logUnexpectedApiError` retains server detail. |
+| Validate preview path security checks                | owner-test    | done | Service test verifies symlink escape rejection; implementation uses `realpath`, `O_NOFOLLOW`, and regular-file checks. |
 
 Exit gate:
 
-- [ ] Route and error contract parity passed
-- [ ] New phase 5 artifact file created for handoff to phase 6
+- [x] Route and error contract parity passed
+- [x] New phase 5 artifact file created for handoff to phase 6
 
 ### Phase 6: Runtime configuration migration
 
@@ -144,9 +144,9 @@ Exit gate:
 | Risk ID | Trigger signal                   | Current state | Mitigation evidence                                                                                                                                                                                                   |
 | ------- | -------------------------------- | ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | R1      | Copied-output runtime failure    | mitigated     | Reproduced and fixed missing `pdf.worker.mjs` via Nitro `traceInclude`; copied-runtime probe passed. See `docs/plans/dialogue/artifacts/2026-08-12-nuxt-nitro-migration/phase2/phase2-runtime-viability-evidence.md`. |
-| R2      | API contract drift               | open          | TODO                                                                                                                                                                                                                  |
+| R2      | API contract drift               | mitigated     | Phase 5 legacy contract suite, Nitro build, and built-output error-envelope smoke test passed. See Phase 5 evidence.                                                                                                  |
 | R3      | UI parity drift                  | open          | TODO                                                                                                                                                                                                                  |
-| R4      | Preview path security regression | open          | TODO                                                                                                                                                                                                                  |
+| R4      | Preview path security regression | mitigated     | Canonical containment, no-follow file opening, regular-file validation, and a symlink escape unit test added in Phase 5.                                                                                               |
 
 ## Checkpoint board
 
@@ -154,7 +154,7 @@ Exit gate:
 | ---------- | ----- | ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | A          | 0     | done        | User confirmation and metadata update                                                                                                                   |
 | B          | 2     | done        | Copied-output runtime viability evidence in `docs/plans/dialogue/artifacts/2026-08-12-nuxt-nitro-migration/phase2/phase2-runtime-viability-evidence.md` |
-| C          | 5     | not-started | TODO                                                                                                                                                    |
+| C          | 5     | done        | Phase 5 route parity evidence and Phase 5-to-Phase 6 handoff.                                                                                                   |
 | D          | 7     | not-started | TODO                                                                                                                                                    |
 | E          | 8     | not-started | TODO                                                                                                                                                    |
 
