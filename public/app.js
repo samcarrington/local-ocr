@@ -5,7 +5,7 @@ const state = {
   job: null,
   currentPageNumber: 1,
   loading: false,
-  selectedEngines: new Map()
+  selectedEngines: new Map(),
 };
 
 const elements = {
@@ -37,7 +37,7 @@ const elements = {
   previousPage: document.querySelector('#previous-page'),
   nextPage: document.querySelector('#next-page'),
   pageList: document.querySelector('#page-list'),
-  pageNav: document.querySelector('#page-nav')
+  pageNav: document.querySelector('#page-nav'),
 };
 
 elements.refreshPdfs.addEventListener('click', () => loadInbox());
@@ -45,7 +45,10 @@ elements.rerunPage.addEventListener('click', () => rerunCurrentPage());
 elements.adapterSelect.addEventListener('change', () => {
   const page = getCurrentPage();
   if (!state.job || !page) return;
-  state.selectedEngines.set(pageEngineKey(state.job.id, page.pageNumber), elements.adapterSelect.value);
+  state.selectedEngines.set(
+    pageEngineKey(state.job.id, page.pageNumber),
+    elements.adapterSelect.value,
+  );
 });
 elements.acceptPage.addEventListener('click', () => acceptCurrentPage());
 elements.commitJob.addEventListener('click', () => commitCurrentJob());
@@ -60,13 +63,19 @@ async function loadInbox() {
   try {
     const [pdfResponse, documentResponse] = await Promise.all([
       fetchJson('/api/pdfs'),
-      fetchJson('/api/documents')
+      fetchJson('/api/documents'),
     ]);
     state.pdfs = Array.isArray(pdfResponse.pdfs) ? pdfResponse.pdfs : [];
-    state.documents = Array.isArray(documentResponse.documents) ? documentResponse.documents : [];
+    state.documents = Array.isArray(documentResponse.documents)
+      ? documentResponse.documents
+      : [];
     renderPdfList();
     renderDocumentList();
-    setStatus(state.pdfs.length || state.documents.length ? 'Select an inbox file to start.' : 'No files found in inbox.');
+    setStatus(
+      state.pdfs.length || state.documents.length
+        ? 'Select an inbox file to start.'
+        : 'No files found in inbox.',
+    );
   } catch (error) {
     setStatus(readError(error));
   }
@@ -78,19 +87,43 @@ function renderPdfList() {
 
   for (const pdf of state.pdfs) {
     const item = document.createElement('li');
+    item.className = 'inbox-file';
+    const label = document.createElement('span');
+    label.className = 'file-name';
+    label.textContent = pdf;
+    const actions = document.createElement('div');
+    actions.className = 'file-actions';
     const reviewButton = document.createElement('button');
     reviewButton.type = 'button';
-    reviewButton.textContent = 'Review pages';
-    reviewButton.className = pdf === state.selectedPdf ? 'active' : '';
-    reviewButton.setAttribute('aria-pressed', String(pdf === state.selectedPdf));
+    reviewButton.className = `file-action file-action-pages${pdf === state.selectedPdf ? ' active' : ''}`;
+    reviewButton.setAttribute('aria-label', `Review pages from ${pdf}`);
+    reviewButton.setAttribute(
+      'aria-pressed',
+      String(pdf === state.selectedPdf),
+    );
     reviewButton.addEventListener('click', () => startJob(pdf, 'pages'));
-    const label = document.createElement('span');
-    label.textContent = pdf;
+    const reviewIcon = document.createElement('span');
+    reviewIcon.className = 'file-action-icon';
+    reviewIcon.setAttribute('aria-hidden', 'true');
+    const reviewText = document.createElement('span');
+    reviewText.textContent = 'Review pages';
+    reviewButton.append(reviewIcon, reviewText);
     const quickButton = document.createElement('button');
     quickButton.type = 'button';
-    quickButton.textContent = 'Quick convert (native text)';
+    quickButton.className = 'file-action file-action-convert';
+    quickButton.setAttribute(
+      'aria-label',
+      `Quickly convert ${pdf} with native document text`,
+    );
     quickButton.addEventListener('click', () => startJob(pdf, 'document'));
-    item.append(label, reviewButton, quickButton);
+    const quickIcon = document.createElement('span');
+    quickIcon.className = 'file-action-icon';
+    quickIcon.setAttribute('aria-hidden', 'true');
+    const quickText = document.createElement('span');
+    quickText.textContent = 'Quick convert';
+    quickButton.append(quickIcon, quickText);
+    actions.append(reviewButton, quickButton);
+    item.append(label, actions);
     elements.pdfList.append(item);
   }
 }
@@ -103,8 +136,8 @@ function renderDocumentList() {
     const item = document.createElement('li');
     const button = document.createElement('button');
     button.type = 'button';
+    button.className = `document-file${file === state.selectedPdf ? ' active' : ''}`;
     button.textContent = file;
-    button.className = file === state.selectedPdf ? 'active' : '';
     button.addEventListener('click', () => startJob(file, 'document'));
     item.append(button);
     elements.documentList.append(item);
@@ -112,9 +145,15 @@ function renderDocumentList() {
 }
 
 async function startJob(file, mode) {
-  if (state.job && state.job.status === 'pending_review' && state.job.kind === (mode === 'pages' ? 'pdf-pages' : 'document') && readFileName(state.job.sourceFilePath) === file) {
+  if (
+    state.job &&
+    state.job.status === 'pending_review' &&
+    state.job.kind === (mode === 'pages' ? 'pdf-pages' : 'document') &&
+    readFileName(state.job.sourceFilePath) === file
+  ) {
     state.selectedPdf = file;
-    state.currentPageNumber = nextReviewPageNumber(state.job) ?? state.currentPageNumber;
+    state.currentPageNumber =
+      nextReviewPageNumber(state.job) ?? state.currentPageNumber;
     renderPdfList();
     render();
     setStatus(`Resumed existing review for ${file}.`);
@@ -129,13 +168,17 @@ async function startJob(file, mode) {
     const response = await fetchJson('/api/jobs', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ file, mode })
+      body: JSON.stringify({ file, mode }),
     });
 
     state.job = response.job;
     state.currentPageNumber = nextReviewPageNumber(state.job) ?? 1;
     render();
-    setStatus(response.resumed ? `Resumed existing review for ${file}.` : `Draft ready for ${file}.`);
+    setStatus(
+      response.resumed
+        ? `Resumed existing review for ${file}.`
+        : `Draft ready for ${file}.`,
+    );
   } catch (error) {
     setStatus(readError(error));
   } finally {
@@ -146,20 +189,42 @@ async function startJob(file, mode) {
 async function rerunCurrentPage() {
   const page = getCurrentPage();
   if (!state.job || !page) return;
-  const selectedEngine = state.job.kind === 'document' ? null : readSelectedEngine(state.job.id, page);
+  const selectedEngine =
+    state.job.kind === 'document'
+      ? null
+      : readSelectedEngine(state.job.id, page);
 
-  setBusy(true, state.job.kind === 'document' ? 'Reconvert document…' : `Rerunning page ${page.pageNumber}…`);
+  setBusy(
+    true,
+    state.job.kind === 'document'
+      ? 'Reconvert document…'
+      : `Rerunning page ${page.pageNumber}…`,
+  );
   try {
-    const response = await fetchJson(`/api/jobs/${encodeURIComponent(state.job.id)}/pages/${page.pageNumber}/rerun`, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: state.job.kind === 'document' ? undefined : JSON.stringify({ engine: selectedEngine })
-    });
+    const response = await fetchJson(
+      `/api/jobs/${encodeURIComponent(state.job.id)}/pages/${page.pageNumber}/rerun`,
+      {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body:
+          state.job.kind === 'document'
+            ? undefined
+            : JSON.stringify({ engine: selectedEngine }),
+      },
+    );
 
     state.job = response.job;
-    if (selectedEngine) state.selectedEngines.set(pageEngineKey(state.job.id, page.pageNumber), selectedEngine);
+    if (selectedEngine)
+      state.selectedEngines.set(
+        pageEngineKey(state.job.id, page.pageNumber),
+        selectedEngine,
+      );
     render();
-    setStatus(state.job.kind === 'document' ? 'Document reconverted.' : `Reran page ${page.pageNumber} with ${selectedEngine}.`);
+    setStatus(
+      state.job.kind === 'document'
+        ? 'Document reconverted.'
+        : `Reran page ${page.pageNumber} with ${selectedEngine}.`,
+    );
   } catch (error) {
     setStatus(readError(error));
   } finally {
@@ -173,12 +238,16 @@ async function acceptCurrentPage() {
 
   setBusy(true, `Accepting page ${page.pageNumber}…`);
   try {
-    const response = await fetchJson(`/api/jobs/${encodeURIComponent(state.job.id)}/pages/${page.pageNumber}/accept`, {
-      method: 'POST'
-    });
+    const response = await fetchJson(
+      `/api/jobs/${encodeURIComponent(state.job.id)}/pages/${page.pageNumber}/accept`,
+      {
+        method: 'POST',
+      },
+    );
 
     state.job = response.job;
-    state.currentPageNumber = nextReviewPageNumber(state.job) ?? page.pageNumber;
+    state.currentPageNumber =
+      nextReviewPageNumber(state.job) ?? page.pageNumber;
     render();
     setStatus(`Accepted page ${page.pageNumber}.`);
   } catch (error) {
@@ -193,9 +262,12 @@ async function commitCurrentJob() {
 
   setBusy(true, 'Committing accepted pages…');
   try {
-    const response = await fetchJson(`/api/jobs/${encodeURIComponent(state.job.id)}/commit`, {
-      method: 'POST'
-    });
+    const response = await fetchJson(
+      `/api/jobs/${encodeURIComponent(state.job.id)}/commit`,
+      {
+        method: 'POST',
+      },
+    );
 
     state.job = response.job;
     render();
@@ -214,7 +286,9 @@ async function discardCurrentJob() {
   const jobId = state.job.id;
   setBusy(true, 'Discarding draft…');
   try {
-    await fetchJson(`/api/jobs/${encodeURIComponent(jobId)}`, { method: 'DELETE' });
+    await fetchJson(`/api/jobs/${encodeURIComponent(jobId)}`, {
+      method: 'DELETE',
+    });
     state.job = null;
     state.currentPageNumber = 1;
     render();
@@ -229,7 +303,9 @@ async function discardCurrentJob() {
 
 function movePage(delta) {
   if (!state.job) return;
-  const index = state.job.pages.findIndex((page) => page.pageNumber === state.currentPageNumber);
+  const index = state.job.pages.findIndex(
+    (page) => page.pageNumber === state.currentPageNumber,
+  );
   const nextPage = state.job.pages[index + delta];
   if (!nextPage) return;
   state.currentPageNumber = nextPage.pageNumber;
@@ -239,7 +315,9 @@ function movePage(delta) {
 function render() {
   const job = state.job;
   const page = getCurrentPage();
-  const acceptedCount = job ? job.pages.filter((candidate) => candidate.accepted).length : 0;
+  const acceptedCount = job
+    ? job.pages.filter((candidate) => candidate.accepted).length
+    : 0;
 
   elements.emptyState.hidden = Boolean(job);
   elements.reviewState.hidden = !job;
@@ -254,16 +332,25 @@ function render() {
   const isDocument = job.kind === 'document';
   elements.jobMeta.textContent = `${readFileName(job.sourceFilePath)} · job ${job.id}`;
   elements.progressText.textContent = `${acceptedCount} of ${job.pages.length} accepted`;
-  elements.pagePosition.textContent = isDocument ? 'Whole document' : `Page ${page.pageNumber} of ${job.pages.length}`;
-  elements.previousPage.disabled = state.loading || page.pageNumber === job.pages[0]?.pageNumber;
-  elements.nextPage.disabled = state.loading || page.pageNumber === job.pages[job.pages.length - 1]?.pageNumber;
+  elements.pagePosition.textContent = isDocument
+    ? 'Whole document'
+    : `Page ${page.pageNumber} of ${job.pages.length}`;
+  elements.previousPage.disabled =
+    state.loading || page.pageNumber === job.pages[0]?.pageNumber;
+  elements.nextPage.disabled =
+    state.loading ||
+    page.pageNumber === job.pages[job.pages.length - 1]?.pageNumber;
   elements.rerunPage.disabled = state.loading;
   elements.acceptPage.disabled = state.loading || page.accepted;
   elements.previewPanel.hidden = isDocument;
   elements.pageNav.hidden = isDocument;
   elements.adapterSelect.closest('.field').hidden = isDocument;
-  elements.rerunPage.textContent = isDocument ? 'Reconvert document' : 'Rerun page';
-  elements.acceptPage.textContent = isDocument ? 'Accept document' : 'Accept page';
+  elements.rerunPage.textContent = isDocument
+    ? 'Reconvert document'
+    : 'Rerun page';
+  elements.acceptPage.textContent = isDocument
+    ? 'Accept document'
+    : 'Accept page';
 
   if (!isDocument) {
     elements.pagePreview.src = previewUrl(job.id, page.pageNumber);
@@ -271,21 +358,25 @@ function render() {
   } else {
     elements.pagePreview.removeAttribute('src');
   }
-  elements.confidenceText.textContent = typeof page.confidence === 'number'
-    ? `Confidence ${Math.round(page.confidence * 100)}%`
-    : '';
+  elements.confidenceText.textContent =
+    typeof page.confidence === 'number'
+      ? `Confidence ${Math.round(page.confidence * 100)}%`
+      : '';
   elements.engineText.textContent = `Engine ${page.engine}`;
   renderWarnings(page);
   elements.markdownRaw.textContent = page.markdown || '(empty markdown)';
   elements.markdownRender.replaceChildren(renderMarkdown(page.markdown));
-  if (!isDocument) elements.adapterSelect.value = readSelectedEngine(job.id, page);
+  if (!isDocument)
+    elements.adapterSelect.value = readSelectedEngine(job.id, page);
 
   renderPageList(job, page.pageNumber);
 }
 
 function renderWarnings(page) {
   const warning = Array.isArray(page.qualityWarnings)
-    ? page.qualityWarnings.find((candidate) => candidate.type === 'low-native-coverage')
+    ? page.qualityWarnings.find(
+        (candidate) => candidate.type === 'low-native-coverage',
+      )
     : null;
 
   elements.warningSnippets.replaceChildren();
@@ -316,9 +407,14 @@ function renderPageList(job, activePageNumber) {
     button.textContent = String(page.pageNumber);
     button.className = [
       page.pageNumber === activePageNumber ? 'active' : '',
-      page.accepted ? 'accepted' : page.status === 'pending' ? 'pending' : ''
-    ].filter(Boolean).join(' ');
-    button.setAttribute('aria-current', page.pageNumber === activePageNumber ? 'page' : 'false');
+      page.accepted ? 'accepted' : page.status === 'pending' ? 'pending' : '',
+    ]
+      .filter(Boolean)
+      .join(' ');
+    button.setAttribute(
+      'aria-current',
+      page.pageNumber === activePageNumber ? 'page' : 'false',
+    );
     button.addEventListener('click', () => {
       state.currentPageNumber = page.pageNumber;
       render();
@@ -329,11 +425,19 @@ function renderPageList(job, activePageNumber) {
 }
 
 function getCurrentPage() {
-  return state.job?.pages.find((page) => page.pageNumber === state.currentPageNumber) ?? null;
+  return (
+    state.job?.pages.find(
+      (page) => page.pageNumber === state.currentPageNumber,
+    ) ?? null
+  );
 }
 
 function nextReviewPageNumber(job) {
-  return job.pages.find((page) => !page.accepted)?.pageNumber ?? job.pages[0]?.pageNumber ?? null;
+  return (
+    job.pages.find((page) => !page.accepted)?.pageNumber ??
+    job.pages[0]?.pageNumber ??
+    null
+  );
 }
 
 function previewUrl(jobId, pageNumber) {
@@ -354,10 +458,14 @@ function pageEngineKey(jobId, pageNumber) {
 async function fetchJson(url, options) {
   const response = await fetch(url, options);
   const contentType = response.headers.get('content-type') || '';
-  const data = contentType.includes('application/json') ? await response.json() : null;
+  const data = contentType.includes('application/json')
+    ? await response.json()
+    : null;
 
   if (!response.ok) {
-    throw new Error(data?.error || `Request failed with status ${response.status}`);
+    throw new Error(
+      data?.error || `Request failed with status ${response.status}`,
+    );
   }
 
   return data;
@@ -385,7 +493,9 @@ function readFileName(filePath) {
 
 function renderMarkdown(markdown) {
   const container = document.createElement('div');
-  const lines = String(markdown || '').replace(/\r/g, '').split('\n');
+  const lines = String(markdown || '')
+    .replace(/\r/g, '')
+    .split('\n');
   let paragraph = [];
   let list = null;
   let codeBlock = null;
