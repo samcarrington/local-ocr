@@ -42,17 +42,18 @@ Exit gate:
 
 ### Phase 2: Nitro runtime viability gate
 
-| Item                                                               | Owner         | Status      | Gate evidence |
-| ------------------------------------------------------------------ | ------------- | ----------- | ------------- |
-| Minimal Nuxt scaffold with `ssr: false` and active Nitro APIs      | owner-backend | not-started | TODO          |
-| Loopback bind and Host header restrictions enforced                | owner-backend | not-started | TODO          |
-| Build copied `.output` outside repo and run                        | owner-release | not-started | TODO          |
-| Verify copied-output PDF preview, tesseract OCR, anydoc conversion | owner-test    | not-started | TODO          |
-| Confirm no fallback to repository `node_modules`                   | owner-test    | not-started | TODO          |
+| Item                                                               | Owner         | Status | Gate evidence                                                                                                                                                                                                                                                                                                |
+| ------------------------------------------------------------------ | ------------- | ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Minimal Nuxt scaffold with `ssr: false` and active Nitro APIs      | owner-backend | done   | Added `nuxt.config.ts` with `ssr: false`, `node-server` preset, and Phase 2 probe routes under `server/api/phase2/*`; built via `pnpm build:nuxt`. See `docs/plans/dialogue/artifacts/2026-08-12-nuxt-nitro-migration/phase2/phase2-runtime-viability-evidence.md`.                                          |
+| Loopback bind and Host header restrictions enforced                | owner-backend | done   | Added `server/middleware/host-guard.ts`; verified host rejection with `Host: evil.example` returning `403 Host header rejected` from copied runtime. See `docs/plans/dialogue/artifacts/2026-08-12-nuxt-nitro-migration/phase2/phase2-runtime-viability-evidence.md`.                                        |
+| Build copied `.output` outside repo and run                        | owner-release | done   | Built with `pnpm build:nuxt`, copied `.output` to `/tmp/local-ocr-phase2-run`, and ran `node .output/server/index.mjs` with `NITRO_HOST/NITRO_PORT`. See `docs/plans/dialogue/artifacts/2026-08-12-nuxt-nitro-migration/phase2/phase2-runtime-viability-evidence.md`.                                        |
+| Verify copied-output PDF preview, tesseract OCR, anydoc conversion | owner-test    | done   | `POST /api/phase2/probe` returned `200` with preview bytes, page markdown chars, and anydoc markdown chars in copied runtime. See `docs/plans/dialogue/artifacts/2026-08-12-nuxt-nitro-migration/phase2/phase2-runtime-viability-evidence.md`.                                                               |
+| Confirm no fallback to repository `node_modules`                   | owner-test    | done   | Copied-runtime failure reproduced missing `pdf.worker.mjs`; fixed via Nitro `traceInclude` in `nuxt.config.ts`; recopy + rerun passed proving copied output contains needed runtime assets. See `docs/plans/dialogue/artifacts/2026-08-12-nuxt-nitro-migration/phase2/phase2-runtime-viability-evidence.md`. |
 
 Exit gate:
 
-- [ ] Copied-output runtime gate passed
+- [x] Copied-output runtime gate passed
+- [x] After-action notes captured in ledger and phase2 artifact file for handoff to phase 3
 
 ### Phase 3: Nuxt project establishment
 
@@ -136,22 +137,22 @@ Exit gate:
 
 ## Risk tracking slots
 
-| Risk ID | Trigger signal                   | Current state | Mitigation evidence |
-| ------- | -------------------------------- | ------------- | ------------------- |
-| R1      | Copied-output runtime failure    | open          | TODO                |
-| R2      | API contract drift               | open          | TODO                |
-| R3      | UI parity drift                  | open          | TODO                |
-| R4      | Preview path security regression | open          | TODO                |
+| Risk ID | Trigger signal                   | Current state | Mitigation evidence                                                                                                                                                                                                   |
+| ------- | -------------------------------- | ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| R1      | Copied-output runtime failure    | mitigated     | Reproduced and fixed missing `pdf.worker.mjs` via Nitro `traceInclude`; copied-runtime probe passed. See `docs/plans/dialogue/artifacts/2026-08-12-nuxt-nitro-migration/phase2/phase2-runtime-viability-evidence.md`. |
+| R2      | API contract drift               | open          | TODO                                                                                                                                                                                                                  |
+| R3      | UI parity drift                  | open          | TODO                                                                                                                                                                                                                  |
+| R4      | Preview path security regression | open          | TODO                                                                                                                                                                                                                  |
 
 ## Checkpoint board
 
-| Checkpoint | Phase | Status      | Evidence                              |
-| ---------- | ----- | ----------- | ------------------------------------- |
-| A          | 0     | done        | User confirmation and metadata update |
-| B          | 2     | not-started | TODO                                  |
-| C          | 5     | not-started | TODO                                  |
-| D          | 7     | not-started | TODO                                  |
-| E          | 8     | not-started | TODO                                  |
+| Checkpoint | Phase | Status      | Evidence                                                                                                                                                |
+| ---------- | ----- | ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| A          | 0     | done        | User confirmation and metadata update                                                                                                                   |
+| B          | 2     | done        | Copied-output runtime viability evidence in `docs/plans/dialogue/artifacts/2026-08-12-nuxt-nitro-migration/phase2/phase2-runtime-viability-evidence.md` |
+| C          | 5     | not-started | TODO                                                                                                                                                    |
+| D          | 7     | not-started | TODO                                                                                                                                                    |
+| E          | 8     | not-started | TODO                                                                                                                                                    |
 
 ## Execution notes
 
