@@ -12,6 +12,25 @@ This keeps review/document flow parity and ARIA/live-region semantics traceable.
 A UI redesign or a wrapper around the legacy DOM script was rejected because
 either would obscure regressions.
 
+### Superseding Markdown-rendering decision
+
+The initial `SafeMarkdown` component used an inert, hand-rolled block parser
+to avoid rendering untrusted OCR output. That approach is superseded because it
+cannot faithfully render the Markdown features produced by OCR engines,
+including tables, emphasis, links, images, and headings beyond h4.
+
+Use `marked` to render GitHub-flavoured Markdown and DOMPurify to sanitise its
+HTML output before binding it with Vue `v-html`. Raw HTML remains disallowed.
+The sanitisation policy must allow only the Markdown elements and attributes
+needed by the preview, and reject external, protocol-relative, and non-local
+`href` and `src` values so previewing content cannot make network requests.
+Local-relative figure paths and fragment links remain permitted.
+
+`markdown-it` with DOMPurify was rejected because its plugin ecosystem is not
+needed for the present preview requirements. Comark/Nuxt Content and a
+remark/rehype pipeline were rejected as disproportionately broad solutions for
+runtime OCR strings.
+
 ## Delivered artefacts
 
 - Replaced the static HTML and imperative controller with the Nuxt app shell,
