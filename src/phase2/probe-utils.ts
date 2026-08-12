@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { writeFile } from 'node:fs/promises';
 
-import { isAnydocSupportedExtension } from '../convert/anydoc.js';
+import { isAnydocSupportedExtension } from '../../server/convert/anydoc.js';
 
 export function pickFirstPdf(files: string[]): string | null {
   return files.find((entry) => entry.toLowerCase().endsWith('.pdf')) ?? null;

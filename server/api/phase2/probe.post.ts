@@ -1,10 +1,10 @@
 import { access, readFile, readdir, rm } from 'node:fs/promises';
 import path from 'node:path';
 
-import { convertDocumentToMarkdown } from '../../../src/convert/anydoc.js';
-import { loadConfig } from '../../../src/core/config.js';
-import { createDraftJob } from '../../../src/core/pipeline.js';
-import { createOcrAdapterRegistry } from '../../../src/ocr/adapters.js';
+import { convertDocumentToMarkdown } from '../../convert/anydoc.js';
+import { loadConfig } from '../../core/config.js';
+import { createDraftJob } from '../../core/pipeline.js';
+import { createOcrAdapterRegistry } from '../../ocr/adapters.js';
 import {
   ensureProbeRtfTemp,
   pickFirstDocument,

@@ -12,8 +12,12 @@
 import { spawn } from 'node:child_process';
 import process from 'node:process';
 
-import { getEngineConfig, loadConfig } from '../src/core/config.js';
-import { formatHttpHost, isLocalHost, normalizeBindHost } from '../src/ocr/local-host.js';
+import { getEngineConfig, loadConfig } from '../server/core/config.js';
+import {
+  formatHttpHost,
+  isLocalHost,
+  normalizeBindHost,
+} from '../server/ocr/local-host.js';
 
 const DEFAULT_SERVER_HOST = 'http://127.0.0.1:8080';
 const DEFAULT_MODEL = 'numind/NuExtract3-mlx-nvfp4';

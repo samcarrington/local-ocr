@@ -69,17 +69,18 @@ Exit gate:
 
 ### Phase 4: Server/domain migration and type split
 
-| Item                                                                         | Owner         | Status      | Gate evidence |
-| ---------------------------------------------------------------------------- | ------------- | ----------- | ------------- |
-| Move `src/core`, `src/ocr`, `src/convert` to `server/`                       | owner-backend | not-started | TODO          |
-| Update script imports for local model servers                                | owner-backend | not-started | TODO          |
-| Split DTOs into `shared/ocr.ts` and internal types in `server/core/types.ts` | owner-backend | not-started | TODO          |
-| Add architecture check for forbidden import direction                        | owner-backend | not-started | TODO          |
-| Run domain tests after move                                                  | owner-test    | not-started | TODO          |
+| Item                                                                         | Owner         | Status | Gate evidence                                                                                                                                                           |
+| ---------------------------------------------------------------------------- | ------------- | ------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Move `src/core`, `src/ocr`, `src/convert` to `server/`                       | owner-backend | done   | Moved domain modules and updated all Phase 4 consumers. See `docs/plans/dialogue/artifacts/2026-08-12-nuxt-nitro-migration/phase4/phase4-domain-migration-evidence.md`. |
+| Update script imports for local model servers                                | owner-backend | done   | Updated `scripts/serve-nuextract3.ts` and `scripts/serve-glm-ocr.ts`; type-check passed. See Phase 4 evidence.                                                          |
+| Split DTOs into `shared/ocr.ts` and internal types in `server/core/types.ts` | owner-backend | done   | Browser-safe DTOs now live in `shared/ocr.ts`; server-only config and adapter types remain internal. See Phase 4 evidence.                                              |
+| Add architecture check for forbidden import direction                        | owner-backend | done   | Added `pnpm check:architecture`, run by `pnpm test`; Phase 4 evidence records the passing gate.                                                                         |
+| Run domain tests after move                                                  | owner-test    | done   | `pnpm test` passed: 16 files, 154 tests. See Phase 4 evidence.                                                                                                          |
 
 Exit gate:
 
-- [ ] Domain migration parity passed
+- [x] Domain migration parity passed
+- [x] New phase 4 artifact file created for handoff to phase 5
 
 ### Phase 5: Service extraction and route parity
 
@@ -94,6 +95,7 @@ Exit gate:
 Exit gate:
 
 - [ ] Route and error contract parity passed
+- [ ] New phase 5 artifact file created for handoff to phase 6
 
 ### Phase 6: Runtime configuration migration
 
@@ -106,6 +108,7 @@ Exit gate:
 Exit gate:
 
 - [ ] Runtime config migration gate passed
+- [ ] New phase 6 artifact file created for handoff to phase 7
 
 ### Phase 7: Frontend Vue port with parity
 
@@ -120,6 +123,7 @@ Exit gate:
 Exit gate:
 
 - [ ] Frontend parity gate passed
+- [ ] New phase 7 artifact file created for handoff to phase 8
 
 ### Phase 8: End-to-end verification and legacy removal
 

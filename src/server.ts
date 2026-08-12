@@ -3,8 +3,8 @@ import path from 'node:path';
 import express from 'express';
 import type { ApiDependencies } from './api.js';
 import { createApiRouter, installJsonErrorHandler } from './api.js';
-import { loadConfig } from './core/config.js';
-import type { AppConfig } from './core/types.js';
+import { loadConfig } from '../server/core/config.js';
+import type { AppConfig } from '../server/core/types.js';
 
 const LOCAL_HOSTS = new Set(['127.0.0.1', 'localhost', '::1']);
 

@@ -7,10 +7,9 @@ import path from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type {
   AppConfig,
-  DraftJob,
   OcrAdapter,
-  OcrResult,
-} from './core/types.js';
+} from '../server/core/types.js';
+import type { DraftJob, OcrResult } from '../shared/ocr.js';
 import { createServer } from './server.js';
 
 const tempDirs: string[] = [];

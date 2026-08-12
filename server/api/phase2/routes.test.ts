@@ -41,14 +41,14 @@ describe('phase2 route contracts', () => {
       rm: vi.fn(),
     }));
 
-    vi.doMock('../../../src/core/config.js', () => ({
+    vi.doMock('../../core/config.js', () => ({
       loadConfig: vi.fn(() => ({
         inboxPath: '/tmp/does-not-matter',
         engines: { tesseract: { kind: 'tesseract', lang: 'eng' } },
       })),
     }));
 
-    vi.doMock('../../../src/ocr/adapters.js', () => ({
+    vi.doMock('../../ocr/adapters.js', () => ({
       createOcrAdapterRegistry: vi.fn(() => ({
         getAdapter: vi.fn(() => ({
           isAvailable: vi.fn(async () => true),
@@ -56,11 +56,11 @@ describe('phase2 route contracts', () => {
       })),
     }));
 
-    vi.doMock('../../../src/core/pipeline.js', () => ({
+    vi.doMock('../../core/pipeline.js', () => ({
       createDraftJob: vi.fn(),
     }));
 
-    vi.doMock('../../../src/convert/anydoc.js', () => ({
+    vi.doMock('../../convert/anydoc.js', () => ({
       convertDocumentToMarkdown: vi.fn(),
     }));
 

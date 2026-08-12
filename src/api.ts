@@ -3,27 +3,31 @@ import path from 'node:path';
 
 import express from 'express';
 
-import { commitJob } from './core/commit.js';
-import { deleteJob, listJobs, loadJob, saveJob } from './core/job-store.js';
+import { commitJob } from '../server/core/commit.js';
+import {
+  deleteJob,
+  listJobs,
+  loadJob,
+  saveJob,
+} from '../server/core/job-store.js';
 import {
   createDocumentDraftJob,
   createDraftJob,
-} from './core/pipeline.js';
+} from '../server/core/pipeline.js';
+import type { AppConfig, OcrAdapter } from '../server/core/types.js';
 import type {
-  AppConfig,
   DraftJob,
   DraftPage,
   EngineName,
-  OcrAdapter,
   PageQualityWarning,
-} from './core/types.js';
-import type { OcrAdapterRegistry } from './ocr/adapters.js';
-import { createOcrAdapterRegistry } from './ocr/adapters.js';
+} from '../shared/ocr.js';
+import type { OcrAdapterRegistry } from '../server/ocr/adapters.js';
+import { createOcrAdapterRegistry } from '../server/ocr/adapters.js';
 import {
   convertDocumentToMarkdown,
   DocumentConversionError,
   isAnydocSupportedExtension,
-} from './convert/anydoc.js';
+} from '../server/convert/anydoc.js';
 
 interface ApiError extends Error {
   statusCode?: number;
