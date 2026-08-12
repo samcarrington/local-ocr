@@ -84,13 +84,13 @@ Exit gate:
 
 ### Phase 5: Service extraction and route parity
 
-| Item                                                 | Owner         | Status      | Gate evidence |
-| ---------------------------------------------------- | ------------- | ----------- | ------------- |
-| Extract OCR service/dependencies/runtime/api-errors  | owner-backend | done | Added framework-neutral orchestration in `server/services/ocr-service.ts`, injectable dependencies, once-per-process runtime wiring, and shared API-error normalisation. See Phase 5 evidence. |
-| Implement Nitro API routes with shared error wrapper | owner-backend | done | Added PDF, document, job, preview, rerun, acceptance, commit, and deletion routes using `server/utils/nitro-api.ts`. See Phase 5 evidence. |
-| Preserve exact URL and status-code contracts         | owner-backend | done | Legacy URLs and status codes are preserved. The native Nitro error envelope, with the safe legacy error object in `data.error`, supersedes Express-only error-body parity; see the Phase 5 error-boundary decision. |
-| Validate sanitised 5xx and logging behaviour         | owner-test    | done | Shared API wrapper sanitises 5xx responses, retains the safe error object in Nitro `data`, and `logUnexpectedApiError` retains server detail. Built-output unknown-job smoke test passed. See Phase 5 evidence. |
-| Validate preview path security checks                | owner-test    | done | Service tests verify symlink-escape rejection; implementation canonicalises paths and requires `O_NOFOLLOW` plus a regular file. See Phase 5 evidence. |
+| Item                                                 | Owner         | Status | Gate evidence                                                                                                                                                                                                       |
+| ---------------------------------------------------- | ------------- | ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Extract OCR service/dependencies/runtime/api-errors  | owner-backend | done   | Added framework-neutral orchestration in `server/services/ocr-service.ts`, injectable dependencies, once-per-process runtime wiring, and shared API-error normalisation. See Phase 5 evidence.                      |
+| Implement Nitro API routes with shared error wrapper | owner-backend | done   | Added PDF, document, job, preview, rerun, acceptance, commit, and deletion routes using `server/utils/nitro-api.ts`. See Phase 5 evidence.                                                                          |
+| Preserve exact URL and status-code contracts         | owner-backend | done   | Legacy URLs and status codes are preserved. The native Nitro error envelope, with the safe legacy error object in `data.error`, supersedes Express-only error-body parity; see the Phase 5 error-boundary decision. |
+| Validate sanitised 5xx and logging behaviour         | owner-test    | done   | Shared API wrapper sanitises 5xx responses, retains the safe error object in Nitro `data`, and `logUnexpectedApiError` retains server detail. Built-output unknown-job smoke test passed. See Phase 5 evidence.     |
+| Validate preview path security checks                | owner-test    | done   | Service tests verify symlink-escape rejection; implementation canonicalises paths and requires `O_NOFOLLOW` plus a regular file. See Phase 5 evidence.                                                              |
 
 Exit gate:
 
@@ -99,13 +99,13 @@ Exit gate:
 
 ### Phase 6: Runtime configuration migration
 
-| Item                                                    | Owner         | Status      | Gate evidence |
-| ------------------------------------------------------- | ------------- | ----------- | ------------- |
-| Move every retained listener to `NITRO_HOST`/`NITRO_PORT` | owner-backend | done | Nitro startup validates domain config through `server/plugins/config.server.ts`; package scripts now run Nuxt/Nitro, and preserved Express compatibility code reads the same environment inputs. See Phase 6 evidence. |
-| Deprecate YAML listener keys for one release              | owner-backend | done | `loadConfig` removes YAML `host` and `port` before strict validation and emits one process-level compatibility warning. Example config and README now document the environment-only listener boundary. See Phase 6 evidence. |
-| Fail invalid YAML at startup                              | owner-test    | done | The startup plugin invokes `loadConfig`; copied-output startup with an invalid numeric setting terminated before binding. See Phase 6 evidence. |
-| Validate copied-runtime listener behaviour                | owner-test    | done | Copied `.output` started with `NITRO_HOST=127.0.0.1` and `NITRO_PORT=14005`; `GET /api/phase2/health` returned the expected health response. See Phase 6 evidence. |
-| Stabilise Nuxt development file watching                  | owner-backend | done | Replaced the broad Nuxt watcher with its builder watcher and a Vite allow-list for `app/`, `server/`, `shared/`, and `src/`; this avoids the 31,561-file `.build-cache` tree without suppressing route discovery. See Phase 6 evidence. |
+| Item                                                      | Owner         | Status | Gate evidence                                                                                                                                                                                                                           |
+| --------------------------------------------------------- | ------------- | ------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Move every retained listener to `NITRO_HOST`/`NITRO_PORT` | owner-backend | done   | Nitro startup validates domain config through `server/plugins/config.server.ts`; package scripts now run Nuxt/Nitro, and preserved Express compatibility code reads the same environment inputs. See Phase 6 evidence.                  |
+| Deprecate YAML listener keys for one release              | owner-backend | done   | `loadConfig` removes YAML `host` and `port` before strict validation and emits one process-level compatibility warning. Example config and README now document the environment-only listener boundary. See Phase 6 evidence.            |
+| Fail invalid YAML at startup                              | owner-test    | done   | The startup plugin invokes `loadConfig`; copied-output startup with an invalid numeric setting terminated before binding. See Phase 6 evidence.                                                                                         |
+| Validate copied-runtime listener behaviour                | owner-test    | done   | Copied `.output` started with `NITRO_HOST=127.0.0.1` and `NITRO_PORT=14005`; `GET /api/phase2/health` returned the expected health response. See Phase 6 evidence.                                                                      |
+| Stabilise Nuxt development file watching                  | owner-backend | done   | Replaced the broad Nuxt watcher with its builder watcher and a Vite allow-list for `app/`, `server/`, `shared/`, and `src/`; this avoids the 31,561-file `.build-cache` tree without suppressing route discovery. See Phase 6 evidence. |
 
 Exit gate:
 
@@ -114,32 +114,32 @@ Exit gate:
 
 ### Phase 7: Frontend Vue port with parity
 
-| Item                                                         | Owner          | Status      | Gate evidence |
-| ------------------------------------------------------------ | -------------- | ----------- | ------------- |
-| Port UI to component/composable structure                    | owner-frontend | done | Replaced the static DOM controller with the Nuxt app shell, inbox, reviewer, navigation, and safe-markdown components backed by one OCR-review composable. See Phase 7 evidence. |
-| Move CSS to Nuxt assets unchanged initially                  | owner-frontend | done | Migrated the established interface CSS to `app/assets/css/` without visual redesign. See Phase 7 evidence. |
-| Preserve existing behavior, ARIA, and live regions           | owner-frontend | done | PDF/document flows, controls, status and progress live regions, page semantics, preview cache busting, and safe markdown rendering are preserved. Adapter reruns now retain the selected engine, and document markdown uses the full reviewer width. See Phase 7 evidence. |
-| Run component tests for state transitions/actions/navigation | owner-test     | done | Focused review-state, safe-markdown, adapter-selection, rerun, and document-layout coverage added; `pnpm test:src` passed with 44 tests and `pnpm test:server` with 131. See Phase 7 evidence. |
-| Validate desktop/mobile parity and no overflow               | owner-test     | done | Desktop 1440x1024 and mobile 375x812 comparisons passed with no horizontal overflow; see Phase 7 evidence. |
+| Item                                                         | Owner          | Status | Gate evidence                                                                                                                                                                                                                                                              |
+| ------------------------------------------------------------ | -------------- | ------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Port UI to component/composable structure                    | owner-frontend | done   | Replaced the static DOM controller with the Nuxt app shell, inbox, reviewer, navigation, and safe-markdown components backed by one OCR-review composable. See Phase 7 evidence.                                                                                           |
+| Move CSS to Nuxt assets unchanged initially                  | owner-frontend | done   | Migrated the established interface CSS to `app/assets/css/` without visual redesign. See Phase 7 evidence.                                                                                                                                                                 |
+| Preserve existing behavior, ARIA, and live regions           | owner-frontend | done   | PDF/document flows, controls, status and progress live regions, page semantics, preview cache busting, and safe markdown rendering are preserved. Adapter reruns now retain the selected engine, and document markdown uses the full reviewer width. See Phase 7 evidence. |
+| Run component tests for state transitions/actions/navigation | owner-test     | done   | Focused review-state, safe-markdown, adapter-selection, rerun, and document-layout coverage added; `pnpm test:src` passed with 44 tests and `pnpm test:server` with 131. See Phase 7 evidence.                                                                             |
+| Validate desktop/mobile parity and no overflow               | owner-test     | done   | Desktop 1440x1024 and mobile 375x812 comparisons passed with no horizontal overflow; see Phase 7 evidence.                                                                                                                                                                 |
 
 Exit gate:
 
 - [x] Frontend parity gate passed
-- [x] Phase 7 evidence created for handoff to phase 8
+- [x] Phase 7 evidence and Phase 7-to-Phase 8 handoff created
 
 ### Phase 8: End-to-end verification and legacy removal
 
-| Item                                                           | Owner         | Status      | Gate evidence |
-| -------------------------------------------------------------- | ------------- | ----------- | ------------- |
-| Run Playwright flows for PDF + document modes                  | owner-test    | not-started | TODO          |
-| Validate sanitized failure behavior and overflow constraints   | owner-test    | not-started | TODO          |
-| Remove legacy Express/static files and deps after gate pass    | owner-backend | not-started | TODO          |
-| Update README, example config, TODO, and superseded plan notes | owner-release | not-started | TODO          |
+| Item                                                           | Owner         | Status | Gate evidence                                                                                                                                                                                                          |
+| -------------------------------------------------------------- | ------------- | ------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Run Playwright flows for PDF + document modes                  | owner-test    | done | Isolated Playwright flows create local PDF/RTF fixtures, exercise Nuxt and real Nitro routes, and verify committed files in the temporary store. `pnpm test:e2e` passed. See Phase 8 evidence. |
+| Validate sanitized failure behavior and overflow constraints   | owner-test    | done   | Playwright verifies the sanitized error message and mobile 375px viewport has no horizontal overflow. See Phase 8 evidence.                                                                                            |
+| Remove legacy Express/static files and deps after gate pass    | owner-backend | done | Removed the Express compatibility server, legacy source tree, `express`, `@types/express`, and `package-lock.json`; retained Nuxt support utilities under `server/utils`. |
+| Update README, example config, TODO, and superseded plan notes | owner-release | done | README now documents pnpm and Nuxt/Nitro, TODO names the completed migration, and the historical plan is marked superseded. The example config already contains no listener keys. |
 
 Exit gate:
 
-- [ ] Full verification matrix passed
-- [ ] Legacy stack removal approved
+- [x] Full verification matrix passed
+- [x] Legacy stack removal approved
 
 ## Risk tracking slots
 
@@ -148,17 +148,17 @@ Exit gate:
 | R1      | Copied-output runtime failure    | mitigated     | Reproduced and fixed missing `pdf.worker.mjs` via Nitro `traceInclude`; copied-runtime probe passed. See `docs/plans/dialogue/artifacts/2026-08-12-nuxt-nitro-migration/phase2/phase2-runtime-viability-evidence.md`. |
 | R2      | API contract drift               | mitigated     | Phase 5 legacy contract suite, Nitro build, and built-output error-envelope smoke test passed. See Phase 5 evidence.                                                                                                  |
 | R3      | UI parity drift                  | open          | TODO                                                                                                                                                                                                                  |
-| R4      | Preview path security regression | mitigated     | Canonical containment, no-follow file opening, regular-file validation, and a symlink escape unit test added in Phase 5.                                                                                               |
+| R4      | Preview path security regression | mitigated     | Canonical containment, no-follow file opening, regular-file validation, and a symlink escape unit test added in Phase 5.                                                                                              |
 
 ## Checkpoint board
 
-| Checkpoint | Phase | Status      | Evidence                                                                                                                                                |
-| ---------- | ----- | ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| A          | 0     | done        | User confirmation and metadata update                                                                                                                   |
-| B          | 2     | done        | Copied-output runtime viability evidence in `docs/plans/dialogue/artifacts/2026-08-12-nuxt-nitro-migration/phase2/phase2-runtime-viability-evidence.md` |
-| C          | 5     | done        | Phase 5 route parity evidence and Phase 5-to-Phase 6 handoff.                                                                                                   |
-| D          | 7     | not-started | TODO                                                                                                                                                    |
-| E          | 8     | not-started | TODO                                                                                                                                                    |
+| Checkpoint | Phase | Status | Evidence                                                                                                                                                |
+| ---------- | ----- | ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| A          | 0     | done   | User confirmation and metadata update                                                                                                                   |
+| B          | 2     | done   | Copied-output runtime viability evidence in `docs/plans/dialogue/artifacts/2026-08-12-nuxt-nitro-migration/phase2/phase2-runtime-viability-evidence.md` |
+| C          | 5     | done   | Phase 5 route parity evidence and Phase 5-to-Phase 6 handoff.                                                                                           |
+| D          | 7     | done   | Phase 7 desktop/mobile parity evidence in `phase7-vue-port-evidence.md`.                                                                                |
+| E          | 8     | done        | Isolated real Nuxt UI-to-Nitro PDF/document flows and legacy removal evidence in `phase8-e2e-and-legacy-removal-evidence.md`.                           |
 
 ## Execution notes
 

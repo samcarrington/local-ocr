@@ -9,3 +9,4 @@ tessdata/
 .serena/
 .nuxt/
 .output/
+e2e/.runtime/

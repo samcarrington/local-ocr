@@ -1,6 +1,6 @@
 import path from 'node:path';
 
-const WATCHED_ROOTS = new Set(['app', 'server', 'shared', 'src']);
+const WATCHED_ROOTS = new Set(['app', 'server', 'shared']);
 
 export function isDevelopmentWatchPathIgnored(
   watchPath: string,

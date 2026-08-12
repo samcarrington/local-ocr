@@ -1,4 +1,4 @@
-import { isAllowedHostHeader } from '../../src/phase2/host-guard-utils.js';
+import { isAllowedHostHeader } from '../utils/host-guard.js';
 
 export default defineEventHandler((event) => {
   if (!isAllowedHostHeader(getHeader(event, 'host'))) {

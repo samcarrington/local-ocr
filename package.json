@@ -16,6 +16,7 @@
     "test": "vitest run --config vitest.config.ts && vitest run --config vitest.config.server.ts && pnpm check:architecture",
     "test:src": "vitest run --config vitest.config.ts",
     "test:server": "vitest run --config vitest.config.server.ts",
+    "test:e2e": "playwright test",
     "check:architecture": "node scripts/check-server-boundaries.mjs",
     "setup:tesseract": "node scripts/download-tessdata.mjs eng ./tessdata",
     "serve:nuextract3": "tsx scripts/serve-nuextract3.ts",
@@ -27,14 +28,13 @@
   "dependencies": {
     "@firecrawl/anydoc": "0.1.7",
     "@napi-rs/canvas": "1.0.2",
-    "express": "5.2.1",
     "pdfjs-dist": "6.1.200",
     "tesseract.js": "7.0.0",
     "yaml": "2.9.0",
     "zod": "4.4.3"
   },
   "devDependencies": {
-    "@types/express": "5.0.6",
+    "@playwright/test": "1.61.0",
     "@types/node": "24.13.3",
     "nuxt": "^4.5.2",
     "tsx": "4.23.12",

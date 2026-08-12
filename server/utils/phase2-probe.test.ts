@@ -8,7 +8,7 @@ import {
   pickFirstPdf,
   resolveProbeConfigPath,
   withTimeout,
-} from './probe-utils.js';
+} from './phase2-probe.js';
 
 describe('probe utils', () => {
   afterEach(() => {
@@ -29,9 +29,7 @@ describe('probe utils', () => {
   });
 
   it('times out long-running work', async () => {
-    await expect(
-      withTimeout(new Promise<string>(() => undefined), 10, 'timeout check'),
-    ).rejects.toThrow('timeout check');
+    await expect(withTimeout(new Promise<string>(() => undefined), 10, 'timeout check')).rejects.toThrow('timeout check');
   });
 
   it('creates temporary fallback RTF probe file', async () => {

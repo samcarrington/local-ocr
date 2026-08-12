@@ -5,8 +5,7 @@ Localhost-only PDF-to-Markdown OCR review app for Obsidian inbox workflows.
 ## Status
 
 - PDF draft pipeline implemented.
-- Local HTTP API implemented.
-- Review UI served from `public/`.
+- Nuxt/Nitro API and Vue review UI implemented.
 
 ## Constraints
 
@@ -29,13 +28,13 @@ Localhost-only PDF-to-Markdown OCR review app for Obsidian inbox workflows.
 3. Install deps:
 
    ```bash
-   npm install
+   pnpm install
    ```
 
 4. Start the Nitro server:
 
    ```bash
-   npm run dev
+   pnpm dev
    ```
 
 5. Open `http://127.0.0.1:3000` (or the value of `NITRO_PORT`).
@@ -112,14 +111,14 @@ The `glm-ocr` engine targets a local mlx-vlm OpenAI-compatible server with `mlx-
 
 ```bash
 pip install mlx-vlm
-npm run serve:glm-ocr
+pnpm serve:glm-ocr
 ```
 
-`npm run serve:glm-ocr` reads the `glm-ocr` model, host, and port from your config (falling back to defaults) and refuses non-loopback binds. Options:
+`pnpm serve:glm-ocr` reads the `glm-ocr` model, host, and port from your config (falling back to defaults) and refuses non-loopback binds. Options:
 
 ```bash
-npm run serve:glm-ocr -- --model mlx-community/GLM-OCR-bf16 --port 8080
-npm run serve:glm-ocr -- --dry-run
+pnpm serve:glm-ocr -- --model mlx-community/GLM-OCR-bf16 --port 8080
+pnpm serve:glm-ocr -- --dry-run
 ```
 
 Set `PYTHON` (or `--python`) if mlx-vlm lives in a virtualenv whose interpreter is not `python3`. Equivalent manual command: `python -m mlx_vlm.server --model mlx-community/GLM-OCR-bf16 --host 127.0.0.1 --port 8080`.
@@ -141,16 +140,16 @@ The `nuextract3-ocr` engine targets a local [mlx-vlm](https://github.com/Blaizzy
 
 ```bash
 pip install mlx-vlm
-npm run serve:nuextract3
+pnpm serve:nuextract3
 ```
 
-`npm run serve:nuextract3` reads the `nuextract3-ocr` model, host, and port from your config (falling back to defaults) and runs `python -m mlx_vlm.server` accordingly, so the server and app stay in sync. Options:
+`pnpm serve:nuextract3` reads the `nuextract3-ocr` model, host, and port from your config (falling back to defaults) and runs `python -m mlx_vlm.server` accordingly, so the server and app stay in sync. Options:
 
 ```bash
 # Override per invocation (see all flags with --help)
-npm run serve:nuextract3 -- --model numind/NuExtract3-mlx-nvfp4 --port 8080
+pnpm serve:nuextract3 -- --model numind/NuExtract3-mlx-nvfp4 --port 8080
 # Print the resolved command without launching
-npm run serve:nuextract3 -- --dry-run
+pnpm serve:nuextract3 -- --dry-run
 ```
 
 Set `PYTHON` (or `--python`) if mlx-vlm lives in a virtualenv whose interpreter is not `python3`. The equivalent manual command is `python -m mlx_vlm.server --model numind/NuExtract3-mlx-nvfp4 --host 127.0.0.1 --port 8080`.
@@ -178,9 +177,9 @@ All API errors return JSON like:
 
 Server stays local-only by config. Allowed bind hosts: `127.0.0.1`, `localhost`, `::1`. Default bind: `127.0.0.1:4312`.
 
-## v1 scope target
+## v1 scope
 
-- Local Express server.
+- Local Nuxt/Nitro server.
 - PDF intake from configured inbox.
 - Native-text extraction + OCR fallback.
 - Per-page review and rerun before commit.
@@ -212,16 +211,18 @@ Server stays local-only by config. Allowed bind hosts: `127.0.0.1`, `localhost`,
 
 ## Commands
 
-- `npm run dev` — start dev server.
-- `npm run build` — compile TypeScript.
-- `npm run start` — run built server.
-- `npm run serve:nuextract3` — start the local mlx-vlm server for the `nuextract3-ocr` engine (`-- --help` for options).
-- `npm run serve:glm-ocr` — start the local mlx-vlm server for the `glm-ocr` engine (`-- --help` for options).
-- `npm test` — run Vitest.
+- `pnpm dev` — start the Nuxt development server.
+- `pnpm build:nuxt` — build the production Nuxt/Nitro server.
+- `pnpm start` — run the built Nuxt/Nitro server.
+- `pnpm serve:nuextract3` — start the local mlx-vlm server for the `nuextract3-ocr` engine (`-- --help` for options).
+- `pnpm serve:glm-ocr` — start the local mlx-vlm server for the `glm-ocr` engine (`-- --help` for options).
+- `pnpm test` — run Vitest and architecture checks.
+- `pnpm test:e2e` — run the Playwright review-flow checks.
 
 ## Verification
 
 ```bash
-npm test
-npm run build
+pnpm test
+pnpm build:nuxt
+pnpm test:e2e
 ```

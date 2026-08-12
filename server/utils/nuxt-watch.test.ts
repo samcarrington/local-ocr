@@ -7,17 +7,9 @@ import { isDevelopmentWatchPathIgnored } from './nuxt-watch.js';
 const rootDir = path.resolve('/workspace/local-ocr');
 
 describe('Nuxt development watch paths', () => {
-  it.each(['app', 'server', 'shared', 'src'])(
-    'watches the %s source tree',
-    (directory) => {
-      expect(
-        isDevelopmentWatchPathIgnored(
-          path.join(rootDir, directory, 'example.ts'),
-          rootDir,
-        ),
-      ).toBe(false);
-    },
-  );
+  it.each(['app', 'server', 'shared'])('watches the %s source tree', (directory) => {
+    expect(isDevelopmentWatchPathIgnored(path.join(rootDir, directory, 'example.ts'), rootDir)).toBe(false);
+  });
 
   it.each([
     '.build-cache/uv/state.json',
@@ -28,14 +20,10 @@ describe('Nuxt development watch paths', () => {
     'docs/plan.md',
     'public/app.js',
   ])('ignores non-source path %s', (file) => {
-    expect(
-      isDevelopmentWatchPathIgnored(path.join(rootDir, file), rootDir),
-    ).toBe(true);
+    expect(isDevelopmentWatchPathIgnored(path.join(rootDir, file), rootDir)).toBe(true);
   });
 
   it('ignores paths outside the project root', () => {
-    expect(
-      isDevelopmentWatchPathIgnored('/workspace/elsewhere/file.ts', rootDir),
-    ).toBe(true);
+    expect(isDevelopmentWatchPathIgnored('/workspace/elsewhere/file.ts', rootDir)).toBe(true);
   });
 });

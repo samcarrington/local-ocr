@@ -11,7 +11,7 @@ import {
   pickFirstPdf,
   resolveProbeConfigPath,
   withTimeout,
-} from '../../../src/phase2/probe-utils.js';
+} from '../../utils/phase2-probe.js';
 
 const PROBE_TIMEOUT_MS = 45_000;
 

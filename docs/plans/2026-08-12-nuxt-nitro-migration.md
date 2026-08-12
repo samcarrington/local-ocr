@@ -1,5 +1,9 @@
 # Nuxt/Nitro Migration Plan
 
+> **Superseded implementation plan:** Phase 8 completed on 2026-08-12. This
+> document remains as the historical migration record; the implementation
+> ledger and phase evidence record the delivered outcome.
+
 ## Goal
 
 Replace Express plus static frontend with one full-stack Nuxt 4 application:

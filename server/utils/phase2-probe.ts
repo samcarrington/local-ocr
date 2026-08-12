@@ -1,22 +1,16 @@
 import { randomUUID } from 'node:crypto';
+import { writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { writeFile } from 'node:fs/promises';
 
-import { isAnydocSupportedExtension } from '../../server/convert/anydoc.js';
+import { isAnydocSupportedExtension } from '../convert/anydoc.js';
 
 export function pickFirstPdf(files: string[]): string | null {
   return files.find((entry) => entry.toLowerCase().endsWith('.pdf')) ?? null;
 }
 
 export function pickFirstDocument(files: string[]): string | null {
-  return (
-    files.find(
-      (entry) =>
-        !entry.toLowerCase().endsWith('.pdf') &&
-        isAnydocSupportedExtension(entry),
-    ) ?? null
-  );
+  return files.find((entry) => !entry.toLowerCase().endsWith('.pdf') && isAnydocSupportedExtension(entry)) ?? null;
 }
 
 export function resolveProbeConfigPath(): string {
@@ -45,12 +39,8 @@ export async function withTimeout<T>(
 }
 
 export async function ensureProbeRtfTemp(): Promise<string> {
-  const filePath = path.join(
-    tmpdir(),
-    `local-ocr-phase2-probe-${randomUUID()}.rtf`,
-  );
-  const rtf =
-    '{\\rtf1\\ansi\\deff0 {\\fonttbl {\\f0 Times New Roman;}}\\f0\\fs24 Phase 2 Nuxt Nitro probe document.}';
+  const filePath = path.join(tmpdir(), `local-ocr-phase2-probe-${randomUUID()}.rtf`);
+  const rtf = '{\\rtf1\\ansi\\deff0 {\\fonttbl {\\f0 Times New Roman;}}\\f0\\fs24 Phase 2 Nuxt Nitro probe document.}';
   await writeFile(filePath, rtf, 'utf8');
   return filePath;
 }

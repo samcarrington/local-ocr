@@ -1,7 +1,10 @@
-import { isDevelopmentWatchPathIgnored } from './src/nuxt-watch.js';
+import { isDevelopmentWatchPathIgnored } from './server/utils/nuxt-watch.js';
 
 export default defineNuxtConfig({
   ssr: false,
+  runtimeConfig: {
+    ocrtoolConfigPath: '',
+  },
   nitro: {
     preset: 'node-server',
     externals: {
@@ -11,7 +14,6 @@ export default defineNuxtConfig({
       ],
     },
   },
-  srcDir: './app',
   css: [
     '~/assets/css/tokens.css',
     '~/assets/css/workbench.css',

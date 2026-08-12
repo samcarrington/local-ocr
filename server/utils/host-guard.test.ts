@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { isAllowedHostHeader, normalizeHost } from './host-guard-utils.js';
+import { isAllowedHostHeader, normalizeHost } from './host-guard.js';
 
 describe('host-guard utils', () => {
   it('normalizes plain and bracketed hosts', () => {
