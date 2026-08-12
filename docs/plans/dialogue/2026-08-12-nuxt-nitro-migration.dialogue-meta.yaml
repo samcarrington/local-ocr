@@ -1,0 +1,35 @@
+version: 1
+phase: planning
+topic: nuxt-nitro-migration
+thread:
+  key: local-ocr/nuxt-nitro-migration
+  title: Nuxt/Nitro migration dialogue implementation
+status:
+  state: ready-for-execution
+  reason: user confirmed objectives and success criteria; implementation ledger created for phase execution
+artifacts:
+  sourcePlan: docs/plans/2026-08-12-nuxt-nitro-migration.md
+  scopeStatement: docs/plans/dialogue/2026-08-12-nuxt-nitro-migration.scope-statement.md
+  deliveryPlan: docs/plans/dialogue/2026-08-12-nuxt-nitro-migration.delivery-plan.md
+  implementationLedger: docs/plans/dialogue/2026-08-12-nuxt-nitro-migration.implementation-ledger.md
+anchors:
+  objectives:
+    - Replace Express plus static frontend with Nuxt 4 full-stack runtime
+    - Preserve API, OCR, and UI behavior parity
+    - Keep local-only serving security controls
+  successCriteria:
+    - build-and-start via Nuxt output only
+    - endpoint contract parity preserved
+    - OCR/commit/preview behavior parity preserved
+    - desktop/mobile visual and interaction parity preserved
+  topRisk: Nitro copied-output runtime incompatibility due to externalization or missing traced assets
+  engagementDepth: deep
+  approach: contract-first, gate-driven migration
+execution:
+  process: phase-gated
+  checkpointPolicy: block-on-fail
+  verificationMode: test-first-and-contract-lock
+informationDebt: []
+nextConcern:
+  name: phase-1-baseline-capture
+  requirement: execute baseline contract capture and record evidence links in ledger

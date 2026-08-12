@@ -377,6 +377,56 @@ Second page accepted.
     );
   });
 
+  it('preserves safe markdown subset while stripping unsafe markdown destinations', async () => {
+    const rootDir = makeTempDir();
+    const config = makeConfig(rootDir);
+    const sourcePdfPath = createPdf(rootDir, 'safe-markdown-subset.pdf');
+    const job: DraftJob = {
+      id: 'job-safe-markdown-subset',
+      kind: 'pdf-pages',
+      sourceFilePath: sourcePdfPath,
+      status: 'pending_review',
+      createdAt: '2026-07-13T00:00:00.000Z',
+      updatedAt: '2026-07-13T00:00:00.000Z',
+      pages: [
+        {
+          pageNumber: 1,
+          imagePath: 'page-1.png',
+          nativeText: '',
+          markdown:
+            '# Heading\n\n' +
+            '- Item with **bold** and _italic_ and `inline code`\n\n' +
+            '[safe doc](../notes/safe.md)\n' +
+            '[safe external](https://example.org/path?q=1)\n' +
+            '[bad](javascript:alert(1))\n' +
+            '![local](images/local.png)\n' +
+            '![remote](https://attacker.test/remote.png)',
+          accepted: true,
+          status: 'accepted',
+          engine: 'tesseract',
+        },
+      ],
+    };
+
+    const result = await commitJob(config, job);
+    const markdown = await readFile(result.markdownPath, 'utf8');
+
+    expect(markdown).toContain('# Heading');
+    expect(markdown).toContain(
+      '- Item with **bold** and _italic_ and `inline code`',
+    );
+    expect(markdown).toContain('[safe doc](../notes/safe.md)');
+    expect(markdown).toContain('[safe external](https://example.org/path?q=1)');
+    expect(markdown).not.toContain('[bad](javascript:alert(1))');
+    expect(markdown).toContain('[bad]()');
+    expect(markdown).toContain('![local](images/local.png)');
+    expect(markdown).not.toContain(
+      '![remote](https://attacker.test/remote.png)',
+    );
+    expect(markdown).toContain('![remote]()');
+    expect(markdown).not.toMatch(/javascript:|https:\/\/attacker\.test/i);
+  });
+
   it('sanitizes markdown reference image destinations and nested-alt inline images', async () => {
     const rootDir = makeTempDir();
     const config = makeConfig(rootDir);
@@ -1343,9 +1393,9 @@ Second page accepted.
     expect(markdown).toContain('ocr_engine: "anydoc"');
     expect(existsSync(path.join(expectedOutputDir, 'images'))).toBe(false);
     expect(result.movedSourcePdf).toBe(true);
-    expect(existsSync(path.join(config.inboxPath, 'processed', 'report.docx'))).toBe(
-      true,
-    );
+    expect(
+      existsSync(path.join(config.inboxPath, 'processed', 'report.docx')),
+    ).toBe(true);
   });
 
   it('keeps unaccepted document jobs pending without moving the source', async () => {
@@ -1379,11 +1429,11 @@ Second page accepted.
     expect(existsSync(sourceFilePath)).toBe(true);
     expect(result.movedSourcePdf).toBe(false);
     expect(result.processedPdfPath).toBeNull();
-    expect(existsSync(path.join(config.inboxPath, 'processed', 'pending.docx'))).toBe(
-      false,
-    );
-    expect(existsSync(path.join(path.dirname(result.markdownPath), 'images'))).toBe(
-      false,
-    );
+    expect(
+      existsSync(path.join(config.inboxPath, 'processed', 'pending.docx')),
+    ).toBe(false);
+    expect(
+      existsSync(path.join(path.dirname(result.markdownPath), 'images')),
+    ).toBe(false);
   });
 });

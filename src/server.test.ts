@@ -802,7 +802,14 @@ describe('server api', () => {
     const rootDir = makeTempDir();
     const config = makeConfig(rootDir);
     mkdirSync(config.inboxPath, { recursive: true });
-    for (const file of ['report.docx', 'slides.PPTX', 'notes.rtf', 'scan.pdf', 'data.csv', 'readme.txt']) {
+    for (const file of [
+      'report.docx',
+      'slides.PPTX',
+      'notes.rtf',
+      'scan.pdf',
+      'data.csv',
+      'readme.txt',
+    ]) {
       writeFileSync(path.join(config.inboxPath, file), file);
     }
 
@@ -827,14 +834,16 @@ describe('server api', () => {
       id: 'document-job',
       kind: 'document',
       sourceFilePath: documentPath,
-      pages: [{
-        pageNumber: 1,
-        nativeText: '',
-        markdown: 'converted',
-        accepted: false,
-        status: 'pending',
-        engine: 'anydoc',
-      }],
+      pages: [
+        {
+          pageNumber: 1,
+          nativeText: '',
+          markdown: 'converted',
+          accepted: false,
+          status: 'pending',
+          engine: 'anydoc',
+        },
+      ],
     });
     const convertDocumentToMarkdown = vi.fn(async (_filePath: string) => ({
       markdown: 'converted',
@@ -899,6 +908,102 @@ describe('server api', () => {
     });
   });
 
+  it('rejects invalid job payloads with stable 400 contracts', async () => {
+    const rootDir = makeTempDir();
+    const config = makeConfig(rootDir);
+    const app = createServer(config);
+
+    await withServer(app, async (baseUrl) => {
+      const missingFile = await fetch(`${baseUrl}/api/jobs`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({}),
+      });
+      expect(missingFile.status).toBe(400);
+      expect(await missingFile.json()).toEqual({
+        error: 'file must be non-empty string',
+      });
+
+      const blankFile = await fetch(`${baseUrl}/api/jobs`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ file: '   ' }),
+      });
+      expect(blankFile.status).toBe(400);
+      expect(await blankFile.json()).toEqual({
+        error: 'file must be non-empty string',
+      });
+
+      const invalidMode = await fetch(`${baseUrl}/api/jobs`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ file: 'x.pdf', mode: 'invalid-mode' }),
+      });
+      expect(invalidMode.status).toBe(400);
+      expect(await invalidMode.json()).toEqual({
+        error: 'mode must be pages or document',
+      });
+    });
+  });
+
+  it('accepts valid job payloads for pdf pages and document modes', async () => {
+    const rootDir = makeTempDir();
+    const config = makeConfig(rootDir);
+    mkdirSync(config.inboxPath, { recursive: true });
+    writeFileSync(path.join(config.inboxPath, 'ok.pdf'), 'pdf');
+    writeFileSync(path.join(config.inboxPath, 'ok.docx'), 'doc');
+
+    const pdfJob = makeJob(rootDir, {
+      id: 'pdf-valid-job',
+      kind: 'pdf-pages',
+      sourceFilePath: path.join(config.inboxPath, 'ok.pdf'),
+    });
+    const documentJob = makeJob(rootDir, {
+      id: 'doc-valid-job',
+      kind: 'document',
+      sourceFilePath: path.join(config.inboxPath, 'ok.docx'),
+      pages: [
+        {
+          pageNumber: 1,
+          nativeText: '',
+          markdown: 'doc markdown',
+          accepted: false,
+          status: 'pending',
+          engine: 'anydoc',
+        },
+      ],
+    });
+
+    const createDraftJobMock = vi.fn(async () => pdfJob);
+    const createDocumentDraftJobMock = vi.fn(async () => documentJob);
+    const app = createServer(config, {
+      createDraftJob: createDraftJobMock,
+      createDocumentDraftJob: createDocumentDraftJobMock,
+      listJobs: vi.fn(async () => []),
+    });
+
+    await withServer(app, async (baseUrl) => {
+      const pagesResponse = await fetch(`${baseUrl}/api/jobs`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ file: 'ok.pdf', mode: 'pages' }),
+      });
+      expect(pagesResponse.status).toBe(201);
+      expect(await pagesResponse.json()).toEqual({ job: pdfJob });
+
+      const documentResponse = await fetch(`${baseUrl}/api/jobs`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ file: 'ok.docx', mode: 'document' }),
+      });
+      expect(documentResponse.status).toBe(201);
+      expect(await documentResponse.json()).toEqual({ job: documentJob });
+    });
+
+    expect(createDraftJobMock).toHaveBeenCalledOnce();
+    expect(createDocumentDraftJobMock).toHaveBeenCalledOnce();
+  });
+
   it('resumes pending jobs only when source file and kind both match', async () => {
     const rootDir = makeTempDir();
     const config = makeConfig(rootDir);
@@ -927,14 +1032,16 @@ describe('server api', () => {
 
     await withServer(app, async (baseUrl) => {
       const pagesResponse = await fetch(`${baseUrl}/api/jobs`, {
-        method: 'POST', headers: { 'content-type': 'application/json' },
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ file: 'same.pdf', mode: 'pages' }),
       });
       expect(pagesResponse.status).toBe(200);
       expect((await pagesResponse.json()).job.id).toBe('pdf-job');
 
       const documentResponse = await fetch(`${baseUrl}/api/jobs`, {
-        method: 'POST', headers: { 'content-type': 'application/json' },
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ file: 'same.pdf', mode: 'document' }),
       });
       expect(documentResponse.status).toBe(200);
@@ -953,11 +1060,25 @@ describe('server api', () => {
     const job = makeJob(rootDir, {
       kind: 'document',
       sourceFilePath: documentPath,
-      pages: [{ pageNumber: 1, nativeText: '', markdown: 'old', accepted: true, engine: 'anydoc' }],
+      pages: [
+        {
+          pageNumber: 1,
+          nativeText: '',
+          markdown: 'old',
+          accepted: true,
+          engine: 'anydoc',
+        },
+      ],
     });
-    const convertDocumentToMarkdown = vi.fn(async () => ({ markdown: 'new markdown' }));
+    const convertDocumentToMarkdown = vi.fn(async () => ({
+      markdown: 'new markdown',
+    }));
     const saveJob = vi.fn(async () => undefined);
-    const adapterRegistry = { getAdapter: vi.fn(), getDefaultAdapter: vi.fn(), listAdapters: vi.fn(() => []) };
+    const adapterRegistry = {
+      getAdapter: vi.fn(),
+      getDefaultAdapter: vi.fn(),
+      listAdapters: vi.fn(() => []),
+    };
     const app = createServer(config, {
       loadJob: vi.fn(async () => job),
       saveJob,
@@ -967,10 +1088,17 @@ describe('server api', () => {
 
     await withServer(app, async (baseUrl) => {
       const response = await fetch(`${baseUrl}/api/jobs/job-1/pages/1/rerun`, {
-        method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}',
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: '{}',
       });
       expect(response.status).toBe(200);
-      expect((await response.json()).page).toMatchObject({ markdown: 'new markdown', engine: 'anydoc', accepted: false, status: 'pending' });
+      expect((await response.json()).page).toMatchObject({
+        markdown: 'new markdown',
+        engine: 'anydoc',
+        accepted: false,
+        status: 'pending',
+      });
     });
     expect(convertDocumentToMarkdown).toHaveBeenCalledWith(documentPath);
     expect(adapterRegistry.getAdapter).not.toHaveBeenCalled();
@@ -982,14 +1110,24 @@ describe('server api', () => {
     const config = makeConfig(rootDir);
     const job = makeJob(rootDir, {
       kind: 'document',
-      pages: [{ pageNumber: 1, nativeText: '', markdown: 'doc', accepted: false, engine: 'anydoc' }],
+      pages: [
+        {
+          pageNumber: 1,
+          nativeText: '',
+          markdown: 'doc',
+          accepted: false,
+          engine: 'anydoc',
+        },
+      ],
     });
     const app = createServer(config, { loadJob: vi.fn(async () => job) });
 
     await withServer(app, async (baseUrl) => {
       const response = await fetch(`${baseUrl}/api/jobs/job-1/pages/1/preview`);
       expect(response.status).toBe(404);
-      expect(await response.json()).toEqual({ error: 'No preview image available for this page.' });
+      expect(await response.json()).toEqual({
+        error: 'No preview image available for this page.',
+      });
     });
   });
 });
