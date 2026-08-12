@@ -20,7 +20,8 @@
     "check:architecture": "node scripts/check-server-boundaries.mjs",
     "setup:tesseract": "node scripts/download-tessdata.mjs eng ./tessdata",
     "serve:nuextract3": "tsx scripts/serve-nuextract3.ts",
-    "serve:glm-ocr": "tsx scripts/serve-glm-ocr.ts"
+    "serve:glm-ocr": "tsx scripts/serve-glm-ocr.ts",
+    "start:glm-ocr": "tsx scripts/start-glm-ocr.ts"
   },
   "engines": {
     "node": ">=24.0.0 <25.0.0"
