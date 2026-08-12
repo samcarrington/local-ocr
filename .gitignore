@@ -10,3 +10,4 @@ tessdata/
 .nuxt/
 .output/
 e2e/.runtime/
+.worktrees/
