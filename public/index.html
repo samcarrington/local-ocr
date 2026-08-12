@@ -1,19 +1,30 @@
 <!doctype html>
 <html lang="en">
   <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Local OCR Review</title>
-    <link rel="stylesheet" href="/styles.css">
+    <link rel="stylesheet" href="/tokens.css" />
+    <link rel="stylesheet" href="/workbench.css" />
   </head>
   <body>
     <div class="app-shell">
       <header class="topbar">
         <div>
+          <p class="app-mark">LOCAL / OCR BENCH</p>
           <h1>Local OCR Review</h1>
-          <p class="subtitle">Review one page at time. Accept good pages. Commit when ready.</p>
+          <p class="subtitle">
+            Review one page at time. Accept good pages. Commit when ready.
+          </p>
         </div>
-        <p id="status-banner" class="status-banner" role="status" aria-live="polite">Loading PDFs…</p>
+        <p
+          id="status-banner"
+          class="status-banner"
+          role="status"
+          aria-live="polite"
+        >
+          Loading PDFs…
+        </p>
       </header>
 
       <main class="layout">
@@ -27,12 +38,17 @@
             <p id="pdf-list-empty" class="muted" hidden>No PDFs found.</p>
           </section>
 
-          <section class="inbox-list-panel" aria-labelledby="document-list-heading">
+          <section
+            class="inbox-list-panel"
+            aria-labelledby="document-list-heading"
+          >
             <div class="panel-header">
               <h2 id="document-list-heading">Inbox Documents</h2>
             </div>
             <ul id="document-list" class="pdf-list"></ul>
-            <p id="document-list-empty" class="muted" hidden>No documents found.</p>
+            <p id="document-list-empty" class="muted" hidden>
+              No documents found.
+            </p>
           </section>
         </aside>
 
@@ -43,8 +59,12 @@
               <p id="job-meta" class="muted">No job loaded.</p>
             </div>
             <div class="action-row">
-              <button id="commit-job" type="button" disabled>Commit accepted</button>
-              <button id="discard-job" type="button" class="danger" disabled>Discard draft</button>
+              <button id="commit-job" type="button" disabled>
+                Commit accepted
+              </button>
+              <button id="discard-job" type="button" class="danger" disabled>
+                Discard draft
+              </button>
             </div>
           </div>
 
@@ -70,30 +90,48 @@
               </label>
               <div class="action-row">
                 <button id="rerun-page" type="button">Rerun page</button>
-                <button id="accept-page" type="button" class="primary">Accept page</button>
+                <button id="accept-page" type="button" class="primary">
+                  Accept page
+                </button>
               </div>
             </div>
 
             <div class="content-grid">
-              <section id="preview-panel" class="preview-panel" aria-labelledby="preview-heading">
+              <section
+                id="preview-panel"
+                class="preview-panel"
+                aria-labelledby="preview-heading"
+              >
                 <div class="section-header">
                   <h3 id="preview-heading">Source preview</h3>
                   <p id="confidence-text" class="muted"></p>
                 </div>
-                <img id="page-preview" alt="Current PDF page preview">
+                <img id="page-preview" alt="Current PDF page preview" />
               </section>
 
-              <section class="markdown-panel" aria-labelledby="markdown-heading">
+              <section
+                class="markdown-panel"
+                aria-labelledby="markdown-heading"
+              >
                 <div class="section-header">
                   <h3 id="markdown-heading">Current markdown</h3>
                   <p id="engine-text" class="muted"></p>
                 </div>
-                <section id="warning-panel" class="warning-panel" hidden aria-live="polite">
+                <section
+                  id="warning-panel"
+                  class="warning-panel"
+                  hidden
+                  aria-live="polite"
+                >
                   <h4>Possibly missing from OCR</h4>
                   <p id="warning-message" class="warning-message"></p>
                   <ul id="warning-snippets" class="warning-snippets"></ul>
                 </section>
-                <div id="markdown-render" class="markdown-render" aria-live="polite"></div>
+                <div
+                  id="markdown-render"
+                  class="markdown-render"
+                  aria-live="polite"
+                ></div>
                 <details>
                   <summary>Raw markdown</summary>
                   <pre id="markdown-raw"></pre>
@@ -109,6 +147,11 @@
           </div>
         </section>
       </main>
+
+      <footer class="app-footer">
+        <p>Local review workspace</p>
+        <p>Files remain on this machine</p>
+      </footer>
     </div>
 
     <script type="module" src="/app.js"></script>

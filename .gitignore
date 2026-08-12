@@ -6,3 +6,4 @@ ocrtool.config.yaml
 coverage/
 tessdata/
 .build-cache/
+.serena/
