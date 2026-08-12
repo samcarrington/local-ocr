@@ -228,6 +228,10 @@ and Markdown fidelity against the existing engines.
 
 Treat this as a compatibility migration, not a model-name substitution.
 
+- First smoke-test `mlx-community/DeepSeek-OCR-4bit` with local
+  `mlx_vlm.server`; it is the initial Apple-Silicon MLX candidate. Do not
+  assume serving compatibility until the configured model is available through
+  the local OpenAI-compatible endpoint and completes an image request.
 - Confirm that the target DeepSeek model exposes the required mlx-vlm
   serving/API behaviour and benchmark it using the same corpus.
 - Add a dedicated mlx-vlm configuration kind and adapter, retaining
