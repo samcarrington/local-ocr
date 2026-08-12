@@ -12,7 +12,9 @@
     "build:nuxt": "nuxt build",
     "start": "node dist/server.js",
     "start:nuxt": "NODE_ENV=production node .output/server/index.mjs",
-    "test": "vitest run",
+    "test": "vitest run --config vitest.config.ts && vitest run --config vitest.config.server.ts",
+    "test:src": "vitest run --config vitest.config.ts",
+    "test:server": "vitest run --config vitest.config.server.ts",
     "setup:tesseract": "node scripts/download-tessdata.mjs eng ./tessdata",
     "serve:nuextract3": "tsx scripts/serve-nuextract3.ts",
     "serve:glm-ocr": "tsx scripts/serve-glm-ocr.ts"

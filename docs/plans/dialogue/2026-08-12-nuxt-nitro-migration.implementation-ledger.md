@@ -57,15 +57,15 @@ Exit gate:
 
 ### Phase 3: Nuxt project establishment
 
-| Item                                                        | Owner         | Status      | Gate evidence |
-| ----------------------------------------------------------- | ------------- | ----------- | ------------- |
-| Create Nuxt app/config files and split test configs         | owner-backend | not-started | TODO          |
-| Update `package.json`, lockfile, `.gitignore`, `biome.json` | owner-backend | not-started | TODO          |
-| Verify `pnpm build` and `pnpm start`                        | owner-test    | not-started | TODO          |
+| Item                                                        | Owner         | Status | Gate evidence                                                                                                                                                                                   |
+| ----------------------------------------------------------- | ------------- | ------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Create Nuxt app/config files and split test configs         | owner-backend | done   | Added `vitest.config.server.ts` (server project), `vitest.workspace.ts`, updated `vitest.config.ts` with project name. `pnpm test:src` → 152 passed; `pnpm test:server` → 2 passed.             |
+| Update `package.json`, lockfile, `.gitignore`, `biome.json` | owner-backend | done   | Added `test:src` / `test:server` scripts; `biome.json` ignores `.nuxt/**`, `.output/**`, `dist/**`; removed redundant `vitest.config.js`. `.gitignore` already covered `.nuxt/` and `.output/`. |
+| Verify `pnpm build` and `pnpm start`                        | owner-test    | done   | `pnpm build:nuxt` → build complete (41.7 MB); `node .output/server/index.mjs` → Listening on http://127.0.0.1:14001.                                                                            |
 
 Exit gate:
 
-- [ ] Nuxt scaffold builds and starts
+- [x] Nuxt scaffold builds and starts
 
 ### Phase 4: Server/domain migration and type split
 
