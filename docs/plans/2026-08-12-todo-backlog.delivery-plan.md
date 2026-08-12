@@ -210,18 +210,19 @@ supporting multiple expensive local models.
 **Exit criteria:** a clearly documented keep/defer decision, and each adopted
 engine follows the full configuration-to-UI-to-test integration path.
 
-#### Recorded evaluation outcome (2026-08-13)
+#### Recorded evaluation outcome (revised 2026-08-13)
 
-Chandra OCR is deferred. Its official local paths are vLLM on NVIDIA hardware
-or Hugging Face/Transformers, not the project's verified `mlx_vlm.server`
-contract. Community MLX conversions are not sufficient evidence of compatible
-serving behaviour. The model weights also use a modified OpenRAIL-M licence,
-which needs product-use review before adoption.
+`mlx-community/chandra-ocr-2-oQ8` is an MLX Qwen3.5 quantisation with an
+image-aware chat template, making it a viable research benchmark candidate for
+the existing local OpenAI-compatible adapter path. Research use is within the
+user's declared purpose, so the model's modified OpenRAIL-M licence is not a
+blocker for this evaluation.
 
-Revisit only with a distributable representative corpus, a compatible local
-runtime, measured memory/latency/failure/fidelity results against the existing
-engines, and an explicit licence decision. Do not add a Chandra adapter before
-those gates are met.
+The local `mlx_vlm.server` smoke test is complete: the model loaded, appeared
+at `/v1/models`, and returned structured OCR content from a loopback image
+chat-completions request, reporting 6.32 GB peak memory. Do not add a Chandra
+adapter until a representative corpus measures memory, latency, failure rate,
+and Markdown fidelity against the existing engines.
 
 ### 6. Migrate DeepSeek OCR from Ollama to mlx-vlm
 
