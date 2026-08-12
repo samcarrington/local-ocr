@@ -14,11 +14,11 @@ Date: 2026-08-12
 
 - Runtime: `pnpm dev` at `http://127.0.0.1:4312/`
 - Desktop screenshot:
-  - File: `docs/plans/dialogue/artifacts/2026-08-12-nuxt-nitro-migration/phase1/hallmark-desktop-1440x1024.png`
+  - File: `docs/plans/_archive/2026-08-12-nuxt-nitro-migration/dialogue/artifacts/2026-08-12-nuxt-nitro-migration/phase1/hallmark-desktop-1440x1024.png`
   - Requested viewport: 1440x1024
   - Captured full-page image: 1440x1133
 - Mobile screenshot:
-  - File: `docs/plans/dialogue/artifacts/2026-08-12-nuxt-nitro-migration/phase1/hallmark-mobile-375x812.png`
+  - File: `docs/plans/_archive/2026-08-12-nuxt-nitro-migration/dialogue/artifacts/2026-08-12-nuxt-nitro-migration/phase1/hallmark-mobile-375x812.png`
   - Requested viewport: 375x812
   - Captured full-page image: 375x1699
 

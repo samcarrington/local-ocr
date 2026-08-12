@@ -5,7 +5,7 @@
 - Delivery model: phase-gated migration with contract lock before code movement.
 - Thread topic: Nuxt/Nitro migration dialogue implementation.
 - Execution mode: dialogue-led, verify-after-each-gate.
-- Implementation ledger: `docs/plans/dialogue/2026-08-12-nuxt-nitro-migration.implementation-ledger.md`
+- Implementation ledger: `docs/plans/_archive/2026-08-12-nuxt-nitro-migration/dialogue/2026-08-12-nuxt-nitro-migration.implementation-ledger.md`
 
 ## Work breakdown
 
@@ -68,10 +68,14 @@
 - Tasks:
   - Extract service and runtime dependency layers.
   - Implement Nitro route handlers with shared error wrapper.
-  - Preserve exact endpoint behavior and JSON error envelope.
+  - Preserve endpoint URLs, successful payloads, and status codes. Use the
+    Nitro-native failed-response envelope with safe legacy error detail in
+    `data.error`, as defined by the Phase 5 error-boundary decision.
   - Enforce preview file containment and file safety checks.
 - Exit criteria:
-  - Route integration tests pass against exact contract suite.
+  - Route integration tests pass against the URL, successful-payload, and
+    status-code contract suite; failed-route assertions cover the Nitro-native
+    envelope and safe `data.error` detail.
   - Sanitized 5xx behavior preserved.
 
 ### Phase 6: Runtime configuration migration

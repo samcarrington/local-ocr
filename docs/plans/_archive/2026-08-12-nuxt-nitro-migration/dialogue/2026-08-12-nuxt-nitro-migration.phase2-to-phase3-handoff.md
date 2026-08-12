@@ -26,9 +26,9 @@ Scope: handoff after Phase 2 completion, before Phase 3 start.
 
 ## Evidence index
 
-- Ledger: docs/plans/dialogue/2026-08-12-nuxt-nitro-migration.implementation-ledger.md
-- Phase 2 runtime evidence: docs/plans/dialogue/artifacts/2026-08-12-nuxt-nitro-migration/phase2/phase2-runtime-viability-evidence.md
-- Prior handoff (Phase 1 -> 2): docs/plans/dialogue/2026-08-12-nuxt-nitro-migration.phase-handoff.md
+- Ledger: docs/plans/_archive/2026-08-12-nuxt-nitro-migration/dialogue/2026-08-12-nuxt-nitro-migration.implementation-ledger.md
+- Phase 2 runtime evidence: docs/plans/_archive/2026-08-12-nuxt-nitro-migration/dialogue/artifacts/2026-08-12-nuxt-nitro-migration/phase2/phase2-runtime-viability-evidence.md
+- Prior handoff (Phase 1 -> 2): docs/plans/_archive/2026-08-12-nuxt-nitro-migration/dialogue/2026-08-12-nuxt-nitro-migration.phase-handoff.md
 
 ## Validation baseline at handoff
 

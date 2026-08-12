@@ -19,10 +19,10 @@ Scope: handoff after Phase 1 completion, before Phase 2 start.
 
 ## Evidence index
 
-- Ledger: docs/plans/dialogue/2026-08-12-nuxt-nitro-migration.implementation-ledger.md
-- Phase 1 evidence summary: docs/plans/dialogue/artifacts/2026-08-12-nuxt-nitro-migration/phase1/phase1-baseline-evidence.md
-- Desktop baseline image: docs/plans/dialogue/artifacts/2026-08-12-nuxt-nitro-migration/phase1/hallmark-desktop-1440x1024.png
-- Mobile baseline image: docs/plans/dialogue/artifacts/2026-08-12-nuxt-nitro-migration/phase1/hallmark-mobile-375x812.png
+- Ledger: docs/plans/_archive/2026-08-12-nuxt-nitro-migration/dialogue/2026-08-12-nuxt-nitro-migration.implementation-ledger.md
+- Phase 1 evidence summary: docs/plans/_archive/2026-08-12-nuxt-nitro-migration/dialogue/artifacts/2026-08-12-nuxt-nitro-migration/phase1/phase1-baseline-evidence.md
+- Desktop baseline image: docs/plans/_archive/2026-08-12-nuxt-nitro-migration/dialogue/artifacts/2026-08-12-nuxt-nitro-migration/phase1/hallmark-desktop-1440x1024.png
+- Mobile baseline image: docs/plans/_archive/2026-08-12-nuxt-nitro-migration/dialogue/artifacts/2026-08-12-nuxt-nitro-migration/phase1/hallmark-mobile-375x812.png
 
 ## Test baseline at handoff
 

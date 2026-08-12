@@ -23,9 +23,9 @@ Scope: handoff after Phase 3 completion, before Phase 4 start.
 
 ## Evidence index
 
-- Ledger: docs/plans/dialogue/2026-08-12-nuxt-nitro-migration.implementation-ledger.md
+- Ledger: docs/plans/_archive/2026-08-12-nuxt-nitro-migration/dialogue/2026-08-12-nuxt-nitro-migration.implementation-ledger.md
 - Phase 3 rows: all three items marked done with commit hash `5d040f2`.
-- Prior handoff (Phase 2 → 3): docs/plans/dialogue/2026-08-12-nuxt-nitro-migration.phase2-to-phase3-handoff.md
+- Prior handoff (Phase 2 → 3): docs/plans/_archive/2026-08-12-nuxt-nitro-migration/dialogue/2026-08-12-nuxt-nitro-migration.phase2-to-phase3-handoff.md
 
 ## Test baseline at handoff
 

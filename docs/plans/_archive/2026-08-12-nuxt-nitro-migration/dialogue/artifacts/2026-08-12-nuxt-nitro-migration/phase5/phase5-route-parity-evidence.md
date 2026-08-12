@@ -27,7 +27,7 @@ Date: 2026-08-12
   `data.error`.
 
 The native Nitro error-envelope decision is recorded in
-`docs/plans/dialogue/2026-08-12-nuxt-nitro-migration.phase5-error-boundary-decision.md`
+`docs/plans/_archive/2026-08-12-nuxt-nitro-migration/dialogue/2026-08-12-nuxt-nitro-migration.phase5-error-boundary-decision.md`
 and supersedes legacy error-body parity.
 
 Preview resolution canonicalises both the expected preview directory and target

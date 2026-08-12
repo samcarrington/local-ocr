@@ -8,10 +8,10 @@ status:
   state: ready-for-execution
   reason: user confirmed objectives and success criteria; implementation ledger created for phase execution
 artifacts:
-  sourcePlan: docs/plans/2026-08-12-nuxt-nitro-migration.md
-  scopeStatement: docs/plans/dialogue/2026-08-12-nuxt-nitro-migration.scope-statement.md
-  deliveryPlan: docs/plans/dialogue/2026-08-12-nuxt-nitro-migration.delivery-plan.md
-  implementationLedger: docs/plans/dialogue/2026-08-12-nuxt-nitro-migration.implementation-ledger.md
+  sourcePlan: docs/plans/_archive/2026-08-12-nuxt-nitro-migration/2026-08-12-nuxt-nitro-migration.md
+  scopeStatement: docs/plans/_archive/2026-08-12-nuxt-nitro-migration/dialogue/2026-08-12-nuxt-nitro-migration.scope-statement.md
+  deliveryPlan: docs/plans/_archive/2026-08-12-nuxt-nitro-migration/dialogue/2026-08-12-nuxt-nitro-migration.delivery-plan.md
+  implementationLedger: docs/plans/_archive/2026-08-12-nuxt-nitro-migration/dialogue/2026-08-12-nuxt-nitro-migration.implementation-ledger.md
 anchors:
   objectives:
     - Replace Express plus static frontend with Nuxt 4 full-stack runtime

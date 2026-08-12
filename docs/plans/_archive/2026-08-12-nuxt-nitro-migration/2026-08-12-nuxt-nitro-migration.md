@@ -30,16 +30,19 @@ Future phase plans may include local dockerisation of LLMs and other services, b
 ### Success criteria
 
 - `pnpm build` and `pnpm start` run Nuxt/Nitro only, serving frontend and API from `.output/server/index.mjs` on `127.0.0.1:4312`.
-- Existing API endpoints retain path, method, status, and response body contracts, including malformed request handling and sanitized 5xx behavior.
+- Existing API endpoints retain path, method, successful response payload, and
+  status-code contracts. Failed Nitro responses use the native envelope with
+  safe legacy error detail in `data.error`, including malformed-request
+  handling and sanitised 5xx behaviour.
 - OCR, preview generation, rerun, accept, partial/full commit, and document conversion work through Nitro routes with no functional regression.
 - Vue frontend preserves existing user-visible states and interactions, including mobile/desktop layout parity and no horizontal overflow.
 - Express and static legacy assets are removed only after all parity and verification checks pass.
 
 ## Dialogue execution package
 
-- Scope statement: `docs/plans/dialogue/2026-08-12-nuxt-nitro-migration.scope-statement.md`
-- Delivery plan: `docs/plans/dialogue/2026-08-12-nuxt-nitro-migration.delivery-plan.md`
-- Execution metadata: `docs/plans/dialogue/2026-08-12-nuxt-nitro-migration.dialogue-meta.yaml`
+- Scope statement: `docs/plans/_archive/2026-08-12-nuxt-nitro-migration/dialogue/2026-08-12-nuxt-nitro-migration.scope-statement.md`
+- Delivery plan: `docs/plans/_archive/2026-08-12-nuxt-nitro-migration/dialogue/2026-08-12-nuxt-nitro-migration.delivery-plan.md`
+- Execution metadata: `docs/plans/_archive/2026-08-12-nuxt-nitro-migration/dialogue/2026-08-12-nuxt-nitro-migration.dialogue-meta.yaml`
 
 ## 1. Capture existing behavior
 
@@ -172,18 +175,30 @@ server/api/jobs/[id]/pages/[page]/rerun.post.ts
 server/api/jobs/[id]/pages/[page]/accept.post.ts
 ```
 
-Preserve existing URLs and contracts exactly.
+Preserve existing URLs, successful payloads, and status codes. Failed routes
+use the Nitro-native envelope with safe legacy error detail in `data.error`.
 
-Use one shared route/error wrapper so API failures remain:
+Use one shared route/error wrapper that raises Nitro errors with the established
+status code and safe message; the safe legacy error detail remains in
+`data.error`.
 
 ```json
-{ "error": "message" }
+{
+  "statusCode": 400,
+  "statusMessage": "message",
+  "data": { "error": "message" }
+}
 ```
 
-Unexpected errors log details server-side but expose only:
+Unexpected errors log details server-side and expose only a sanitised message
+in both `statusMessage` and `data.error`.
 
 ```json
-{ "error": "Internal server error" }
+{
+  "statusCode": 500,
+  "statusMessage": "Internal server error",
+  "data": { "error": "Internal server error" }
+}
 ```
 
 Preview serving must use canonical `realpath` containment, regular-file checks, and no-follow opening beneath expected job preview directory.

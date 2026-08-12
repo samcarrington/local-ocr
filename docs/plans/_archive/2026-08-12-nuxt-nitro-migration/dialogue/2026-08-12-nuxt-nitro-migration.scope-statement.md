@@ -16,7 +16,9 @@ Nuxt/Nitro migration for local-ocr runtime unification.
 - Production runs with `pnpm build` and `pnpm start` using `node .output/server/index.mjs`.
 - Listener defaults to `127.0.0.1:4312`; non-loopback bind host is rejected.
 - Host header validation allows only loopback host forms.
-- Existing API contracts remain stable for status, payloads, and error shape.
+- Existing API contracts remain stable for URLs, successful payloads, and
+  status codes; failed Nitro responses use the native envelope with safe legacy
+  error detail in `data.error`.
 - Preview serving enforces realpath containment and safe file checks.
 - Vue frontend preserves current behavior and parity on desktop/mobile.
 - Legacy Express/static stack removed only after parity test gates pass.
@@ -40,7 +42,9 @@ Nuxt/Nitro migration for local-ocr runtime unification.
 
 ## Constraints
 
-- Preserve URL paths and API contract shape exactly.
+- Preserve URL paths, successful payloads, and status codes. For failed routes,
+  follow the Phase 5 Nitro-native error-boundary decision rather than the
+  legacy Express error body.
 - No `v-html`; markdown rendered via typed Vue nodes.
 - No regression in rerun/accept/commit/discard semantics.
 - Keep Python model servers external to Nuxt runtime.

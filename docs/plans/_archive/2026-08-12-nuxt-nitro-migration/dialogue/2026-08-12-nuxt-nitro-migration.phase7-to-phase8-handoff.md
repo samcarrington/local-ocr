@@ -19,7 +19,7 @@ Date: 2026-08-12
 ## Evidence
 
 See
-`docs/plans/dialogue/artifacts/2026-08-12-nuxt-nitro-migration/phase7/phase7-vue-port-evidence.md`.
+`docs/plans/_archive/2026-08-12-nuxt-nitro-migration/dialogue/artifacts/2026-08-12-nuxt-nitro-migration/phase7/phase7-vue-port-evidence.md`.
 
 - Desktop comparison passed at 1440x1024; mobile comparison passed at
   375x812, with no horizontal overflow.

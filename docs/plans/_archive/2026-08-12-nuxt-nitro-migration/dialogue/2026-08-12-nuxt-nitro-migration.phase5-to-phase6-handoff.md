@@ -18,7 +18,7 @@ Date: 2026-08-12
 ## Evidence
 
 See
-`docs/plans/dialogue/artifacts/2026-08-12-nuxt-nitro-migration/phase5/phase5-route-parity-evidence.md`.
+`docs/plans/_archive/2026-08-12-nuxt-nitro-migration/dialogue/artifacts/2026-08-12-nuxt-nitro-migration/phase5/phase5-route-parity-evidence.md`.
 
 ## Phase 6 guardrails
 

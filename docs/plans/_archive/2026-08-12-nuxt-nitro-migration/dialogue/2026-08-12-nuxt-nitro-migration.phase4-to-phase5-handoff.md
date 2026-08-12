@@ -31,13 +31,13 @@ Scope: handoff after Phase 4 completion, before Phase 5 start.
 ## Evidence index
 
 - Ledger:
-  `docs/plans/dialogue/2026-08-12-nuxt-nitro-migration.implementation-ledger.md`
+  `docs/plans/_archive/2026-08-12-nuxt-nitro-migration/dialogue/2026-08-12-nuxt-nitro-migration.implementation-ledger.md`
 - Gate evidence:
-  `docs/plans/dialogue/artifacts/2026-08-12-nuxt-nitro-migration/phase4/phase4-domain-migration-evidence.md`
+  `docs/plans/_archive/2026-08-12-nuxt-nitro-migration/dialogue/artifacts/2026-08-12-nuxt-nitro-migration/phase4/phase4-domain-migration-evidence.md`
 - After-action:
-  `docs/plans/dialogue/artifacts/2026-08-12-nuxt-nitro-migration/phase4/phase4-after-action.md`
+  `docs/plans/_archive/2026-08-12-nuxt-nitro-migration/dialogue/artifacts/2026-08-12-nuxt-nitro-migration/phase4/phase4-after-action.md`
 - Prior handoff:
-  `docs/plans/dialogue/2026-08-12-nuxt-nitro-migration.phase3-to-phase4-handoff.md`
+  `docs/plans/_archive/2026-08-12-nuxt-nitro-migration/dialogue/2026-08-12-nuxt-nitro-migration.phase3-to-phase4-handoff.md`
 
 ## Validation baseline at handoff
 
