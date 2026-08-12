@@ -26,8 +26,6 @@ async function testConfig(): Promise<AppConfig> {
     defaultEngine: 'tesseract',
     nativeTextMinChars: 24,
     textExtractionMode: 'auto',
-    host: '127.0.0.1',
-    port: 4312,
     engines: { tesseract: { kind: 'tesseract', lang: 'eng' } },
   };
 }

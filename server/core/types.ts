@@ -55,8 +55,6 @@ export type EngineName = SharedEngineName;
 export interface AppConfig {
   inboxPath: string;
   jobStorePath: string;
-  host: string;
-  port: number;
   defaultEngine: EngineName;
   nativeTextMinChars: number;
   textExtractionMode: 'auto' | 'ocr';

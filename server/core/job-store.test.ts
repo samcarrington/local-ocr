@@ -26,8 +26,6 @@ function makeConfig(rootDir: string): AppConfig {
   return {
     inboxPath: path.join(rootDir, 'inbox'),
     jobStorePath: path.join(rootDir, '.ocrtool', 'jobs'),
-    host: '127.0.0.1',
-    port: 4312,
     defaultEngine: 'tesseract',
     nativeTextMinChars: 24,
     textExtractionMode: 'auto',

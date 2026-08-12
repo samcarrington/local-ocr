@@ -3,7 +3,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { DEFAULT_CONFIG_FILE, loadConfig } from './config.js';
 
@@ -37,8 +37,6 @@ describe('loadConfig', () => {
     expect(loadConfig()).toEqual({
       inboxPath: './inbox',
       jobStorePath: './.ocrtool/jobs',
-      host: '127.0.0.1',
-      port: 4312,
       defaultEngine: 'tesseract',
       nativeTextMinChars: 24,
       textExtractionMode: 'auto',
@@ -51,7 +49,7 @@ describe('loadConfig', () => {
     });
   });
 
-  it('loads yaml overrides from explicit path', () => {
+  it('ignores deprecated YAML listener keys and warns once per process', () => {
     const dir = makeTempDir();
     const configPath = path.join(dir, DEFAULT_CONFIG_FILE);
 
@@ -79,11 +77,11 @@ describe('loadConfig', () => {
       ].join('\n'),
     );
 
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+
     expect(loadConfig(configPath)).toEqual({
       inboxPath: './custom-inbox',
       jobStorePath: './.state/jobs',
-      host: '0.0.0.0',
-      port: 9999,
       defaultEngine: 'deepseek-ocr',
       nativeTextMinChars: 42,
       textExtractionMode: 'ocr',
@@ -102,6 +100,13 @@ describe('loadConfig', () => {
         },
       },
     });
+
+    loadConfig(configPath);
+    expect(warn).toHaveBeenCalledTimes(1);
+    expect(warn).toHaveBeenCalledWith(
+      'The "host" and "port" YAML keys are deprecated and ignored. Use NITRO_HOST and NITRO_PORT to configure the listener.',
+    );
+    warn.mockRestore();
   });
 
   it('parses a nuextract3-ocr engine and applies schema defaults', () => {
@@ -207,7 +212,6 @@ describe('loadConfig', () => {
     writeFileSync(
       configPath,
       [
-        'port: -1',
         'nativeTextMinChars: nope',
         'engines:',
         '  tesseract:',

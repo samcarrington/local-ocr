@@ -1,6 +1,40 @@
+<script setup lang="ts">
+import { useOcrReview } from './composables/useOcrReview';
+
+const {
+  pdfs,
+  documents,
+  selectedFile,
+  job,
+  currentPageNumber,
+  loading,
+  status,
+  selectedEngine,
+  loadInbox,
+  startJob,
+  selectEngine,
+  rerunCurrentPage,
+  acceptCurrentPage,
+  commitCurrentJob,
+  discardCurrentJob,
+  movePage,
+  selectPage,
+} = useOcrReview();
+
+onMounted(() => {
+  void loadInbox();
+});
+</script>
+
 <template>
-  <main>
-    <h1>Nuxt Nitro Phase 2 Probe</h1>
-    <p>Use POST /api/phase2/probe for viability checks.</p>
-  </main>
+  <AppShell :status="status">
+    <template #inbox>
+      <InboxList :pdfs="pdfs" :documents="documents" :selected-file="selectedFile" :busy="loading" @refresh="loadInbox"
+        @start="startJob" />
+    </template>
+
+    <Reviewer :job="job" :current-page-number="currentPageNumber" :selected-engine="selectedEngine" :busy="loading"
+      @select-engine="selectEngine" @rerun="rerunCurrentPage" @accept="acceptCurrentPage" @commit="commitCurrentJob"
+      @discard="discardCurrentJob" @previous="movePage(-1)" @next="movePage(1)" @select-page="selectPage" />
+  </AppShell>
 </template>

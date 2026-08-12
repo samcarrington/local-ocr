@@ -7,8 +7,6 @@ function makeConfig(): AppConfig {
   return {
     inboxPath: './inbox',
     jobStorePath: './.ocrtool/jobs',
-    host: '127.0.0.1',
-    port: 4312,
     defaultEngine: 'deepseek-ocr',
     nativeTextMinChars: 24,
     textExtractionMode: 'auto',

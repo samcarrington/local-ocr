@@ -7,11 +7,11 @@
   "license": "MIT",
   "type": "module",
   "scripts": {
-    "dev": "tsx watch src/server.ts",
+    "dev": "nuxt dev",
     "dev:nuxt": "nuxt dev",
     "build": "tsc -p tsconfig.json",
     "build:nuxt": "nuxt build",
-    "start": "node dist/src/server.js",
+    "start": "NODE_ENV=production node .output/server/index.mjs",
     "start:nuxt": "NODE_ENV=production node .output/server/index.mjs",
     "test": "vitest run --config vitest.config.ts && vitest run --config vitest.config.server.ts && pnpm check:architecture",
     "test:src": "vitest run --config vitest.config.ts",

@@ -10,7 +10,7 @@ import type {
   OcrAdapter,
 } from '../server/core/types.js';
 import type { DraftJob, OcrResult } from '../shared/ocr.js';
-import { createServer } from './server.js';
+import { createServer, loadListenerConfig } from './server.js';
 
 const tempDirs: string[] = [];
 
@@ -30,8 +30,6 @@ function makeConfig(rootDir: string): AppConfig {
   return {
     inboxPath: path.join(rootDir, 'inbox'),
     jobStorePath: path.join(rootDir, '.ocrtool', 'jobs'),
-    host: '127.0.0.1',
-    port: 4312,
     defaultEngine: 'tesseract',
     nativeTextMinChars: 24,
     textExtractionMode: 'auto',
@@ -104,19 +102,31 @@ async function withServer(
 
 describe('server api', () => {
   it('exposes glm-ocr in the review OCR adapter selector', () => {
-    const html = readFileSync(path.resolve('public/index.html'), 'utf8');
+    const html = readFileSync(path.resolve('app/components/Reviewer.vue'), 'utf8');
 
     expect(html).toContain('<option value="glm-ocr">glm-ocr</option>');
   });
 
-  it('rejects non-local host binding', () => {
+  it('rejects non-local listener binding', () => {
     const rootDir = makeTempDir();
     const config = makeConfig(rootDir);
-    config.host = '0.0.0.0';
 
-    expect(() => createServer(config)).toThrow(
+    expect(() => createServer(config, undefined, {
+      host: '0.0.0.0',
+      port: 3000,
+    })).toThrow(
       'host must be loopback/local only: 0.0.0.0',
     );
+  });
+
+  it('reads listener configuration from Nitro environment variables', () => {
+    expect(loadListenerConfig({
+      NITRO_HOST: '127.0.0.1',
+      NITRO_PORT: '14005',
+    })).toEqual({
+      host: '127.0.0.1',
+      port: 14005,
+    });
   });
 
   it('lists inbox pdfs, resumes pending review jobs, and creates jobs with filename containment', async () => {

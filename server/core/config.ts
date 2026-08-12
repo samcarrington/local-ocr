@@ -7,6 +7,7 @@ import { z } from 'zod';
 import type { AppConfig, EngineConfig, EngineName } from './types.js';
 
 export const DEFAULT_CONFIG_FILE = 'ocrtool.config.yaml';
+let deprecatedListenerConfigWarningShown = false;
 
 const tesseractEngineSchema = z
   .object({
@@ -65,8 +66,6 @@ const rawConfigSchema = z
   .object({
     inboxPath: z.string().min(1).default('./inbox'),
     jobStorePath: z.string().min(1).default('./.ocrtool/jobs'),
-    host: z.string().min(1).default('127.0.0.1'),
-    port: z.number().int().min(1).max(65535).default(4312),
     defaultEngine: z
       .enum(['tesseract', 'deepseek-ocr', 'glm-ocr', 'nuextract3-ocr'])
       .default('tesseract'),
@@ -85,11 +84,22 @@ const rawConfigSchema = z
     }
   });
 
-function parseConfigFile(configPath: string): unknown {
+function parseConfigFile(configPath: string): {
+  config: unknown;
+  hasDeprecatedListenerConfig: boolean;
+} {
   const source = readFileSync(configPath, 'utf8');
   const parsed = parse(source);
 
-  return parsed ?? {};
+  if (!isConfigObject(parsed)) {
+    return { config: parsed ?? {}, hasDeprecatedListenerConfig: false };
+  }
+
+  const hasDeprecatedListenerConfig =
+    Object.hasOwn(parsed, 'host') || Object.hasOwn(parsed, 'port');
+  const { host: _host, port: _port, ...config } = parsed;
+
+  return { config, hasDeprecatedListenerConfig };
 }
 
 function resolveConfigPath(explicitPath?: string): {
@@ -120,7 +130,13 @@ export function loadConfig(configPath?: string): AppConfig {
     return rawConfigSchema.parse({});
   }
 
-  return rawConfigSchema.parse(parseConfigFile(resolved.configPath));
+  const parsed = parseConfigFile(resolved.configPath);
+
+  if (parsed.hasDeprecatedListenerConfig) {
+    warnDeprecatedListenerConfig();
+  }
+
+  return rawConfigSchema.parse(parsed.config);
 }
 
 export function getEngineConfig<T extends EngineName>(
@@ -130,4 +146,19 @@ export function getEngineConfig<T extends EngineName>(
   return config.engines[engineName] as
     | Extract<EngineConfig, { kind: T }>
     | undefined;
+}
+
+function isConfigObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function warnDeprecatedListenerConfig(): void {
+  if (deprecatedListenerConfigWarningShown) {
+    return;
+  }
+
+  deprecatedListenerConfigWarningShown = true;
+  console.warn(
+    'The "host" and "port" YAML keys are deprecated and ignored. Use NITRO_HOST and NITRO_PORT to configure the listener.',
+  );
 }

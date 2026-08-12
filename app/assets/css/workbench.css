@@ -436,6 +436,10 @@ h3 {
   grid-template-columns: minmax(0, 1fr);
 }
 
+.content-grid--document {
+  grid-template-columns: minmax(0, 1fr);
+}
+
 .preview-panel,
 .markdown-panel {
   min-width: 0;

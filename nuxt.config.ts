@@ -1,3 +1,5 @@
+import { isDevelopmentWatchPathIgnored } from './src/nuxt-watch.js';
+
 export default defineNuxtConfig({
   ssr: false,
   nitro: {
@@ -9,9 +11,29 @@ export default defineNuxtConfig({
       ],
     },
   },
-  srcDir: '.',
+  srcDir: './app',
+  css: [
+    '~/assets/css/tokens.css',
+    '~/assets/css/workbench.css',
+  ],
+  experimental: {
+    watcher: 'builder',
+  },
+  vite: {
+    server: {
+      watch: {
+        ignored: (watchPath) => isDevelopmentWatchPathIgnored(watchPath),
+      },
+    },
+  },
   compatibilityDate: '2026-08-12',
   typescript: {
-    strict: true,
+    tsConfig: {
+      compilerOptions: {
+        // Nuxt Content currently generates .nuxt/content/components.ts with
+        // untyped helper params, which strict typecheck flags as TS7006.
+        // noImplicitAny: false,
+      },
+    },
   },
 });

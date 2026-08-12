@@ -1,7 +1,5 @@
 inboxPath: ./inbox
 jobStorePath: ./.ocrtool/jobs
-host: 127.0.0.1
-port: 4312
 defaultEngine: tesseract
 nativeTextMinChars: 24
 textExtractionMode: auto # auto skips OCR when native text is good; ocr forces rendered-image OCR for every page

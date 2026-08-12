@@ -32,13 +32,13 @@ Localhost-only PDF-to-Markdown OCR review app for Obsidian inbox workflows.
    npm install
    ```
 
-4. Start server:
+4. Start the Nitro server:
 
    ```bash
    npm run dev
    ```
 
-5. Open `http://127.0.0.1:4312`.
+5. Open `http://127.0.0.1:3000` (or the value of `NITRO_PORT`).
 
 ## Config
 
@@ -47,8 +47,6 @@ Example:
 ```yaml
 inboxPath: ./inbox
 jobStorePath: ./.ocrtool/jobs
-host: 127.0.0.1
-port: 4312
 defaultEngine: tesseract
 nativeTextMinChars: 24
 engines:
@@ -75,6 +73,11 @@ engines:
     chatTimeoutMs: 180000
     maxOutputTokens: 4096
 ```
+
+The YAML file configures OCR and storage only. Set `NITRO_HOST` and
+`NITRO_PORT` to configure the listener; the default Nuxt development listener
+is loopback on port 3000. Existing YAML `host` and `port` keys are ignored with
+one deprecation warning per process for this release.
 
 - Tesseract adapter does not download language assets. Put `eng.traineddata` (or chosen language file) in `trainedDataPath` first.
 - DeepSeek adapter rejects non-local Ollama hosts before any image leaves process.
