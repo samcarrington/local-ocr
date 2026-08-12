@@ -1,5 +1,14 @@
 <script setup lang="ts">
-defineProps<{ status: string }>();
+import type { ReviewError } from '../composables/useOcrReview';
+
+defineProps<{
+  status: string;
+  error: ReviewError | null;
+}>();
+
+const emit = defineEmits<{
+  dismissError: [];
+}>();
 </script>
 
 <template>
@@ -12,6 +21,15 @@ defineProps<{ status: string }>();
       </div>
       <p id="status-banner" class="status-banner" role="status" aria-live="polite">{{ status }}</p>
     </header>
+
+    <section v-if="error" class="error-panel" role="alert" aria-atomic="true">
+      <div>
+        <h2>Could not complete {{ error.operation }}</h2>
+        <p>{{ error.message }}</p>
+        <p class="muted">{{ error.recoveryAction }}</p>
+      </div>
+      <button type="button" @click="emit('dismissError')">Acknowledge error</button>
+    </section>
 
     <main class="layout">
       <aside class="panel sidebar">

@@ -2,6 +2,19 @@ import { computed, ref } from 'vue';
 import { nextReviewPageNumber, rerunRequest, reviewEngine, type ReviewJob } from '../utils/review';
 
 type StartMode = 'pages' | 'document';
+type ReviewOperation =
+  | 'loading the inbox'
+  | 'creating a draft'
+  | 'rerunning the review'
+  | 'accepting the review'
+  | 'committing accepted pages'
+  | 'discarding the draft';
+
+export interface ReviewError {
+  operation: ReviewOperation;
+  message: string;
+  recoveryAction: string;
+}
 
 export function useOcrReview() {
   const pdfs = ref<string[]>([]);
@@ -11,6 +24,7 @@ export function useOcrReview() {
   const currentPageNumber = ref(1);
   const loading = ref(false);
   const status = ref('Loading PDFs…');
+  const error = ref<ReviewError | null>(null);
   const selectedEngines = ref<Record<string, string>>({});
 
   const currentPage = computed(() =>
@@ -31,9 +45,9 @@ export function useOcrReview() {
       ]);
       pdfs.value = Array.isArray(pdfResponse.pdfs) ? pdfResponse.pdfs : [];
       documents.value = Array.isArray(documentResponse.documents) ? documentResponse.documents : [];
-      setStatus(pdfs.value.length || documents.value.length ? 'Select an inbox file to start.' : 'No files found in inbox.');
-    } catch (error) {
-      setStatus(readError(error));
+      setSuccessStatus(pdfs.value.length || documents.value.length ? 'Select an inbox file to start.' : 'No files found in inbox.');
+    } catch (caught) {
+      setError('loading the inbox', caught, 'Refresh inbox');
     }
   }
 
@@ -45,7 +59,7 @@ export function useOcrReview() {
     ) {
       selectedFile.value = file;
       currentPageNumber.value = nextReviewPageNumber(job.value) ?? currentPageNumber.value;
-      setStatus(`Resumed existing review for ${file}.`);
+      setSuccessStatus(`Resumed existing review for ${file}.`);
       return;
     }
 
@@ -59,9 +73,9 @@ export function useOcrReview() {
       });
       job.value = response.job;
       currentPageNumber.value = nextReviewPageNumber(response.job) ?? 1;
-      setStatus(response.resumed ? `Resumed existing review for ${file}.` : `Draft ready for ${file}.`);
-    } catch (error) {
-      setStatus(readError(error));
+      setSuccessStatus(response.resumed ? `Resumed existing review for ${file}.` : `Draft ready for ${file}.`);
+    } catch (caught) {
+      setError('creating a draft', caught, 'Try creating draft again');
     } finally {
       setBusy(false);
     }
@@ -93,9 +107,9 @@ export function useOcrReview() {
           [pageEngineKey(activeJob.id, page.pageNumber)]: engine,
         };
       }
-      setStatus(isDocument ? 'Document reconverted.' : `Reran page ${page.pageNumber} with ${engine}.`);
-    } catch (error) {
-      setStatus(readError(error));
+      setSuccessStatus(isDocument ? 'Document reconverted.' : `Reran page ${page.pageNumber} with ${engine}.`);
+    } catch (caught) {
+      setError('rerunning the review', caught, 'Try the rerun again');
     } finally {
       setBusy(false);
     }
@@ -113,9 +127,9 @@ export function useOcrReview() {
       );
       job.value = response.job;
       currentPageNumber.value = nextReviewPageNumber(response.job) ?? page.pageNumber;
-      setStatus(`Accepted page ${page.pageNumber}.`);
-    } catch (error) {
-      setStatus(readError(error));
+      setSuccessStatus(`Accepted page ${page.pageNumber}.`);
+    } catch (caught) {
+      setError('accepting the review', caught, 'Try accepting the page again');
     } finally {
       setBusy(false);
     }
@@ -130,10 +144,10 @@ export function useOcrReview() {
         { method: 'POST' },
       );
       job.value = response.job;
-      setStatus(`Committed accepted pages to ${response.outputPath}.`);
+      setSuccessStatus(`Committed accepted pages to ${response.outputPath}.`);
       await loadInbox();
-    } catch (error) {
-      setStatus(readError(error));
+    } catch (caught) {
+      setError('committing accepted pages', caught, 'Try committing again');
     } finally {
       setBusy(false);
     }
@@ -147,10 +161,10 @@ export function useOcrReview() {
       await fetchJson(`/api/jobs/${encodeURIComponent(jobId)}`, { method: 'DELETE' });
       job.value = null;
       currentPageNumber.value = 1;
-      setStatus('Draft discarded.');
+      setSuccessStatus('Draft discarded.');
       await loadInbox();
-    } catch (error) {
-      setStatus(readError(error));
+    } catch (caught) {
+      setError('discarding the draft', caught, 'Try discarding again');
     } finally {
       setBusy(false);
     }
@@ -171,15 +185,36 @@ export function useOcrReview() {
     status.value = message;
   }
 
+  function setSuccessStatus(message: string) {
+    error.value = null;
+    setStatus(message);
+  }
+
+  function setError(
+    operation: ReviewOperation,
+    caught: unknown,
+    recoveryAction: string,
+  ) {
+    error.value = {
+      operation,
+      message: readError(caught),
+      recoveryAction,
+    };
+  }
+
+  function dismissError() {
+    error.value = null;
+  }
+
   function setBusy(value: boolean, message?: string) {
     loading.value = value;
     if (message) setStatus(message);
   }
 
   return {
-    pdfs, documents, selectedFile, job, currentPageNumber, loading, status, selectedEngine,
+    pdfs, documents, selectedFile, job, currentPageNumber, loading, status, error, selectedEngine,
     loadInbox, startJob, selectEngine, rerunCurrentPage, acceptCurrentPage,
-    commitCurrentJob, discardCurrentJob, movePage, selectPage,
+    commitCurrentJob, discardCurrentJob, movePage, selectPage, dismissError,
   };
 }
 
@@ -191,12 +226,34 @@ async function fetchJson<T>(url: string, options?: RequestInit): Promise<T> {
   const response = await fetch(url, options);
   const contentType = response.headers.get('content-type') || '';
   const data = contentType.includes('application/json') ? await response.json() : null;
-  if (!response.ok) throw new Error(data?.error || `Request failed with status ${response.status}`);
+  if (!response.ok) {
+    throw new Error(safeServerMessage(data, response.status));
+  }
   return data as T;
 }
 
 function readError(error: unknown) {
   return error instanceof Error ? error.message : 'Unexpected error';
+}
+
+function safeServerMessage(data: unknown, status: number): string {
+  const message =
+    typeof data === 'object' &&
+    data !== null &&
+    'error' in data &&
+    typeof data.error === 'string'
+      ? data.error.trim()
+      : '';
+
+  if (
+    message &&
+    message.length <= 240 &&
+    !/[\r\n]|(?:file:|[a-z]:[\\/]|[\\/])/i.test(message)
+  ) {
+    return message;
+  }
+
+  return `Request failed with status ${status}.`;
 }
 
 function readFileName(filePath: string) {

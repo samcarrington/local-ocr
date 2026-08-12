@@ -77,6 +77,20 @@ promising Compose as the primary startup mechanism.
 **Exit criteria:** Docker has either a verified full-stack Compose path or a
 clear, evidence-backed limitation and supported native alternative.
 
+#### Recorded feasibility outcome (2026-08-12)
+
+Full-stack Compose is deferred for the existing `mlx-vlm` GLM-OCR runtime.
+Docker Desktop documents general container GPU support only for Windows with
+WSL2 and NVIDIA GPUs; it does not provide standard Metal GPU passthrough to
+Linux containers on macOS. MLX's Linux backends are CPU or CUDA, while
+`mlx-vlm` is an MLX-on-Mac runtime. Docker Model Runner's separate
+`llama.cpp`/Metal route is not compatible with the configured GLM-OCR model or
+its `mlx_vlm.server` API.
+
+The native `pnpm start:glm-ocr` launcher is therefore the supported accelerated
+path. A future Docker change may package the application alone or provide a
+CPU fallback, but must not claim equivalent local MLX/Metal OCR support.
+
 ## P1: Reliability, safe rendering, and test baseline
 
 ### 1. Make API errors clearly visible in the client
@@ -144,6 +158,18 @@ promise.
 **Exit criteria:** `pnpm test` remains the fast correctness suite, a separate
 coverage command reports both projects, critical paths have explicit tests,
 and coverage cannot regress below agreed thresholds.
+
+#### Baseline (2026-08-12)
+
+`pnpm test:coverage` writes text, LCOV, and HTML reports to `coverage/app/`
+and `coverage/server/`. The initial app baseline is 74.82% statements, 56.60%
+branches, 80.00% functions, and 79.54% lines. The server baseline is 76.61%
+statements, 66.43% branches, 73.72% functions, and 85.71% lines.
+
+No ratcheting threshold is set yet: API route, Nitro-plugin, and integration
+orchestration coverage need their explicit workflow tests before a threshold
+would be meaningful. The reports are deliberately local until CI exposes a
+durable report location, so no coverage badge is published.
 
 ## P2: OCR engine capability
 
