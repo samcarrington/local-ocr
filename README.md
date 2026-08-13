@@ -106,10 +106,20 @@ one deprecation warning per process for this release.
 
 ### DeepSeek-OCR-2 VLM
 
-`deepseek-ocr-vlm` is a separate experimental engine from the legacy
-Ollama-backed `deepseek-ocr` adapter. It serves
-`mlx-community/DeepSeek-OCR-2-8bit` through mlx-vlm's local
-OpenAI-compatible API, so both paths remain available for comparison.
+`deepseek-ocr-vlm` is a separate engine from the legacy Ollama-backed
+`deepseek-ocr` adapter. It serves
+`mlx-community/DeepSeek-OCR-2-8bit` through mlx-vlm's local API, so both paths
+remain available for comparison. The adapter supports both current
+OpenAI-compatible `/v1/*` endpoints and older mlx-vlm `/models` and
+`/chat/completions` endpoints, including their respective image payload
+formats.
+
+DeepSeek-OCR-2 requires a model-family-specific processor initialisation path
+when calling mlx-vlm from Python. The reproducible investigation, script, and
+after-action report are in
+[`docs/deepseek-ocr-investigation/`](docs/deepseek-ocr-investigation/).
+The protocol-fallback path passed the IDE end-to-end review flow. The legacy
+Ollama adapter remains available for comparison and recovery.
 
 ```bash
 pip install -U mlx-vlm

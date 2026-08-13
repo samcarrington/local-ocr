@@ -5,6 +5,11 @@ import { assertLocalHost, isLocalHost } from './local-host.js';
 
 const AVAILABILITY_TIMEOUT_MS = 1_500;
 const DEFAULT_CHAT_TIMEOUT_MS = 180_000;
+const MODELS_ENDPOINTS = ['/v1/models', '/models'] as const;
+const CHAT_COMPLETION_ENDPOINTS = [
+  '/v1/chat/completions',
+  '/chat/completions',
+] as const;
 
 const MIME_BY_EXTENSION: Record<string, string> = {
   '.png': 'image/png',
@@ -50,10 +55,18 @@ export abstract class LocalMlxVlmOpenAiAdapter<
       return await this.withTimeout(
         AVAILABILITY_TIMEOUT_MS,
         async (signal) => {
-          const response = await fetch(this.resolveUrl('/v1/models'), {
-            method: 'GET',
-            signal,
-          });
+          const response = await this.fetchFirstOkResponse(
+            MODELS_ENDPOINTS,
+            (endpoint) =>
+              fetch(this.resolveUrl(endpoint), {
+                method: 'GET',
+                signal,
+              }),
+          );
+
+          if (!response) {
+            return false;
+          }
 
           if (!response.ok) {
             return false;
@@ -90,36 +103,63 @@ export abstract class LocalMlxVlmOpenAiAdapter<
   }
 
   private async fetchChatCompletion(payload: unknown): Promise<Response> {
-    let response: Response;
+    const timeoutMs = this.config.chatTimeoutMs ?? DEFAULT_CHAT_TIMEOUT_MS;
 
     try {
-      response = await this.withTimeout(
-        this.config.chatTimeoutMs ?? DEFAULT_CHAT_TIMEOUT_MS,
-        async (signal) =>
-          fetch(this.resolveUrl('/v1/chat/completions'), {
-            method: 'POST',
-            headers: {
-              'content-type': 'application/json',
-            },
-            body: JSON.stringify(payload),
-            signal,
-          }),
-      );
+      const response = await this.withTimeout(timeoutMs, async (signal) => {
+        const endpointResponse = await this.fetchFirstOkResponse(
+          CHAT_COMPLETION_ENDPOINTS,
+          async (endpoint) =>
+            fetch(this.resolveUrl(endpoint), {
+              method: 'POST',
+              headers: {
+                'content-type': 'application/json',
+              },
+              body: JSON.stringify(payload),
+              signal,
+            }),
+        );
+
+        if (!endpointResponse) {
+          throw new Error('No compatible chat completion endpoint found');
+        }
+
+        return endpointResponse;
+      });
+
+      if (!response.ok) {
+        const details = await safeResponseText(response);
+        throw new Error(
+          `${this.adapterName} request failed (${response.status} ${response.statusText})${details ? `: ${details}` : ''}`,
+        );
+      }
+
+      return response;
     } catch (error) {
       const reason = error instanceof Error ? error.message : String(error);
       throw new Error(
         `${this.adapterName} unavailable at ${this.config.serverHost}: ${reason}`,
       );
     }
+  }
 
-    if (!response.ok) {
-      const details = await safeResponseText(response);
-      throw new Error(
-        `${this.adapterName} request failed (${response.status} ${response.statusText})${details ? `: ${details}` : ''}`,
-      );
+  private async fetchFirstOkResponse(
+    endpoints: readonly string[],
+    fetcher: (endpoint: string) => Promise<Response>,
+  ): Promise<Response | null> {
+    let lastResponse: Response | null = null;
+
+    for (const endpoint of endpoints) {
+      const response = await fetcher(endpoint);
+
+      if (response.status !== 404) {
+        return response;
+      }
+
+      lastResponse = response;
     }
 
-    return response;
+    return lastResponse;
   }
 
   private async withTimeout<T>(

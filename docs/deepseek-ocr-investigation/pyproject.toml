@@ -1,0 +1,16 @@
+[project]
+name = "deepseek-ocr-2-8bit-test"
+version = "0.1.0"
+description = "Local OCR experiments with DeepSeek OCR 2 8bit"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+  "mlx-vlm",
+]
+
+[tool.uv]
+package = false
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"

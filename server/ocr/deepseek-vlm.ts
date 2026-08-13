@@ -27,23 +27,7 @@ export class DeepseekOcrVlmAdapter
       mode?: 'markdown' | 'plain' | 'layout';
     },
   ): Promise<OcrResult> {
-    const markdown = cleanOcrMarkdown(
-      await this.requestImageChatCompletion(imagePath, (dataUrl) => ({
-        model: this.config.model,
-        temperature: 0,
-        max_tokens: this.config.maxOutputTokens ?? DEFAULT_MAX_OUTPUT_TOKENS,
-        stream: false,
-        messages: [
-          {
-            role: 'user',
-            content: [
-              { type: 'text', text: DEEPSEEK_OCR_PROMPT },
-              { type: 'image_url', image_url: { url: dataUrl } },
-            ],
-          },
-        ],
-      })),
-    );
+    const markdown = cleanOcrMarkdown(await this.requestDeepseekMarkdown(imagePath));
 
     if (!markdown) {
       throw new Error('DeepSeek OCR VLM returned empty content');
@@ -51,6 +35,73 @@ export class DeepseekOcrVlmAdapter
 
     return { markdown };
   }
+
+  private async requestDeepseekMarkdown(
+    imagePath: string,
+  ): Promise<string | null | undefined> {
+    try {
+      return await this.requestImageChatCompletion(imagePath, (dataUrl) =>
+        this.createOpenAiPayload(dataUrl),
+      );
+    } catch (error) {
+      if (!shouldRetryWithMlxImageFormat(error)) {
+        throw error;
+      }
+
+      return await this.requestImageChatCompletion(imagePath, (dataUrl) =>
+        this.createMlxPayload(dataUrl),
+      );
+    }
+  }
+
+  private createOpenAiPayload(dataUrl: string): unknown {
+    return {
+      model: this.config.model,
+      temperature: 0,
+      max_tokens: this.config.maxOutputTokens ?? DEFAULT_MAX_OUTPUT_TOKENS,
+      stream: false,
+      messages: [
+        {
+          role: 'user',
+          content: [
+            { type: 'text', text: DEEPSEEK_OCR_PROMPT },
+            { type: 'image_url', image_url: { url: dataUrl } },
+          ],
+        },
+      ],
+    };
+  }
+
+  private createMlxPayload(dataUrl: string): unknown {
+    return {
+      model: this.config.model,
+      temperature: 0,
+      max_tokens: this.config.maxOutputTokens ?? DEFAULT_MAX_OUTPUT_TOKENS,
+      stream: false,
+      messages: [
+        {
+          role: 'user',
+          content: [
+            { type: 'text', text: DEEPSEEK_OCR_PROMPT },
+            { type: 'input_image', image_url: dataUrl },
+          ],
+        },
+      ],
+    };
+  }
+}
+
+function shouldRetryWithMlxImageFormat(error: unknown): boolean {
+  if (!(error instanceof Error)) {
+    return false;
+  }
+
+  const message = error.message.toLowerCase();
+  return (
+    message.includes('request failed (400') ||
+    message.includes('request failed (415') ||
+    message.includes('request failed (422')
+  );
 }
 
 function cleanOcrMarkdown(content: string | null | undefined): string {

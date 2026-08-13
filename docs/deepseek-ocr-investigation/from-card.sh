@@ -1,0 +1,1 @@
+python -m mlx_vlm.generate --model mlx-community/DeepSeek-OCR-2-8bit --max-tokens 100 --temperature 0.0 --prompt "Extract this whole page of text into a markdown file. Interpret the whole page" --image page-0001.png
