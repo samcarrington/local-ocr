@@ -19,7 +19,7 @@
 | P2 shared mlx-vlm path | done | `6ee311a`; GLM-OCR and NuExtract3 adapter tests |
 | P2 DeepSeek mlx-vlm assessment | done (deferred) | `6bdf672`; model loads but image inference fails in mlx-vlm continuous batching with a GPU stream error |
 | P2 Chandra benchmark | done (deferred) | `DECISION-20260813-085330-372164`; fresh Chandra mlx-vlm server timed out on a simple OCR case |
-| P2 structured and HTML output formats | in-progress | `DECISION-20260813-085435-976865`; capability contract and Markdown-only current-engine path |
+| P2 structured and HTML output formats | done (capability-gated) | `f0ba10a`; Markdown-only current-engine path, with JSON/HTML deferred until an engine natively supports them |
 | P3 documentation and UI polish | not-started | Depends on the engine and output-format decisions |
 
 ## Active work: Chandra benchmark
@@ -31,13 +31,13 @@
 | Comparable metrics | deferred | The harness remains available when a compatible Chandra serving path exists |
 | Adoption decision | done (deferred) | `DECISION-20260813-085330-372164`; do not adopt Chandra from the earlier smoke test |
 
-## Active work: output-format contract
+## Completed work: output-format contract
 
 | Requirement | Status | Evidence / next action |
 | --- | --- | --- |
 | Shared format and capability types | done | `markdown`, `json`, and `html` contract; all current engines advertise Markdown only |
 | Persistent provenance | done | Draft pages retain selected and supported formats; commits write `output_format` frontmatter |
-| Safe JSON/HTML support | not-started | Add only with an engine that provides native output, then validate JSON and sanitise HTML before preview or commit |
+| Safe JSON/HTML support | deferred | Add only with an engine that provides native output, then validate JSON and sanitise HTML before preview or commit |
 
 ## Current decision boundary
 
