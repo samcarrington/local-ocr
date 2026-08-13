@@ -12,6 +12,22 @@ Localhost-only PDF-to-Markdown OCR review app for Obsidian inbox workflows.
 - No cloud calls.
 - Localhost bind by default.
 - v1 has no CLI, watcher, or multi-user access.
+- OCR servers and the Nitro listener reject non-loopback hosts.
+
+## Architecture
+
+The client-rendered Nuxt app owns browser review state in
+`app/composables/useOcrReview.ts` and calls thin Nitro routes under
+`server/api/`. `server/services/ocr-service.ts` coordinates configuration,
+jobs, OCR adapters, conversion, and commits. `server/core/` owns the strict
+YAML configuration, PDF extraction, local job store, and safe commit output.
+`shared/ocr.ts` contains the browser-safe job contract.
+
+PDFs follow an accept-before-commit workflow: native text is retained when it
+meets `nativeTextMinChars`; otherwise the configured local OCR adapter receives
+a rendered page. Every page remains reviewable until accepted. Partial commits
+write explicit pending or failed placeholders and do not move the source;
+accepting every page moves it to `inbox/processed/`.
 
 ## Setup
 
@@ -81,6 +97,18 @@ one deprecation warning per process for this release.
 - Tesseract adapter does not download language assets. Put `eng.traineddata` (or chosen language file) in `trainedDataPath` first.
 - DeepSeek adapter rejects non-local Ollama hosts before any image leaves process.
 - GLM-OCR and NuExtract3 adapters reject non-local mlx-vlm hosts before any image leaves process.
+
+## Output formats
+
+Markdown is the canonical review and commit format. Every current engine
+advertises Markdown only, and each committed file includes `output_format:
+"markdown"` provenance in its frontmatter.
+
+The shared contract reserves `json` and `html`, but the application does not
+generate either from Markdown. They become selectable only when an engine
+natively supports them: JSON must be schema-validated, and HTML must be
+sanitised before preview or commit. This avoids presenting a conversion as
+model-provided structured output.
 
 ## Whole-document conversion (anydoc)
 
@@ -206,7 +234,22 @@ All API errors return JSON like:
 { "error": "message" }
 ```
 
-Server stays local-only by config. Allowed bind hosts: `127.0.0.1`, `localhost`, `::1`. Default bind: `127.0.0.1:4312`.
+Server stays local-only by config. Allowed bind hosts: `127.0.0.1`, `localhost`, `::1`. Default bind: `127.0.0.1:3000`.
+
+## Operation and recovery
+
+- A visible error panel describes failed inbox, draft, rerun, accept, commit,
+  and discard requests. Acknowledge it, correct the local configuration or
+  model service, then repeat the named action.
+- For `glm-ocr`, prefer `pnpm start:glm-ocr`; it validates the configured
+  loopback service, waits for its model, and stops both the model server and
+  Nuxt on interruption.
+- A model service must report the exact configured model id from
+  `GET /v1/models`. Check the configured host and model before retrying a
+  failed mlx-vlm request.
+- Chandra MLX is intentionally not a selectable engine. Its current
+  `mlx_vlm.server` path timed out on a simple local OCR request; the
+  loopback-only benchmark harness remains for a future compatible release.
 
 ## v1 scope
 
@@ -249,7 +292,13 @@ Server stays local-only by config. Allowed bind hosts: `127.0.0.1`, `localhost`,
 - `pnpm serve:nuextract3` — start the local mlx-vlm server for the `nuextract3-ocr` engine (`-- --help` for options).
 - `pnpm serve:glm-ocr` — start the local mlx-vlm server for the `glm-ocr` engine (`-- --help` for options).
 - `pnpm test` — run Vitest and architecture checks.
+- `pnpm test:coverage` — write separate app and server V8 coverage reports to
+  `coverage/app/` and `coverage/server/`.
 - `pnpm test:e2e` — run the Playwright review-flow checks.
+- `pnpm benchmark:ocr -- --server-host http://127.0.0.1:8080 --model MODEL`
+  — benchmark a local OpenAI-compatible OCR service. It rejects non-loopback
+  hosts; use `--corpus DIR` with paired `<name>.png` and `<name>.txt` fixtures
+  for a reproducible corpus.
 
 ## Verification
 
