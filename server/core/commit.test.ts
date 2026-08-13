@@ -1,0 +1,1438 @@
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  writeFileSync,
+} from 'node:fs';
+import { readFile, rm } from 'node:fs/promises';
+import os from 'node:os';
+import path from 'node:path';
+
+import { afterEach, describe, expect, it } from 'vitest';
+
+import { commitJob } from './commit.js';
+import type { AppConfig, DraftJob } from './types.js';
+
+const tempDirs: string[] = [];
+
+afterEach(async () => {
+  await Promise.all(
+    tempDirs.splice(0).map((dir) => rm(dir, { recursive: true, force: true })),
+  );
+});
+
+function makeTempDir(): string {
+  const dir = mkdtempSync(path.join(os.tmpdir(), 'local-ocr-commit-'));
+  tempDirs.push(dir);
+  return dir;
+}
+
+function makeConfig(rootDir: string): AppConfig {
+  return {
+    inboxPath: path.join(rootDir, 'inbox'),
+    jobStorePath: path.join(rootDir, '.ocrtool', 'jobs'),
+    defaultEngine: 'tesseract',
+    nativeTextMinChars: 24,
+    textExtractionMode: 'auto',
+    engines: {
+      tesseract: {
+        kind: 'tesseract',
+        lang: 'eng',
+      },
+      'deepseek-ocr': {
+        kind: 'deepseek-ocr',
+        ollamaHost: 'http://127.0.0.1:11434',
+        model: 'deepseek-ocr',
+      },
+    },
+  };
+}
+
+function createPdf(rootDir: string, name = 'sample.pdf'): string {
+  mkdirSync(path.join(rootDir, 'inbox'), { recursive: true });
+  const pdfPath = path.join(rootDir, 'inbox', name);
+  writeFileSync(pdfPath, 'pdf');
+  return pdfPath;
+}
+
+describe('commitJob', () => {
+  it('writes stable markdown and keeps pdf in place for partial commits', async () => {
+    const rootDir = makeTempDir();
+    const config = makeConfig(rootDir);
+    const sourcePdfPath = createPdf(rootDir, 'report.pdf');
+    const figureSourcePath = path.join(rootDir, 'figure-source.png');
+    writeFileSync(figureSourcePath, 'figure');
+    const job: DraftJob = {
+      id: 'job-1',
+      kind: 'pdf-pages',
+      sourceFilePath: sourcePdfPath,
+      status: 'pending_review',
+      createdAt: '2026-07-13T00:00:00.000Z',
+      updatedAt: '2026-07-13T00:00:00.000Z',
+      pages: [
+        {
+          pageNumber: 2,
+          imagePath: 'page-2.png',
+          nativeText: '',
+          markdown: 'Second page accepted.',
+          accepted: true,
+          status: 'accepted',
+          engine: 'deepseek-ocr',
+        },
+        {
+          pageNumber: 1,
+          imagePath: 'page-1.png',
+          nativeText: '',
+          markdown: 'First page accepted.',
+          accepted: true,
+          status: 'accepted',
+          engine: 'deepseek-ocr',
+          figures: [
+            {
+              bbox: [0, 0, 10, 10],
+              imagePath: figureSourcePath,
+            },
+          ],
+        },
+        {
+          pageNumber: 3,
+          imagePath: 'page-3.png',
+          nativeText: '',
+          markdown: 'Ignored pending page body.',
+          accepted: false,
+          status: 'pending',
+          engine: 'tesseract',
+        },
+        {
+          pageNumber: 4,
+          imagePath: 'page-4.png',
+          nativeText: '',
+          markdown: 'Ignored failed page body.',
+          accepted: false,
+          status: 'failed',
+          engine: 'tesseract',
+        },
+      ],
+    };
+
+    const result = await commitJob(config, job, {
+      convertedAt: new Date('2026-07-13T12:34:56.000Z'),
+    });
+
+    const copiedFigurePath = path.join(
+      path.dirname(result.markdownPath),
+      'images',
+      'page-001-figure-001.png',
+    );
+
+    expect(result.movedSourcePdf).toBe(false);
+    expect(result.processedPdfPath).toBeNull();
+    expect(existsSync(sourcePdfPath)).toBe(true);
+    expect(
+      existsSync(path.join(path.dirname(result.markdownPath), 'images')),
+    ).toBe(true);
+    expect(existsSync(copiedFigurePath)).toBe(true);
+    expect(await readFile(copiedFigurePath, 'utf8')).toBe('figure');
+    expect(await readFile(result.markdownPath, 'utf8')).toBe(`---
+source_file: "report.pdf"
+ocr_engine: "mixed"
+output_format: "markdown"
+converted_at: "2026-07-13T12:34:56.000Z"
+---
+
+First page accepted.
+
+![](images/page-001-figure-001.png)
+
+Second page accepted.
+
+[[OCR PENDING: page 3]]
+
+[[OCR FAILED: page 4]]
+`);
+  });
+
+  it('moves source pdf to processed when every page accepted', async () => {
+    const rootDir = makeTempDir();
+    const config = makeConfig(rootDir);
+    const sourcePdfPath = createPdf(rootDir, 'done.pdf');
+    const job: DraftJob = {
+      id: 'job-2',
+      kind: 'pdf-pages',
+      sourceFilePath: sourcePdfPath,
+      status: 'pending_review',
+      createdAt: '2026-07-13T00:00:00.000Z',
+      updatedAt: '2026-07-13T00:00:00.000Z',
+      pages: [
+        {
+          pageNumber: 1,
+          imagePath: 'page-1.png',
+          nativeText: '',
+          markdown: 'All done.',
+          accepted: true,
+          engine: 'tesseract',
+        },
+      ],
+    };
+
+    const result = await commitJob(config, job, {
+      convertedAt: new Date('2026-07-13T01:02:03.000Z'),
+    });
+
+    expect(result.movedSourcePdf).toBe(true);
+    expect(result.processedPdfPath).toBe(
+      path.join(config.inboxPath, 'processed', 'done.pdf'),
+    );
+    expect(existsSync(sourcePdfPath)).toBe(false);
+    expect(existsSync(result.processedPdfPath!)).toBe(true);
+    expect(await readFile(result.markdownPath, 'utf8')).toContain('All done.');
+    expect(
+      readdirSync(path.dirname(result.markdownPath)).filter((entry) =>
+        entry.endsWith('.tmp'),
+      ),
+    ).toEqual([]);
+  });
+
+  it('sanitizes executable raw html while preserving markdown and safe html', async () => {
+    const rootDir = makeTempDir();
+    const config = makeConfig(rootDir);
+    const sourcePdfPath = createPdf(rootDir, 'unsafe.pdf');
+    const job: DraftJob = {
+      id: 'job-unsafe',
+      kind: 'pdf-pages',
+      sourceFilePath: sourcePdfPath,
+      status: 'pending_review',
+      createdAt: '2026-07-13T00:00:00.000Z',
+      updatedAt: '2026-07-13T00:00:00.000Z',
+      pages: [
+        {
+          pageNumber: 1,
+          imagePath: 'page-1.png',
+          nativeText: '',
+          markdown:
+            '# Title\n\n<div class="note" onclick="alert(1)">Safe **markdown** HTML</div>\n<script>bad()</script>\n<iframe src="x"></iframe>\n<style>.bad{}</style>\n<a href="javascript:bad()">bad link</a>\n<img src="https://example.test/x.png" alt="remote">\n<img src="ftp://example.test/x.png" alt="ftp">\n<img src="file:///tmp/x.png" alt="file">\n<img src="data:image/png;base64,abc" alt="data">\n<img src="images/local.png" alt="local">\n<img src="./foo.png" alt="dot local">\n<img src="../foo.png" alt="parent local">',
+          accepted: true,
+          status: 'accepted',
+          engine: 'tesseract',
+        },
+      ],
+    };
+
+    const result = await commitJob(config, job);
+    const markdown = await readFile(result.markdownPath, 'utf8');
+
+    expect(markdown).toContain('# Title');
+    expect(markdown).toContain(
+      '<div class="note">Safe **markdown** HTML</div>',
+    );
+    expect(markdown).toContain('<a>bad link</a>');
+    expect(markdown).toContain('<img alt="remote">');
+    expect(markdown).toContain('<img alt="ftp">');
+    expect(markdown).toContain('<img alt="file">');
+    expect(markdown).toContain('<img alt="data">');
+    expect(markdown).toContain('<img src="images/local.png" alt="local">');
+    expect(markdown).toContain('<img src="./foo.png" alt="dot local">');
+    expect(markdown).toContain('<img src="../foo.png" alt="parent local">');
+    expect(markdown).not.toMatch(
+      /<script|bad\(\)|<iframe|<style|onclick=|javascript:|https:\/\/example\.test|ftp:\/\/example\.test|file:\/\/\/tmp|data:image/i,
+    );
+  });
+
+  it('strips style attributes from safe raw html while retaining allowed table and figure markup', async () => {
+    const rootDir = makeTempDir();
+    const config = makeConfig(rootDir);
+    const sourcePdfPath = createPdf(rootDir, 'styled-raw-html.pdf');
+    const job: DraftJob = {
+      id: 'job-styled-raw-html',
+      kind: 'pdf-pages',
+      sourceFilePath: sourcePdfPath,
+      status: 'pending_review',
+      createdAt: '2026-07-13T00:00:00.000Z',
+      updatedAt: '2026-07-13T00:00:00.000Z',
+      pages: [
+        {
+          pageNumber: 1,
+          imagePath: 'page-1.png',
+          nativeText: '',
+          markdown:
+            '<div style="background-image:url(https://attacker.test/pixel.png)">x</div>\n' +
+            '<div class="x"style="background-image:url(https://attacker.test/pixel.png)">x</div>\n' +
+            '<div style=/*x*/background-image:url(https://attacker.test/pixel.png)>x</div>\n' +
+            '<div style>x</div>\n' +
+            '<div data-style="kept">y</div>\n' +
+            '<table><thead><tr><th scope="col">H</th></tr></thead><tbody><tr><td data-note="kept">Cell</td></tr></tbody></table>\n' +
+            '<figure><img src="images/local.png" alt="Local"><figcaption>Caption</figcaption></figure>',
+          accepted: true,
+          status: 'accepted',
+          engine: 'tesseract',
+        },
+      ],
+    };
+
+    const result = await commitJob(config, job);
+    const markdown = await readFile(result.markdownPath, 'utf8');
+
+    expect(markdown).toContain('<div>x</div>');
+    expect(markdown.match(/<div>x<\/div>/g)).toHaveLength(3);
+    expect(markdown).toContain('<div class="x">x</div>');
+    expect(markdown).toContain('<div data-style="kept">y</div>');
+    expect(markdown).toContain(
+      '<table><thead><tr><th scope="col">H</th></tr></thead><tbody><tr><td data-note="kept">Cell</td></tr></tbody></table>',
+    );
+    expect(markdown).toContain(
+      '<figure><img src="images/local.png" alt="Local"><figcaption>Caption</figcaption></figure>',
+    );
+    expect(markdown).not.toMatch(
+      /(?:\s+|\/+)+style(?:\s|\/|>|=)|background-image|https:\/\/attacker\.test/i,
+    );
+  });
+
+  it('strips obfuscated executable html and unsafe raw image urls', async () => {
+    const rootDir = makeTempDir();
+    const config = makeConfig(rootDir);
+    const sourcePdfPath = createPdf(rootDir, 'obfuscated-unsafe.pdf');
+    const job: DraftJob = {
+      id: 'job-obfuscated-unsafe',
+      kind: 'pdf-pages',
+      sourceFilePath: sourcePdfPath,
+      status: 'pending_review',
+      createdAt: '2026-07-13T00:00:00.000Z',
+      updatedAt: '2026-07-13T00:00:00.000Z',
+      pages: [
+        {
+          pageNumber: 1,
+          imagePath: 'page-1.png',
+          nativeText: '',
+          markdown:
+            '<script src="bad.js"/>\n<script>alert(1)\n<a href="java&#x09;script&#58;bad()">encoded</a>\n<a href=" javascript:spaced()">spaced link</a>\n<img src=" https://example.test/spaced.png" alt="spaced remote">\n<img src="//example.test/a.png" srcset="//example.test/a.png 1x, images/local.png 2x" alt="proto">\n<img srcset="https://example.test/a.png 1x, data:image/png;base64,abc 2x" alt="remote srcset">\n<img srcset="images/one.png 1x, images/two.png 2x" alt="local srcset">',
+          accepted: true,
+          status: 'accepted',
+          engine: 'tesseract',
+        },
+      ],
+    };
+
+    const result = await commitJob(config, job);
+    const markdown = await readFile(result.markdownPath, 'utf8');
+
+    expect(markdown).toContain('<a>encoded</a>');
+    expect(markdown).toContain('<a>spaced link</a>');
+    expect(markdown).toContain('<img alt="spaced remote">');
+    expect(markdown).toContain('<img alt="proto">');
+    expect(markdown).toContain('<img alt="remote srcset">');
+    expect(markdown).toContain('<img alt="local srcset">');
+    expect(markdown).not.toMatch(
+      /<script|alert\(1\)|javascript:|java&#x09;script|spaced\.png|srcset=|\/\/example\.test|https:\/\/example\.test|data:image/i,
+    );
+  });
+
+  it('sanitizes unsafe inline markdown links and images', async () => {
+    const rootDir = makeTempDir();
+    const config = makeConfig(rootDir);
+    const sourcePdfPath = createPdf(rootDir, 'markdown-links.pdf');
+    const job: DraftJob = {
+      id: 'job-markdown-links',
+      kind: 'pdf-pages',
+      sourceFilePath: sourcePdfPath,
+      status: 'pending_review',
+      createdAt: '2026-07-13T00:00:00.000Z',
+      updatedAt: '2026-07-13T00:00:00.000Z',
+      pages: [
+        {
+          pageNumber: 1,
+          imagePath: 'page-1.png',
+          nativeText: '',
+          markdown:
+            '![](https://example.test/remote.png)\n' +
+            '![](file:///tmp/local.png)\n' +
+            '![](\\\\example.test\\share.png)\n' +
+            '![](\\//example.test/escaped.png)\n' +
+            '![](images/local.png "Local title")\n' +
+            '[x](javascript:bad())\n' +
+            '[escaped](javascript\\:alert(1))\n' +
+            '[encoded](java&#x09;script&#58;bad())\n' +
+            '[spaced](java\u0000 script:bad())\n' +
+            '[note](../notes/safe.md)',
+          accepted: true,
+          status: 'accepted',
+          engine: 'tesseract',
+        },
+      ],
+    };
+
+    const result = await commitJob(config, job);
+    const markdown = await readFile(result.markdownPath, 'utf8');
+
+    expect(markdown).toContain('![]()');
+    expect(markdown).toContain('![](images/local.png "Local title")');
+    expect(markdown).toContain('[x]()');
+    expect(markdown).toContain('[escaped]()');
+    expect(markdown).toContain('[encoded]()');
+    expect(markdown).toContain('[spaced]()');
+    expect(markdown).toContain('[note](../notes/safe.md)');
+    expect(markdown).not.toMatch(
+      /https:\/\/example\.test|file:\/\/|\\\\example\.test|javascript\\?:|java&#x09;script/i,
+    );
+  });
+
+  it('preserves safe markdown subset while stripping unsafe markdown destinations', async () => {
+    const rootDir = makeTempDir();
+    const config = makeConfig(rootDir);
+    const sourcePdfPath = createPdf(rootDir, 'safe-markdown-subset.pdf');
+    const job: DraftJob = {
+      id: 'job-safe-markdown-subset',
+      kind: 'pdf-pages',
+      sourceFilePath: sourcePdfPath,
+      status: 'pending_review',
+      createdAt: '2026-07-13T00:00:00.000Z',
+      updatedAt: '2026-07-13T00:00:00.000Z',
+      pages: [
+        {
+          pageNumber: 1,
+          imagePath: 'page-1.png',
+          nativeText: '',
+          markdown:
+            '# Heading\n\n' +
+            '- Item with **bold** and _italic_ and `inline code`\n\n' +
+            '[safe doc](../notes/safe.md)\n' +
+            '[safe external](https://example.org/path?q=1)\n' +
+            '[bad](javascript:alert(1))\n' +
+            '![local](images/local.png)\n' +
+            '![remote](https://attacker.test/remote.png)',
+          accepted: true,
+          status: 'accepted',
+          engine: 'tesseract',
+        },
+      ],
+    };
+
+    const result = await commitJob(config, job);
+    const markdown = await readFile(result.markdownPath, 'utf8');
+
+    expect(markdown).toContain('# Heading');
+    expect(markdown).toContain(
+      '- Item with **bold** and _italic_ and `inline code`',
+    );
+    expect(markdown).toContain('[safe doc](../notes/safe.md)');
+    expect(markdown).toContain('[safe external](https://example.org/path?q=1)');
+    expect(markdown).not.toContain('[bad](javascript:alert(1))');
+    expect(markdown).toContain('[bad]()');
+    expect(markdown).toContain('![local](images/local.png)');
+    expect(markdown).not.toContain(
+      '![remote](https://attacker.test/remote.png)',
+    );
+    expect(markdown).toContain('![remote]()');
+    expect(markdown).not.toMatch(/javascript:|https:\/\/attacker\.test/i);
+  });
+
+  it('sanitizes markdown reference image destinations and nested-alt inline images', async () => {
+    const rootDir = makeTempDir();
+    const config = makeConfig(rootDir);
+    const sourcePdfPath = createPdf(rootDir, 'markdown-reference-images.pdf');
+    const job: DraftJob = {
+      id: 'job-markdown-reference-images',
+      kind: 'pdf-pages',
+      sourceFilePath: sourcePdfPath,
+      status: 'pending_review',
+      createdAt: '2026-07-13T00:00:00.000Z',
+      updatedAt: '2026-07-13T00:00:00.000Z',
+      pages: [
+        {
+          pageNumber: 1,
+          imagePath: 'page-1.png',
+          nativeText: '',
+          markdown:
+            '![remote][remote]\n\n[remote]: https://attacker.test/pixel.png\n' +
+            '![escaped remote][bad\\]]\n\n[bad\\]]: https://attacker.test/pixel.png\n' +
+            '![escaped safe][good\\]]\n\n[good\\]]: images/escaped-local.png\n' +
+            '![safe][safe]\n\n[safe]: images/local.png "Local title"\n' +
+            '![file][file]\n![data][data]\n![proto][proto]\n\n' +
+            '[file]: file:///tmp/pixel.png\n' +
+            '[data]: data:image/png;base64,abc\n' +
+            '[proto]: //attacker.test/pixel.png\n' +
+            '[normal text link][doc]\n\n[doc]: ../notes/safe.md\n' +
+            '![chart [inner] (draft)](https://attacker.test/nested.png)\n' +
+            '![safe [inner] (draft)](images/local.png)',
+          accepted: true,
+          status: 'accepted',
+          engine: 'tesseract',
+        },
+      ],
+    };
+
+    const result = await commitJob(config, job);
+    const markdown = await readFile(result.markdownPath, 'utf8');
+
+    expect(markdown).toContain('![remote][remote]');
+    expect(markdown).toContain('![escaped remote][bad\\]]');
+    expect(markdown).toContain('![escaped safe][good\\]]');
+    expect(markdown).toContain('[good\\]]: images/escaped-local.png');
+    expect(markdown).toContain('![safe][safe]');
+    expect(markdown).toContain('[safe]: images/local.png "Local title"');
+    expect(markdown).toContain('[normal text link][doc]');
+    expect(markdown).toContain('[doc]: ../notes/safe.md');
+    expect(markdown).toContain('![chart [inner] (draft)]()');
+    expect(markdown).toContain('![safe [inner] (draft)](images/local.png)');
+    expect(markdown).not.toMatch(
+      /\[(?:remote|bad\\\]|file|data|proto)\]:|https:\/\/attacker\.test|file:\/\/|data:image|\/\/attacker\.test/i,
+    );
+  });
+
+  it('strips unsafe svg xlink href urls', async () => {
+    const rootDir = makeTempDir();
+    const config = makeConfig(rootDir);
+    const sourcePdfPath = createPdf(rootDir, 'svg-xlink.pdf');
+    const job: DraftJob = {
+      id: 'job-svg-xlink',
+      kind: 'pdf-pages',
+      sourceFilePath: sourcePdfPath,
+      status: 'pending_review',
+      createdAt: '2026-07-13T00:00:00.000Z',
+      updatedAt: '2026-07-13T00:00:00.000Z',
+      pages: [
+        {
+          pageNumber: 1,
+          imagePath: 'page-1.png',
+          nativeText: '',
+          markdown:
+            '<svg><a xlink:href="javascript:bad()">unsafe</a></svg>\n' +
+            '<svg><a xlink:href="java&#x09;script&#58;encoded()">encoded</a></svg>\n' +
+            '<svg><a xlink:href="#safe">safe</a></svg>\n' +
+            '<a href="/normal">normal</a>',
+          accepted: true,
+          status: 'accepted',
+          engine: 'tesseract',
+        },
+      ],
+    };
+
+    const result = await commitJob(config, job);
+    const markdown = await readFile(result.markdownPath, 'utf8');
+
+    expect(markdown).toContain('<a>unsafe</a>');
+    expect(markdown).toContain('<a>encoded</a>');
+    expect(markdown).toContain('<a xlink:href="#safe">safe</a>');
+    expect(markdown).toContain('<a href="/normal">normal</a>');
+    expect(markdown).not.toMatch(
+      /<svg|<\/svg|javascript:|java&#x09;script|xlink:href="javascript/i,
+    );
+  });
+
+  it('strips malformed and disallowed raw html tags before attribute sanitization', async () => {
+    const rootDir = makeTempDir();
+    const config = makeConfig(rootDir);
+    const sourcePdfPath = createPdf(rootDir, 'malformed-tags.pdf');
+    const job: DraftJob = {
+      id: 'job-malformed-tags',
+      kind: 'pdf-pages',
+      sourceFilePath: sourcePdfPath,
+      status: 'pending_review',
+      createdAt: '2026-07-13T00:00:00.000Z',
+      updatedAt: '2026-07-13T00:00:00.000Z',
+      pages: [
+        {
+          pageNumber: 1,
+          imagePath: 'page-1.png',
+          nativeText: '',
+          markdown:
+            '<scr/onerror=""ipt>alert(1)</scr/onerror=""ipt>\n' +
+            '<math><mi>x</mi></math>\n' +
+            '<custom-tag data-x="1">custom</custom-tag>\n' +
+            '<span data-x="1">safe span</span>',
+          accepted: true,
+          status: 'accepted',
+          engine: 'tesseract',
+        },
+      ],
+    };
+
+    const result = await commitJob(config, job);
+    const markdown = await readFile(result.markdownPath, 'utf8');
+
+    expect(markdown).toContain('alert(1)');
+    expect(markdown).toContain('x');
+    expect(markdown).toContain('custom');
+    expect(markdown).toContain('<span data-x="1">safe span</span>');
+    expect(markdown).not.toMatch(
+      /<scr|<\/scr|onerror|<math|<\/math|<mi|<\/mi|<custom-tag|<\/custom-tag/i,
+    );
+  });
+
+  it('preserves normal table figure and local image markup through raw html allowlist', async () => {
+    const rootDir = makeTempDir();
+    const config = makeConfig(rootDir);
+    const sourcePdfPath = createPdf(rootDir, 'ordinary-html.pdf');
+    const job: DraftJob = {
+      id: 'job-ordinary-html',
+      kind: 'pdf-pages',
+      sourceFilePath: sourcePdfPath,
+      status: 'pending_review',
+      createdAt: '2026-07-13T00:00:00.000Z',
+      updatedAt: '2026-07-13T00:00:00.000Z',
+      pages: [
+        {
+          pageNumber: 1,
+          imagePath: 'page-1.png',
+          nativeText: '',
+          markdown:
+            '<table><caption>Data</caption><thead><tr><th>A</th></tr></thead><tbody><tr><td>B</td></tr></tbody></table>\n' +
+            '<figure><img src="images/chart.png" alt="Chart"><figcaption><strong>Chart</strong></figcaption></figure>',
+          accepted: true,
+          status: 'accepted',
+          engine: 'tesseract',
+        },
+      ],
+    };
+
+    const result = await commitJob(config, job);
+    const markdown = await readFile(result.markdownPath, 'utf8');
+
+    expect(markdown).toContain(
+      '<table><caption>Data</caption><thead><tr><th>A</th></tr></thead><tbody><tr><td>B</td></tr></tbody></table>',
+    );
+    expect(markdown).toContain(
+      '<figure><img src="images/chart.png" alt="Chart"><figcaption><strong>Chart</strong></figcaption></figure>',
+    );
+  });
+
+  it('sanitizes img tags with greater-than characters inside quoted attributes', async () => {
+    const rootDir = makeTempDir();
+    const config = makeConfig(rootDir);
+    const sourcePdfPath = createPdf(rootDir, 'quoted-greater-than.pdf');
+    const job: DraftJob = {
+      id: 'job-quoted-greater-than',
+      kind: 'pdf-pages',
+      sourceFilePath: sourcePdfPath,
+      status: 'pending_review',
+      createdAt: '2026-07-13T00:00:00.000Z',
+      updatedAt: '2026-07-13T00:00:00.000Z',
+      pages: [
+        {
+          pageNumber: 1,
+          imagePath: 'page-1.png',
+          nativeText: '',
+          markdown:
+            '<img alt=">" src="https://example.test/escaped.png">\n' +
+            '<img alt=\'>\' src="https://example.test/single.png">\n' +
+            '<img alt=">" src="images/local.png">\n' +
+            '<img alt=\'>\' src="images/single-local.png">',
+          accepted: true,
+          status: 'accepted',
+          engine: 'tesseract',
+        },
+      ],
+    };
+
+    const result = await commitJob(config, job);
+    const markdown = await readFile(result.markdownPath, 'utf8');
+
+    expect(markdown).toContain('<img alt=">">');
+    expect(markdown).toContain("<img alt='>'>");
+    expect(markdown).toContain('<img alt=">" src="images/local.png">');
+    expect(markdown).toContain('<img alt=\'>\' src="images/single-local.png">');
+    expect(markdown).not.toMatch(/https:\/\/example\.test/i);
+  });
+
+  it('strips slash-prefixed event attributes while preserving self-closing image tags', async () => {
+    const rootDir = makeTempDir();
+    const config = makeConfig(rootDir);
+    const sourcePdfPath = createPdf(rootDir, 'slash-event-attribute.pdf');
+    const job: DraftJob = {
+      id: 'job-slash-event-attribute',
+      kind: 'pdf-pages',
+      sourceFilePath: sourcePdfPath,
+      status: 'pending_review',
+      createdAt: '2026-07-13T00:00:00.000Z',
+      updatedAt: '2026-07-13T00:00:00.000Z',
+      pages: [
+        {
+          pageNumber: 1,
+          imagePath: 'page-1.png',
+          nativeText: '',
+          markdown:
+            '<img/onerror="alert(1)" src="images/local.png" alt="slash event">\n' +
+            '<img src="images/self-closing.png" alt="self closing" />',
+          accepted: true,
+          status: 'accepted',
+          engine: 'tesseract',
+        },
+      ],
+    };
+
+    const result = await commitJob(config, job);
+    const markdown = await readFile(result.markdownPath, 'utf8');
+
+    expect(markdown).toContain(
+      '<img src="images/local.png" alt="slash event">',
+    );
+    expect(markdown).toContain(
+      '<img src="images/self-closing.png" alt="self closing" />',
+    );
+    expect(markdown).not.toMatch(/onerror|alert\(1\)/i);
+  });
+
+  it('treats slash as an unsafe URL attribute delimiter while preserving self-closing tags', async () => {
+    const rootDir = makeTempDir();
+    const config = makeConfig(rootDir);
+    const sourcePdfPath = createPdf(rootDir, 'slash-url-attribute.pdf');
+    const job: DraftJob = {
+      id: 'job-slash-url-attribute',
+      kind: 'pdf-pages',
+      sourceFilePath: sourcePdfPath,
+      status: 'pending_review',
+      createdAt: '2026-07-13T00:00:00.000Z',
+      updatedAt: '2026-07-13T00:00:00.000Z',
+      pages: [
+        {
+          pageNumber: 1,
+          imagePath: 'page-1.png',
+          nativeText: '',
+          markdown:
+            '<a/href="javascript:bad()">bad link</a>\n' +
+            '<svg><a/xlink:href="javascript:bad()">bad xlink</a></svg>\n' +
+            '<img/src="https://example.test/remote.png" alt="slash src">\n' +
+            '<img/srcset="https://example.test/remote.png 1x, images/local.png 2x" alt="slash srcset">\n' +
+            '<img/src="images/self-closing.png" alt="self closing" />',
+          accepted: true,
+          status: 'accepted',
+          engine: 'tesseract',
+        },
+      ],
+    };
+
+    const result = await commitJob(config, job);
+    const markdown = await readFile(result.markdownPath, 'utf8');
+
+    expect(markdown).toContain('<a>bad link</a>');
+    expect(markdown).toContain('<a>bad xlink</a>');
+    expect(markdown).toContain('<img alt="slash src">');
+    expect(markdown).toContain('<img alt="slash srcset">');
+    expect(markdown).toContain(
+      '<img src="images/self-closing.png" alt="self closing" />',
+    );
+    expect(markdown).not.toMatch(
+      /<svg|<\/svg|href=|xlink:href=|javascript:|https:\/\/example\.test/i,
+    );
+  });
+
+  it('strips unquoted remote raw image urls while preserving unquoted local paths', async () => {
+    const rootDir = makeTempDir();
+    const config = makeConfig(rootDir);
+    const sourcePdfPath = createPdf(rootDir, 'unquoted-image-urls.pdf');
+    const job: DraftJob = {
+      id: 'job-unquoted-image-urls',
+      kind: 'pdf-pages',
+      sourceFilePath: sourcePdfPath,
+      status: 'pending_review',
+      createdAt: '2026-07-13T00:00:00.000Z',
+      updatedAt: '2026-07-13T00:00:00.000Z',
+      pages: [
+        {
+          pageNumber: 1,
+          imagePath: 'page-1.png',
+          nativeText: '',
+          markdown:
+            '<img src=//example.test/x alt=proto>\n' +
+            '<img src=http://example.test/x alt=http>\n' +
+            '<img src=https://example.test/x alt=https>\n' +
+            '<img src=data:image/png;base64,abc alt=data>\n' +
+            '<img src=images/local.png srcset=//example.test/x,images/local.png alt=local>',
+          accepted: true,
+          status: 'accepted',
+          engine: 'tesseract',
+        },
+      ],
+    };
+
+    const result = await commitJob(config, job);
+    const markdown = await readFile(result.markdownPath, 'utf8');
+
+    expect(markdown).toContain('<img alt=proto>');
+    expect(markdown).toContain('<img alt=http>');
+    expect(markdown).toContain('<img alt=https>');
+    expect(markdown).toContain('<img alt=data>');
+    expect(markdown).toContain('<img src=images/local.png alt=local>');
+    expect(markdown).not.toMatch(
+      /src=\/\/example\.test|src=https?:\/\/example\.test|src=data:|srcset=/i,
+    );
+  });
+
+  it('strips entity-encoded C0 and C1 controls before unsafe URL checks', async () => {
+    const rootDir = makeTempDir();
+    const config = makeConfig(rootDir);
+    const sourcePdfPath = createPdf(rootDir, 'encoded-controls.pdf');
+    const job: DraftJob = {
+      id: 'job-encoded-controls',
+      kind: 'pdf-pages',
+      sourceFilePath: sourcePdfPath,
+      status: 'pending_review',
+      createdAt: '2026-07-13T00:00:00.000Z',
+      updatedAt: '2026-07-13T00:00:00.000Z',
+      pages: [
+        {
+          pageNumber: 1,
+          imagePath: 'page-1.png',
+          nativeText: '',
+          markdown:
+            '<a href="&#14;javascript:bad()">c0 link</a>\n<img src="&#14;https://example.test/c0.png" alt="c0 src">\n<img src="&#x85;https://example.test/c1.png" alt="c1 src">\n<img srcset="&#14;https://example.test/c0.png 1x, images/local.png 2x" alt="c0 srcset">',
+          accepted: true,
+          status: 'accepted',
+          engine: 'tesseract',
+        },
+      ],
+    };
+
+    const result = await commitJob(config, job);
+    const markdown = await readFile(result.markdownPath, 'utf8');
+
+    expect(markdown).toContain('<a>c0 link</a>');
+    expect(markdown).toContain('<img alt="c0 src">');
+    expect(markdown).toContain('<img alt="c1 src">');
+    expect(markdown).toContain('<img alt="c0 srcset">');
+    expect(markdown).not.toMatch(
+      /href=|srcset=|&#14;|&#x85;|javascript:|https:\/\/example\.test/i,
+    );
+  });
+
+  it('strips entity-encoded protocol-relative raw image urls while preserving local values', async () => {
+    const rootDir = makeTempDir();
+    const config = makeConfig(rootDir);
+    const sourcePdfPath = createPdf(rootDir, 'encoded-protocol-relative.pdf');
+    const job: DraftJob = {
+      id: 'job-encoded-protocol-relative',
+      kind: 'pdf-pages',
+      sourceFilePath: sourcePdfPath,
+      status: 'pending_review',
+      createdAt: '2026-07-13T00:00:00.000Z',
+      updatedAt: '2026-07-13T00:00:00.000Z',
+      pages: [
+        {
+          pageNumber: 1,
+          imagePath: 'page-1.png',
+          nativeText: '',
+          markdown:
+            '<img src="&sol;&sol;example.test/x.png" alt="encoded proto">\n<img src="images/local.png" srcset="images/one.png 1x, images/two.png 2x" alt="local">',
+          accepted: true,
+          status: 'accepted',
+          engine: 'tesseract',
+        },
+      ],
+    };
+
+    const result = await commitJob(config, job);
+    const markdown = await readFile(result.markdownPath, 'utf8');
+
+    expect(markdown).toContain('<img alt="encoded proto">');
+    expect(markdown).toContain('<img src="images/local.png" alt="local">');
+    expect(markdown).not.toMatch(/&sol;&sol;example\.test|\/\/example\.test/i);
+  });
+
+  it('strips raw html srcset attributes while preserving safe local src', async () => {
+    const rootDir = makeTempDir();
+    const config = makeConfig(rootDir);
+    const sourcePdfPath = createPdf(
+      rootDir,
+      'encoded-srcset-comma-external.pdf',
+    );
+    const job: DraftJob = {
+      id: 'job-encoded-srcset-comma-external',
+      kind: 'pdf-pages',
+      sourceFilePath: sourcePdfPath,
+      status: 'pending_review',
+      createdAt: '2026-07-13T00:00:00.000Z',
+      updatedAt: '2026-07-13T00:00:00.000Z',
+      pages: [
+        {
+          pageNumber: 1,
+          imagePath: 'page-1.png',
+          nativeText: '',
+          markdown:
+            '<img src="images/base.png" srcset="images/local.png 1x&#34; onerror=alert(1)&#44; https://example.test/remote.png 2x" alt="encoded quote srcset">',
+          accepted: true,
+          status: 'accepted',
+          engine: 'tesseract',
+        },
+      ],
+    };
+
+    const result = await commitJob(config, job);
+    const markdown = await readFile(result.markdownPath, 'utf8');
+
+    expect(markdown).toContain(
+      '<img src="images/base.png" alt="encoded quote srcset">',
+    );
+    expect(markdown).not.toMatch(
+      /srcset=|onerror|alert\(1\)|https:\/\/example\.test|&#34;|&#44;/i,
+    );
+  });
+
+  it('strips local srcset candidates separated by entity-encoded commas', async () => {
+    const rootDir = makeTempDir();
+    const config = makeConfig(rootDir);
+    const sourcePdfPath = createPdf(rootDir, 'encoded-srcset-comma-local.pdf');
+    const job: DraftJob = {
+      id: 'job-encoded-srcset-comma-local',
+      kind: 'pdf-pages',
+      sourceFilePath: sourcePdfPath,
+      status: 'pending_review',
+      createdAt: '2026-07-13T00:00:00.000Z',
+      updatedAt: '2026-07-13T00:00:00.000Z',
+      pages: [
+        {
+          pageNumber: 1,
+          imagePath: 'page-1.png',
+          nativeText: '',
+          markdown:
+            '<img src="images/base.png" srcset="images/one.png 1x&#44; images/two.png 2x" alt="encoded comma local">',
+          accepted: true,
+          status: 'accepted',
+          engine: 'tesseract',
+        },
+      ],
+    };
+
+    const result = await commitJob(config, job);
+    const markdown = await readFile(result.markdownPath, 'utf8');
+
+    expect(markdown).toContain(
+      '<img src="images/base.png" alt="encoded comma local">',
+    );
+    expect(markdown).not.toMatch(/srcset=/i);
+  });
+
+  it('strips backslash-normalized protocol-relative raw image urls while preserving local paths', async () => {
+    const rootDir = makeTempDir();
+    const config = makeConfig(rootDir);
+    const sourcePdfPath = createPdf(rootDir, 'backslash-protocol-relative.pdf');
+    const job: DraftJob = {
+      id: 'job-backslash-protocol-relative',
+      kind: 'pdf-pages',
+      sourceFilePath: sourcePdfPath,
+      status: 'pending_review',
+      createdAt: '2026-07-13T00:00:00.000Z',
+      updatedAt: '2026-07-13T00:00:00.000Z',
+      pages: [
+        {
+          pageNumber: 1,
+          imagePath: 'page-1.png',
+          nativeText: '',
+          markdown:
+            '<img src="\\\\example.test/x.png" alt="backslash proto">\n' +
+            '<img src="images\\local.png" srcset="images\\one.png 1x, images/two.png 2x" alt="local">',
+          accepted: true,
+          status: 'accepted',
+          engine: 'tesseract',
+        },
+      ],
+    };
+
+    const result = await commitJob(config, job);
+    const markdown = await readFile(result.markdownPath, 'utf8');
+
+    expect(markdown).toContain('<img alt="backslash proto">');
+    expect(markdown).toContain('<img src="images\\local.png" alt="local">');
+    expect(markdown).not.toMatch(/\\\\example\.test|\/\/example\.test/i);
+  });
+
+  it('does not copy or wire figures from pending and failed pages during partial commits', async () => {
+    const rootDir = makeTempDir();
+    const config = makeConfig(rootDir);
+    const sourcePdfPath = createPdf(rootDir, 'partial-figures.pdf');
+    const acceptedCrop = path.join(rootDir, 'accepted.png');
+    const pendingCrop = path.join(rootDir, 'pending.png');
+    const failedCrop = path.join(rootDir, 'failed.png');
+    writeFileSync(acceptedCrop, 'accepted');
+    writeFileSync(pendingCrop, 'pending');
+    writeFileSync(failedCrop, 'failed');
+    const job: DraftJob = {
+      id: 'job-partial-figures',
+      kind: 'pdf-pages',
+      sourceFilePath: sourcePdfPath,
+      status: 'pending_review',
+      createdAt: '2026-07-13T00:00:00.000Z',
+      updatedAt: '2026-07-13T00:00:00.000Z',
+      pages: [
+        {
+          pageNumber: 1,
+          imagePath: 'page-1.png',
+          nativeText: '',
+          markdown: 'Accepted page.',
+          accepted: true,
+          status: 'accepted',
+          engine: 'deepseek-ocr',
+          figures: [{ bbox: [0, 0, 10, 10], imagePath: acceptedCrop }],
+        },
+        {
+          pageNumber: 2,
+          imagePath: 'page-2.png',
+          nativeText: '',
+          markdown: '<img src="pending.png" alt="pending">',
+          accepted: false,
+          status: 'pending',
+          engine: 'deepseek-ocr',
+          figures: [{ bbox: [0, 0, 10, 10], imagePath: pendingCrop }],
+        },
+        {
+          pageNumber: 3,
+          imagePath: 'page-3.png',
+          nativeText: '',
+          markdown: '<img src="failed.png" alt="failed">',
+          accepted: false,
+          status: 'failed',
+          engine: 'deepseek-ocr',
+          figures: [{ bbox: [0, 0, 10, 10], imagePath: failedCrop }],
+        },
+      ],
+    };
+
+    const result = await commitJob(config, job);
+    const outputDir = path.dirname(result.markdownPath);
+    const markdown = await readFile(result.markdownPath, 'utf8');
+
+    expect(markdown).toContain('![](images/page-001-figure-001.png)');
+    expect(markdown).toContain('[[OCR PENDING: page 2]]');
+    expect(markdown).toContain('[[OCR FAILED: page 3]]');
+    expect(markdown).not.toContain('page-002-figure');
+    expect(markdown).not.toContain('page-003-figure');
+    expect(
+      existsSync(path.join(outputDir, 'images', 'page-001-figure-001.png')),
+    ).toBe(true);
+    expect(
+      existsSync(path.join(outputDir, 'images', 'page-002-figure-001.png')),
+    ).toBe(false);
+    expect(
+      existsSync(path.join(outputDir, 'images', 'page-003-figure-001.png')),
+    ).toBe(false);
+  });
+
+  it('does not duplicate existing markdown figure links', async () => {
+    const rootDir = makeTempDir();
+    const config = makeConfig(rootDir);
+    const sourcePdfPath = createPdf(rootDir, 'linked.pdf');
+    const figureSourcePath = path.join(rootDir, 'linked-figure.png');
+    writeFileSync(figureSourcePath, 'linked-figure');
+    const job: DraftJob = {
+      id: 'job-5',
+      kind: 'pdf-pages',
+      sourceFilePath: sourcePdfPath,
+      status: 'pending_review',
+      createdAt: '2026-07-13T00:00:00.000Z',
+      updatedAt: '2026-07-13T00:00:00.000Z',
+      pages: [
+        {
+          pageNumber: 1,
+          imagePath: 'page-1.png',
+          nativeText: '',
+          markdown:
+            'Has figure already.\n\n![](images/page-001-figure-001.png)',
+          accepted: true,
+          status: 'accepted',
+          engine: 'tesseract',
+          figures: [
+            {
+              bbox: [0, 0, 10, 10],
+              imagePath: figureSourcePath,
+            },
+          ],
+        },
+      ],
+    };
+
+    const result = await commitJob(config, job);
+
+    expect(await readFile(result.markdownPath, 'utf8')).toContain(
+      'Has figure already.\n\n![](images/page-001-figure-001.png)',
+    );
+    expect(
+      (await readFile(result.markdownPath, 'utf8')).match(
+        /!\[\]\(images\/page-001-figure-001\.png\)/g,
+      ),
+    ).toHaveLength(1);
+  });
+
+  it('rewrites inline placeholder image srcs to committed crop files in order', async () => {
+    const rootDir = makeTempDir();
+    const config = makeConfig(rootDir);
+    const sourcePdfPath = createPdf(rootDir, 'figures.pdf');
+    const cropOne = path.join(rootDir, 'crop-1.png');
+    const cropTwo = path.join(rootDir, 'crop-2.png');
+    writeFileSync(cropOne, 'crop-one');
+    writeFileSync(cropTwo, 'crop-two');
+    const job: DraftJob = {
+      id: 'job-fig',
+      kind: 'pdf-pages',
+      sourceFilePath: sourcePdfPath,
+      status: 'pending_review',
+      createdAt: '2026-07-13T00:00:00.000Z',
+      updatedAt: '2026-07-13T00:00:00.000Z',
+      pages: [
+        {
+          pageNumber: 1,
+          imagePath: 'page-1.png',
+          nativeText: '',
+          markdown:
+            '# Report\n\n<figure data-type="image" data-id="img_1"><img src="img_1.png" alt="A logo"/></figure>\n\nBody\n\n<figure data-type="image" data-id="img_2"><img src="img_2.png" alt="A chart"/></figure>',
+          accepted: true,
+          status: 'accepted',
+          engine: 'nuextract3-ocr',
+          figures: [
+            { bbox: [0, 0, 10, 10], imagePath: cropOne },
+            { bbox: [0, 0, 10, 10], imagePath: cropTwo },
+          ],
+        },
+      ],
+    };
+
+    const result = await commitJob(config, job);
+    const markdown = await readFile(result.markdownPath, 'utf8');
+    const imagesDir = path.join(path.dirname(result.markdownPath), 'images');
+
+    expect(markdown).toContain(
+      '<img src="images/page-001-figure-001.png" alt="A logo"/>',
+    );
+    expect(markdown).toContain(
+      '<img src="images/page-001-figure-002.png" alt="A chart"/>',
+    );
+    expect(markdown).not.toContain('img_1.png');
+    expect(markdown).not.toContain('img_2.png');
+    // No duplicate appended links when rewriting inline refs.
+    expect(markdown).not.toContain('![](images/');
+    expect(existsSync(path.join(imagesDir, 'page-001-figure-001.png'))).toBe(
+      true,
+    );
+    expect(
+      await readFile(path.join(imagesDir, 'page-001-figure-001.png'), 'utf8'),
+    ).toBe('crop-one');
+    expect(
+      await readFile(path.join(imagesDir, 'page-001-figure-002.png'), 'utf8'),
+    ).toBe('crop-two');
+  });
+
+  it('rewrites single-quoted and unquoted placeholder image srcs without appending duplicate fallback links', async () => {
+    const rootDir = makeTempDir();
+    const config = makeConfig(rootDir);
+    const sourcePdfPath = createPdf(rootDir, 'figure-quotes.pdf');
+    const cropOne = path.join(rootDir, 'quote-crop-1.png');
+    const cropTwo = path.join(rootDir, 'quote-crop-2.png');
+    writeFileSync(cropOne, 'quote-one');
+    writeFileSync(cropTwo, 'quote-two');
+    const job: DraftJob = {
+      id: 'job-figure-quotes',
+      kind: 'pdf-pages',
+      sourceFilePath: sourcePdfPath,
+      status: 'pending_review',
+      createdAt: '2026-07-13T00:00:00.000Z',
+      updatedAt: '2026-07-13T00:00:00.000Z',
+      pages: [
+        {
+          pageNumber: 1,
+          imagePath: 'page-1.png',
+          nativeText: '',
+          markdown:
+            "<figure><img alt='one' src='img_1.png' data-id='a'></figure>\n<figure><img alt=two src=img_2.png data-id=b></figure>",
+          accepted: true,
+          status: 'accepted',
+          engine: 'nuextract3-ocr',
+          figures: [
+            { bbox: [0, 0, 10, 10], imagePath: cropOne },
+            { bbox: [0, 0, 10, 10], imagePath: cropTwo },
+          ],
+        },
+      ],
+    };
+
+    const result = await commitJob(config, job);
+    const markdown = await readFile(result.markdownPath, 'utf8');
+
+    expect(markdown).toContain(
+      "<img alt='one' src='images/page-001-figure-001.png' data-id='a'>",
+    );
+    expect(markdown).toContain(
+      '<img alt=two src=images/page-001-figure-002.png data-id=b>',
+    );
+    expect(markdown).not.toContain('img_1.png');
+    expect(markdown).not.toContain('img_2.png');
+    expect(markdown).not.toContain('![](images/');
+  });
+
+  it('rewrites double-quoted, single-quoted, and unquoted placeholders while preserving surrounding attributes', async () => {
+    const rootDir = makeTempDir();
+    const config = makeConfig(rootDir);
+    const sourcePdfPath = createPdf(rootDir, 'figure-quote-forms.pdf');
+    const cropOne = path.join(rootDir, 'form-crop-1.png');
+    const cropTwo = path.join(rootDir, 'form-crop-2.png');
+    const cropThree = path.join(rootDir, 'form-crop-3.png');
+    writeFileSync(cropOne, 'form-one');
+    writeFileSync(cropTwo, 'form-two');
+    writeFileSync(cropThree, 'form-three');
+    const job: DraftJob = {
+      id: 'job-figure-quote-forms',
+      kind: 'pdf-pages',
+      sourceFilePath: sourcePdfPath,
+      status: 'pending_review',
+      createdAt: '2026-07-13T00:00:00.000Z',
+      updatedAt: '2026-07-13T00:00:00.000Z',
+      pages: [
+        {
+          pageNumber: 1,
+          imagePath: 'page-1.png',
+          nativeText: '',
+          markdown:
+            '<figure data-wrap="double"><img class="first" src="img_1.png" alt="one" data-after="kept"></figure>\n' +
+            "<figure data-wrap='single'><img class='second' src='img_2.png' alt='two' data-after='kept'></figure>\n" +
+            '<figure data-wrap=unquoted><img class=third src=img_3.png alt=three data-after=kept></figure>',
+          accepted: true,
+          status: 'accepted',
+          engine: 'nuextract3-ocr',
+          figures: [
+            { bbox: [0, 0, 10, 10], imagePath: cropOne },
+            { bbox: [0, 0, 10, 10], imagePath: cropTwo },
+            { bbox: [0, 0, 10, 10], imagePath: cropThree },
+          ],
+        },
+      ],
+    };
+
+    const result = await commitJob(config, job);
+    const markdown = await readFile(result.markdownPath, 'utf8');
+
+    expect(markdown).toContain(
+      '<img class="first" src="images/page-001-figure-001.png" alt="one" data-after="kept">',
+    );
+    expect(markdown).toContain(
+      "<img class='second' src='images/page-001-figure-002.png' alt='two' data-after='kept'>",
+    );
+    expect(markdown).toContain(
+      '<img class=third src=images/page-001-figure-003.png alt=three data-after=kept>',
+    );
+    expect(markdown).not.toContain('img_1.png');
+    expect(markdown).not.toContain('img_2.png');
+    expect(markdown).not.toContain('img_3.png');
+    expect(markdown).not.toContain('![](images/');
+  });
+
+  it('does not rewrite already resolved safe local refs or unsafe/external refs removed by sanitizer', async () => {
+    const rootDir = makeTempDir();
+    const config = makeConfig(rootDir);
+    const sourcePdfPath = createPdf(rootDir, 'figure-safe-unsafe.pdf');
+    const cropOne = path.join(rootDir, 'safe-unsafe-crop.png');
+    writeFileSync(cropOne, 'safe-unsafe');
+    const job: DraftJob = {
+      id: 'job-figure-safe-unsafe',
+      kind: 'pdf-pages',
+      sourceFilePath: sourcePdfPath,
+      status: 'pending_review',
+      createdAt: '2026-07-13T00:00:00.000Z',
+      updatedAt: '2026-07-13T00:00:00.000Z',
+      pages: [
+        {
+          pageNumber: 1,
+          imagePath: 'page-1.png',
+          nativeText: '',
+          markdown:
+            '<img src="images/already.png" alt="safe">\n' +
+            '<img src="https://example.com/external.png" alt="external">\n' +
+            '<img src="javascript:alert(1)" alt="unsafe">',
+          accepted: true,
+          status: 'accepted',
+          engine: 'nuextract3-ocr',
+          figures: [{ bbox: [0, 0, 10, 10], imagePath: cropOne }],
+        },
+      ],
+    };
+
+    const result = await commitJob(config, job);
+    const markdown = await readFile(result.markdownPath, 'utf8');
+
+    expect(markdown).toContain('<img src="images/already.png" alt="safe">');
+    expect(markdown).toContain('<img alt="external">');
+    expect(markdown).toContain('<img alt="unsafe">');
+    expect(markdown).toContain('![](images/page-001-figure-001.png)');
+  });
+
+  it('leaves surplus inline image placeholders untouched when fewer crops exist', async () => {
+    const rootDir = makeTempDir();
+    const config = makeConfig(rootDir);
+    const sourcePdfPath = createPdf(rootDir, 'mismatch.pdf');
+    const cropOne = path.join(rootDir, 'only-crop.png');
+    writeFileSync(cropOne, 'only');
+    const job: DraftJob = {
+      id: 'job-mismatch',
+      kind: 'pdf-pages',
+      sourceFilePath: sourcePdfPath,
+      status: 'pending_review',
+      createdAt: '2026-07-13T00:00:00.000Z',
+      updatedAt: '2026-07-13T00:00:00.000Z',
+      pages: [
+        {
+          pageNumber: 1,
+          imagePath: 'page-1.png',
+          nativeText: '',
+          markdown:
+            '<img src="img_1.png" alt="one"/>\n<img src="img_2.png" alt="two"/>',
+          accepted: true,
+          status: 'accepted',
+          engine: 'nuextract3-ocr',
+          figures: [{ bbox: [0, 0, 10, 10], imagePath: cropOne }],
+        },
+      ],
+    };
+
+    const result = await commitJob(config, job);
+    const markdown = await readFile(result.markdownPath, 'utf8');
+
+    expect(markdown).toContain(
+      '<img src="images/page-001-figure-001.png" alt="one"/>',
+    );
+    expect(markdown).toContain('<img src="img_2.png" alt="two"/>');
+  });
+
+  it('marks all-native documents as native provenance', async () => {
+    const rootDir = makeTempDir();
+    const config = makeConfig(rootDir);
+    const sourcePdfPath = createPdf(rootDir, 'native.pdf');
+    const job: DraftJob = {
+      id: 'job-4',
+      kind: 'pdf-pages',
+      sourceFilePath: sourcePdfPath,
+      status: 'pending_review',
+      createdAt: '2026-07-13T00:00:00.000Z',
+      updatedAt: '2026-07-13T00:00:00.000Z',
+      pages: [
+        {
+          pageNumber: 1,
+          imagePath: 'page-1.png',
+          nativeText: 'Native only',
+          markdown: 'Native only',
+          accepted: false,
+          status: 'pending',
+          engine: 'native',
+        },
+      ],
+    };
+
+    const result = await commitJob(config, job, {
+      convertedAt: new Date('2026-07-13T10:11:12.000Z'),
+    });
+
+    expect(result.movedSourcePdf).toBe(false);
+    expect(await readFile(result.markdownPath, 'utf8')).toContain(
+      'ocr_engine: "native"',
+    );
+  });
+
+  it('uses accepted flag deterministically when accepted contradicts status', async () => {
+    const rootDir = makeTempDir();
+    const config = makeConfig(rootDir);
+    const sourcePdfPath = createPdf(rootDir, 'contradiction.pdf');
+    const job: DraftJob = {
+      id: 'job-3',
+      kind: 'pdf-pages',
+      sourceFilePath: sourcePdfPath,
+      status: 'pending_review',
+      createdAt: '2026-07-13T00:00:00.000Z',
+      updatedAt: '2026-07-13T00:00:00.000Z',
+      pages: [
+        {
+          pageNumber: 1,
+          imagePath: 'page-1.png',
+          nativeText: '',
+          markdown: 'Accepted wins.',
+          accepted: true,
+          status: 'failed',
+          engine: 'tesseract',
+        },
+      ],
+    };
+
+    const result = await commitJob(config, job);
+
+    expect(result.movedSourcePdf).toBe(true);
+    expect(await readFile(result.markdownPath, 'utf8')).toContain(
+      'Accepted wins.',
+    );
+  });
+
+  it('commits accepted document jobs to an extension-qualified directory', async () => {
+    const rootDir = makeTempDir();
+    const config = makeConfig(rootDir);
+    const sourceFilePath = createPdf(rootDir, 'report.docx');
+    const job: DraftJob = {
+      id: 'job-document-accepted',
+      kind: 'document',
+      sourceFilePath,
+      status: 'pending_review',
+      createdAt: '2026-08-07T00:00:00.000Z',
+      updatedAt: '2026-08-07T00:00:00.000Z',
+      pages: [
+        {
+          pageNumber: 1,
+          nativeText: '',
+          markdown: '# Converted document',
+          accepted: true,
+          status: 'accepted',
+          engine: 'anydoc',
+        },
+      ],
+    };
+
+    const result = await commitJob(config, job);
+    const expectedOutputDir = path.join(config.inboxPath, 'report--docx');
+    const markdown = await readFile(result.markdownPath, 'utf8');
+
+    expect(result.markdownPath).toBe(
+      path.join(expectedOutputDir, 'report--docx.md'),
+    );
+    expect(existsSync(path.join(config.inboxPath, 'report', 'report.md'))).toBe(
+      false,
+    );
+    expect(markdown).toContain('source_file: "report.docx"');
+    expect(markdown).not.toContain('source_pdf:');
+    expect(markdown).toContain('ocr_engine: "anydoc"');
+    expect(existsSync(path.join(expectedOutputDir, 'images'))).toBe(false);
+    expect(result.movedSourcePdf).toBe(true);
+    expect(
+      existsSync(path.join(config.inboxPath, 'processed', 'report.docx')),
+    ).toBe(true);
+  });
+
+  it('keeps unaccepted document jobs pending without moving the source', async () => {
+    const rootDir = makeTempDir();
+    const config = makeConfig(rootDir);
+    const sourceFilePath = createPdf(rootDir, 'pending.docx');
+    const job: DraftJob = {
+      id: 'job-document-pending',
+      kind: 'document',
+      sourceFilePath,
+      status: 'pending_review',
+      createdAt: '2026-08-07T00:00:00.000Z',
+      updatedAt: '2026-08-07T00:00:00.000Z',
+      pages: [
+        {
+          pageNumber: 1,
+          nativeText: '',
+          markdown: 'Pending body must not be committed.',
+          accepted: false,
+          status: 'pending',
+          engine: 'anydoc',
+        },
+      ],
+    };
+
+    const result = await commitJob(config, job);
+    const markdown = await readFile(result.markdownPath, 'utf8');
+
+    expect(markdown).toContain('[[OCR PENDING: page 1]]');
+    expect(markdown).not.toContain('Pending body must not be committed.');
+    expect(existsSync(sourceFilePath)).toBe(true);
+    expect(result.movedSourcePdf).toBe(false);
+    expect(result.processedPdfPath).toBeNull();
+    expect(
+      existsSync(path.join(config.inboxPath, 'processed', 'pending.docx')),
+    ).toBe(false);
+    expect(
+      existsSync(path.join(path.dirname(result.markdownPath), 'images')),
+    ).toBe(false);
+  });
+});

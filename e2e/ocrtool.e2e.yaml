@@ -1,0 +1,9 @@
+inboxPath: ./e2e/.runtime/inbox
+jobStorePath: ./e2e/.runtime/jobs
+defaultEngine: tesseract
+nativeTextMinChars: 1
+textExtractionMode: auto
+engines:
+  tesseract:
+    kind: tesseract
+    lang: eng

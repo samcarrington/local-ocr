@@ -1,6 +1,9 @@
 {
   "root": true,
   "$schema": "https://biomejs.dev/schemas/2.5.7/schema.json",
+  "files": {
+    "ignore": [".nuxt/**", ".output/**", "dist/**"]
+  },
   "linter": {
     "enabled": true
   },

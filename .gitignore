@@ -7,3 +7,7 @@ coverage/
 tessdata/
 .build-cache/
 .serena/
+.nuxt/
+.output/
+e2e/.runtime/
+.worktrees/

@@ -1,7 +1,5 @@
 inboxPath: ./inbox
 jobStorePath: ./.ocrtool/jobs
-host: 127.0.0.1
-port: 4312
 defaultEngine: tesseract
 nativeTextMinChars: 24
 textExtractionMode: auto # auto skips OCR when native text is good; ocr forces rendered-image OCR for every page
@@ -18,8 +16,17 @@ engines:
     model: deepseek-ocr
     chatTimeoutMs: 180000
     maxOutputTokens: 4096
+  # DeepSeek-OCR-2 via a local mlx-vlm OpenAI-compatible server.
+  # Prerequisite: pip install -U mlx-vlm && pnpm serve:mlx-vlm -- --engine deepseek-ocr-vlm
+  # serverHost must stay local (localhost, 127.0.0.1, or ::1). mlx-vlm defaults to port 8080.
+  deepseek-ocr-vlm:
+    kind: deepseek-ocr-vlm
+    serverHost: http://127.0.0.1:8080
+    model: mlx-community/DeepSeek-OCR-2-8bit
+    chatTimeoutMs: 180000
+    maxOutputTokens: 4096
   # GLM-OCR text recognition via a local mlx-vlm OpenAI-compatible server.
-  # Prerequisite: pip install mlx-vlm && npm run serve:glm-ocr
+  # One-command startup: pip install mlx-vlm && pnpm start:glm-ocr
   # serverHost must stay local (localhost, 127.0.0.1, or ::1). mlx-vlm defaults to port 8080.
   glm-ocr:
     kind: glm-ocr
