@@ -26,6 +26,7 @@ type Options = {
   model: string;
   prompt: string;
   corpusDir?: string;
+  caseName?: string;
   outputPath: string;
   timeoutMs: number;
   peakMemoryMb?: number;
@@ -36,12 +37,19 @@ const DEFAULT_PROMPT = 'Convert this document image into clean Markdown. Return 
 async function main(): Promise<void> {
   const options = parseOptions(process.argv.slice(2));
   assertLocalHost(options.serverHost, 'OCR benchmark requires a local server');
-  const cases = options.corpusDir
+  const corpus = options.corpusDir
     ? await readCorpus(options.corpusDir)
     : createSyntheticCorpus();
+  const cases = options.caseName
+    ? corpus.filter((benchmarkCase) => benchmarkCase.name === options.caseName)
+    : corpus;
 
   if (cases.length === 0) {
-    throw new Error('Benchmark corpus contains no .png/.txt pairs.');
+    throw new Error(
+      options.caseName
+        ? `Benchmark corpus does not contain case "${options.caseName}".`
+        : 'Benchmark corpus contains no .png/.txt pairs.',
+    );
   }
 
   const results: BenchmarkResult[] = [];
@@ -255,6 +263,7 @@ function parseOptions(arguments_: string[]): Options {
     model,
     prompt: values.get('prompt') ?? DEFAULT_PROMPT,
     corpusDir: values.get('corpus'),
+    caseName: values.get('case'),
     outputPath: values.get('output') ??
       path.join('benchmark-results', `${safeFileName(model)}.json`),
     timeoutMs,
@@ -278,7 +287,7 @@ function mean(values: number[]): number | null {
 function usage(): string {
   return [
     'Usage: pnpm benchmark:ocr -- --server-host http://127.0.0.1:8080 --model MODEL',
-    'Optional: --corpus DIR --prompt TEXT --output FILE --timeout-ms 180000 --peak-memory-mb 6320',
+    'Optional: --corpus DIR --case NAME --prompt TEXT --output FILE --timeout-ms 180000 --peak-memory-mb 6320',
     'A corpus directory contains matching <name>.png and <name>.txt files.',
   ].join('\n');
 }

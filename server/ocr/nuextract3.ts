@@ -27,6 +27,7 @@ export class Nuextract3OcrAdapter
   implements OcrAdapter
 {
   readonly name = 'nuextract3-ocr';
+  readonly capabilities = { outputFormats: ['markdown'] as const };
 
   constructor(config: Nuextract3OcrEngineConfig) {
     super(config, LOCAL_HOST_ERROR_PREFIX, 'NuExtract3 OCR');

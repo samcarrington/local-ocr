@@ -14,6 +14,7 @@ export class GlmOcrAdapter
   implements OcrAdapter
 {
   readonly name = 'glm-ocr';
+  readonly capabilities = { outputFormats: ['markdown'] as const };
 
   constructor(config: GlmOcrEngineConfig) {
     super(config, LOCAL_HOST_ERROR_PREFIX, 'GLM-OCR');

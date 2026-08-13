@@ -1,10 +1,12 @@
 import type {
   EngineName as SharedEngineName,
+  OcrEngineCapabilities,
   OcrResult,
 } from '../../shared/ocr.js';
 
 export interface OcrAdapter {
   name: EngineName;
+  capabilities?: OcrEngineCapabilities;
   isAvailable(): Promise<boolean>;
   processPage(
     imagePath: string,
@@ -64,6 +66,7 @@ export interface AppConfig {
 export type {
   DraftJob,
   DraftPage,
+  OcrOutputFormat,
   OcrFigure,
   OcrLayoutBlock,
   OcrResult,

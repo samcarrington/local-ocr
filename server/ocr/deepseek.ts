@@ -27,6 +27,7 @@ type OllamaTagsResponse = {
 
 export class DeepseekOcrAdapter implements OcrAdapter {
   readonly name = 'deepseek-ocr';
+  readonly capabilities = { outputFormats: ['markdown'] as const };
 
   constructor(private readonly config: DeepseekOcrEngineConfig) {}
 

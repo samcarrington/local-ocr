@@ -229,11 +229,12 @@ the existing local OpenAI-compatible adapter path. Research use is within the
 user's declared purpose, so the model's modified OpenRAIL-M licence is not a
 blocker for this evaluation.
 
-The local `mlx_vlm.server` smoke test is complete: the model loaded, appeared
-at `/v1/models`, and returned structured OCR content from a loopback image
-chat-completions request, reporting 6.32 GB peak memory. Do not add a Chandra
-adapter until a representative corpus measures memory, latency, failure rate,
-and Markdown fidelity against the existing engines.
+The local `mlx_vlm.server` compatibility smoke test loaded the model, listed it
+at `/v1/models`, and once returned structured OCR content, reporting 6.32 GB
+peak memory. A later fresh-server benchmark run timed out after 90 seconds on
+a single simple image, so Chandra is deferred as an application engine. Retain
+the loopback-only benchmark harness for a future compatible mlx-vlm release or
+MLX model; do not add its configuration, adapter, selector, or launch support.
 
 ### 6. Migrate DeepSeek OCR from Ollama to mlx-vlm
 
@@ -282,6 +283,16 @@ safety rules are clear.
 
 **Exit criteria:** users can review and save only formats actually supported
 by the selected engine, while HTML and assets remain safe and local.
+
+#### Recorded implementation status (2026-08-13)
+
+The shared contract now recognises `markdown`, `json`, and `html`; each
+currently configured engine explicitly advertises Markdown only. Draft storage
+persists the selected format and supported formats, commits record
+`output_format` provenance, and the reviewer displays only an engine's
+advertised formats. JSON and HTML are deliberately not synthesised from
+Markdown and remain unavailable until an engine provides a trustworthy native
+format path with the required validation or sanitisation.
 
 ## P3: Documentation and polish
 

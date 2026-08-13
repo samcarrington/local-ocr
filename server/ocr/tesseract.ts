@@ -23,6 +23,7 @@ interface ValidatedTrainedData {
 
 export class TesseractOcrAdapter implements OcrAdapter {
   readonly name = 'tesseract';
+  readonly capabilities = { outputFormats: ['markdown'] as const };
 
   constructor(private readonly config: TesseractEngineConfig) {}
 

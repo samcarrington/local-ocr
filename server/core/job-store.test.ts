@@ -52,6 +52,8 @@ function makeJob(id: string): DraftJob {
         imagePath: `/tmp/${id}-1.png`,
         nativeText: '',
         markdown: `# ${id}`,
+        outputFormat: 'markdown',
+        availableOutputFormats: ['markdown'],
         accepted: true,
         status: 'accepted',
         engine: 'tesseract',
@@ -133,6 +135,8 @@ describe('job store', () => {
 
     expect(loaded?.kind).toBe('pdf-pages');
     expect(loaded?.sourceFilePath).toBe(job.sourceFilePath);
+    expect(loaded?.pages[0]?.outputFormat).toBe('markdown');
+    expect(loaded?.pages[0]?.availableOutputFormats).toEqual(['markdown']);
   });
 
   it('normalizes legacy jobs when listing', async () => {
