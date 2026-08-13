@@ -199,15 +199,24 @@ supporting multiple expensive local models.
   repository. `pnpm benchmark:ocr` provides a loopback-only OpenAI-compatible
   harness with a synthetic sanity corpus; use `--corpus` with paired
   `<name>.png` and `<name>.txt` files for the distributable comparison corpus.
+  The actual comparison corpus must explicitly identify which fixture covers
+  each category and distinguish generated sanity cases from representative
+  evaluation cases.
 - Compare Chandra's supported serving interface with the existing
   mlx-vlm/OpenAI-compatible contract. Record Apple-Silicon memory, latency,
-  failure rate, and Markdown fidelity alongside Tesseract, GLM-OCR, and
-  NuExtract3.
-- If Chandra meets the agreed threshold, add its schema/type, adapter,
+  failure rate, Markdown fidelity, and a qualitative review of tables,
+  columns, figures, and handwriting alongside Tesseract, GLM-OCR, and
+  NuExtract3. Publish the inputs, prompts, model identifiers, and raw outputs
+  needed to reproduce each comparison.
+- Do not auto-adopt against an arbitrary numeric threshold. Review the
+  comparative evidence after every required corpus category has run and then
+  record a keep/defer decision. The rejected alternative is promoting Chandra
+  from a single compatibility smoke test or a synthetic-only score.
+- If the recorded decision is to keep Chandra, add its schema/type, adapter,
   registry entry, service validation, selector option, example configuration,
   local launch script, README instructions, unit tests, and an opt-in e2e
-  smoke procedure. If it does not, retain benchmark evidence and do not add a
-  maintenance burden.
+  smoke procedure. If the decision is to defer, retain benchmark evidence and
+  do not add a maintenance burden.
 
 **Exit criteria:** a clearly documented keep/defer decision, and each adopted
 engine follows the full configuration-to-UI-to-test integration path.
