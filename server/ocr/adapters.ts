@@ -1,6 +1,7 @@
 import { getEngineConfig } from '../core/config.js';
 import type { AppConfig, EngineName, OcrAdapter } from '../core/types.js';
 import { DeepseekOcrAdapter } from './deepseek.js';
+import { DeepseekOcrVlmAdapter } from './deepseek-vlm.js';
 import { GlmOcrAdapter } from './glm-ocr.js';
 import { Nuextract3OcrAdapter } from './nuextract3.js';
 import { TesseractOcrAdapter } from './tesseract.js';
@@ -24,6 +25,14 @@ export function createOcrAdapterRegistry(
   const deepseekConfig = getEngineConfig(config, 'deepseek-ocr');
   if (deepseekConfig) {
     adapters.set('deepseek-ocr', new DeepseekOcrAdapter(deepseekConfig));
+  }
+
+  const deepseekVlmConfig = getEngineConfig(config, 'deepseek-ocr-vlm');
+  if (deepseekVlmConfig) {
+    adapters.set(
+      'deepseek-ocr-vlm',
+      new DeepseekOcrVlmAdapter(deepseekVlmConfig),
+    );
   }
 
   const nuextract3Config = getEngineConfig(config, 'nuextract3-ocr');

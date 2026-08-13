@@ -1,7 +1,3 @@
-/**
- * Launch a local mlx-vlm OpenAI-compatible server serving GLM-OCR for the
- * `glm-ocr` engine. Run via `pnpm serve:glm-ocr`.
- */
 import { spawn } from 'node:child_process';
 import process from 'node:process';
 
@@ -12,11 +8,17 @@ import {
   normalizeBindHost,
 } from '../server/ocr/local-host.js';
 
-const DEFAULT_SERVER_HOST = 'http://127.0.0.1:8080';
-const DEFAULT_MODEL = 'mlx-community/GLM-OCR-bf16';
 const DEFAULT_PORT = 8080;
+const MLX_ENGINE_NAMES = [
+  'deepseek-ocr-vlm',
+  'glm-ocr',
+  'nuextract3-ocr',
+] as const;
+
+type MlxEngineName = (typeof MLX_ENGINE_NAMES)[number];
 
 interface CliArgs {
+  engine?: MlxEngineName;
   configPath?: string;
   model?: string;
   host?: string;
@@ -25,6 +27,26 @@ interface CliArgs {
   dryRun: boolean;
   help: boolean;
 }
+
+const HELP = `Launch a local mlx-vlm OpenAI-compatible server for a configured OCR engine.
+
+Usage: pnpm serve:mlx-vlm -- --engine <engine> [options]
+
+Engines:
+  deepseek-ocr-vlm
+  glm-ocr
+  nuextract3-ocr
+
+Options:
+  --engine <name>   Configured MLX OCR engine to serve (required)
+  --config <path>   Config file to read (default: ocrtool.config.yaml)
+  --model <id>      Override the model configured for the engine
+  --host <host>     Override the configured loopback bind host
+  --port <port>     Override the configured bind port
+  --python <bin>    Python executable (default: $PYTHON or python3)
+  --dry-run         Print the resolved command without launching
+  -h, --help        Show this help
+`;
 
 function parseArgs(argv: string[]): CliArgs {
   const args: CliArgs = { dryRun: false, help: false };
@@ -41,6 +63,11 @@ function parseArgs(argv: string[]): CliArgs {
     };
 
     switch (flag) {
+      case '--':
+        break;
+      case '--engine':
+        args.engine = parseEngine(readValue());
+        break;
       case '--config':
         args.configPath = readValue();
         break;
@@ -72,6 +99,15 @@ function parseArgs(argv: string[]): CliArgs {
   return args;
 }
 
+function parseEngine(value: string): MlxEngineName {
+  if ((MLX_ENGINE_NAMES as readonly string[]).includes(value)) {
+    return value as MlxEngineName;
+  }
+  throw new Error(
+    `Unsupported MLX engine "${value}". Use one of: ${MLX_ENGINE_NAMES.join(', ')}`,
+  );
+}
+
 function parsePort(value: string): number {
   const port = Number.parseInt(value, 10);
   if (!Number.isInteger(port) || port < 1 || port > 65535) {
@@ -80,42 +116,15 @@ function parsePort(value: string): number {
   return port;
 }
 
-const HELP = `Launch a local mlx-vlm server serving GLM-OCR for the glm-ocr engine.
-
-Usage: pnpm serve:glm-ocr -- [options]
-
-Options:
-  --config <path>   Config file to read defaults from (default: ocrtool.config.yaml)
-  --model <id>      Model id to serve (default: glm-ocr.model or ${DEFAULT_MODEL})
-  --host <host>     Bind host, must be loopback (default: from glm-ocr.serverHost)
-  --port <port>     Bind port (default: from glm-ocr.serverHost or ${DEFAULT_PORT})
-  --python <bin>    Python executable (default: $PYTHON or python3)
-  --dry-run         Print the resolved command without launching
-  -h, --help        Show this help
-`;
-
-function resolveServerHost(configPath?: string): string {
-  try {
-    const config = loadConfig(configPath);
-    return getEngineConfig(config, 'glm-ocr')?.serverHost ?? DEFAULT_SERVER_HOST;
-  } catch (error) {
-    if (configPath) {
-      throw error;
-    }
-    return DEFAULT_SERVER_HOST;
+function resolveEngineConfig(engine: MlxEngineName, configPath?: string) {
+  const config = loadConfig(configPath);
+  const engineConfig = getEngineConfig(config, engine);
+  if (!engineConfig) {
+    throw new Error(
+      `Configure engines.${engine} before starting its mlx-vlm server.`,
+    );
   }
-}
-
-function resolveModel(configPath: string | undefined, override?: string): string {
-  if (override) {
-    return override;
-  }
-  try {
-    const config = loadConfig(configPath);
-    return getEngineConfig(config, 'glm-ocr')?.model ?? DEFAULT_MODEL;
-  } catch {
-    return DEFAULT_MODEL;
-  }
+  return engineConfig;
 }
 
 function main(): void {
@@ -125,37 +134,50 @@ function main(): void {
     process.stdout.write(HELP);
     return;
   }
+  if (!args.engine) {
+    throw new Error('--engine is required. Run with --help for supported engines.');
+  }
 
-  const serverHost = resolveServerHost(args.configPath);
-  const parsed = new URL(serverHost);
+  const config = resolveEngineConfig(args.engine, args.configPath);
+  const parsed = new URL(config.serverHost);
   const host = normalizeBindHost(args.host ?? parsed.hostname);
   const port = args.port ?? (parsed.port ? parsePort(parsed.port) : DEFAULT_PORT);
-  const model = resolveModel(args.configPath, args.model);
+  const model = args.model ?? config.model;
   const python = args.python ?? process.env.PYTHON ?? 'python3';
-
   const localServerUrl = formatHttpHost(host, port);
 
   if (!isLocalHost(localServerUrl)) {
-    process.stderr.write(`Refusing to bind non-local host "${host}". Use localhost, 127.0.0.1, or ::1.\n`);
+    process.stderr.write(
+      `Refusing to bind non-local host "${host}". Use localhost, 127.0.0.1, or ::1.\n`,
+    );
     process.exit(1);
   }
 
-  const serverArgs = ['-m', 'mlx_vlm.server', '--host', host, '--port', String(port), '--model', model];
+  const serverArgs = [
+    '-m',
+    'mlx_vlm.server',
+    '--host',
+    host,
+    '--port',
+    String(port),
+    '--model',
+    model,
+  ];
 
   if (args.dryRun) {
     process.stdout.write(`${python} ${serverArgs.join(' ')}\n`);
     return;
   }
 
-  process.stderr.write(`Starting mlx-vlm server: ${model} on ${localServerUrl}\n`);
-
+  process.stderr.write(
+    `Starting mlx-vlm server: ${model} on ${localServerUrl}\n`,
+  );
   const child = spawn(python, serverArgs, { stdio: 'inherit' });
 
   child.on('error', (error: NodeJS.ErrnoException) => {
     if (error.code === 'ENOENT') {
       process.stderr.write(
-        `Could not run "${python}". Install Python 3 and mlx-vlm (pip install mlx-vlm), ` +
-          `or pass --python <bin>.\n`
+        `Could not run "${python}". Install Python 3 and mlx-vlm (pip install -U mlx-vlm), or pass --python <bin>.\n`,
       );
     } else {
       process.stderr.write(`Failed to start mlx-vlm server: ${error.message}\n`);
@@ -175,6 +197,8 @@ function main(): void {
 try {
   main();
 } catch (error) {
-  process.stderr.write(`${error instanceof Error ? error.message : String(error)}\n`);
+  process.stderr.write(
+    `${error instanceof Error ? error.message : String(error)}\n`,
+  );
   process.exit(1);
 }

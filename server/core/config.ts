@@ -27,6 +27,16 @@ const deepseekEngineSchema = z
   })
   .strict();
 
+const deepseekVlmEngineSchema = z
+  .object({
+    kind: z.literal('deepseek-ocr-vlm'),
+    serverHost: z.string().min(1).default('http://127.0.0.1:8080'),
+    model: z.string().min(1).default('mlx-community/DeepSeek-OCR-2-8bit'),
+    chatTimeoutMs: z.number().int().min(1_000).default(180_000),
+    maxOutputTokens: z.number().int().min(128).max(16_384).default(4096),
+  })
+  .strict();
+
 const glmEngineSchema = z
   .object({
     kind: z.literal('glm-ocr'),
@@ -51,6 +61,7 @@ const enginesSchema = z
   .object({
     tesseract: tesseractEngineSchema.optional(),
     'deepseek-ocr': deepseekEngineSchema.optional(),
+    'deepseek-ocr-vlm': deepseekVlmEngineSchema.optional(),
     'glm-ocr': glmEngineSchema.optional(),
     'nuextract3-ocr': nuextract3EngineSchema.optional(),
   })
@@ -67,7 +78,13 @@ const rawConfigSchema = z
     inboxPath: z.string().min(1).default('./inbox'),
     jobStorePath: z.string().min(1).default('./.ocrtool/jobs'),
     defaultEngine: z
-      .enum(['tesseract', 'deepseek-ocr', 'glm-ocr', 'nuextract3-ocr'])
+      .enum([
+        'tesseract',
+        'deepseek-ocr',
+        'deepseek-ocr-vlm',
+        'glm-ocr',
+        'nuextract3-ocr',
+      ])
       .default('tesseract'),
     nativeTextMinChars: z.number().int().min(0).default(24),
     textExtractionMode: z.enum(['auto', 'ocr']).default('auto'),

@@ -40,17 +40,17 @@ accepting every page moves it to `inbox/processed/`.
 2. Edit paths if needed.
    - `engines.tesseract.trainedDataPath` must point at local Tesseract `*.traineddata` files.
    - `engines.deepseek-ocr.ollamaHost` must stay local (`localhost`, `127.0.0.1`, or `::1`).
-   - `engines.glm-ocr.serverHost` and `engines.nuextract3-ocr.serverHost` must stay local (`localhost`, `127.0.0.1`, or `::1`).
+   - `engines.deepseek-ocr-vlm.serverHost`, `engines.glm-ocr.serverHost`, and `engines.nuextract3-ocr.serverHost` must stay local (`localhost`, `127.0.0.1`, or `::1`).
 3. Install deps:
 
    ```bash
    pnpm install
    ```
 
-4. Start the Nitro server:
+4. Start the Nitro server and mlx-vlm GLM-OCR server with the one-command launcher:
 
    ```bash
-   pnpm dev
+   pnpm start:glm-ocr
    ```
 
 5. Open `http://127.0.0.1:3000` (or the value of `NITRO_PORT`).
@@ -75,6 +75,12 @@ engines:
     model: deepseek-ocr
     chatTimeoutMs: 180000
     maxOutputTokens: 4096
+  deepseek-ocr-vlm:
+    kind: deepseek-ocr-vlm
+    serverHost: http://127.0.0.1:8080
+    model: mlx-community/DeepSeek-OCR-2-8bit
+    chatTimeoutMs: 180000
+    maxOutputTokens: 4096
   glm-ocr:
     kind: glm-ocr
     serverHost: http://127.0.0.1:8080
@@ -96,7 +102,28 @@ one deprecation warning per process for this release.
 
 - Tesseract adapter does not download language assets. Put `eng.traineddata` (or chosen language file) in `trainedDataPath` first.
 - DeepSeek adapter rejects non-local Ollama hosts before any image leaves process.
-- GLM-OCR and NuExtract3 adapters reject non-local mlx-vlm hosts before any image leaves process.
+- DeepSeek-OCR-2 VLM, GLM-OCR, and NuExtract3 adapters reject non-local mlx-vlm hosts before any image leaves process.
+
+### DeepSeek-OCR-2 VLM
+
+`deepseek-ocr-vlm` is a separate experimental engine from the legacy
+Ollama-backed `deepseek-ocr` adapter. It serves
+`mlx-community/DeepSeek-OCR-2-8bit` through mlx-vlm's local
+OpenAI-compatible API, so both paths remain available for comparison.
+
+```bash
+pip install -U mlx-vlm
+pnpm serve:mlx-vlm -- --engine deepseek-ocr-vlm
+```
+
+The launcher reads the `deepseek-ocr-vlm` model, host, and port from the OCR
+configuration, refuses non-loopback binds, and supports the same overrides as
+the other MLX launchers:
+
+```bash
+pnpm serve:mlx-vlm -- --engine deepseek-ocr-vlm --model mlx-community/DeepSeek-OCR-2-8bit --port 8080
+pnpm serve:mlx-vlm -- --engine deepseek-ocr-vlm --dry-run
+```
 
 ## Output formats
 
@@ -126,12 +153,12 @@ Document-kind jobs write to `inbox/<name>--<ext>/<name>--<ext>.md`. For example,
 
 ### `glm-ocr` config keys
 
-| Key | Default | Notes |
-|-----|---------|-------|
-| `serverHost` | `http://127.0.0.1:8080` | Local mlx-vlm server base URL. Must be loopback. mlx-vlm defaults to port `8080`. |
-| `model` | `mlx-community/GLM-OCR-bf16` | Model id as loaded by the server; must match `--model`. |
-| `chatTimeoutMs` | `180000` | Per-page request timeout. |
-| `maxOutputTokens` | `4096` | Maps to OpenAI `max_tokens`. |
+| Key               | Default                      | Notes                                                                             |
+| ----------------- | ---------------------------- | --------------------------------------------------------------------------------- |
+| `serverHost`      | `http://127.0.0.1:8080`      | Local mlx-vlm server base URL. Must be loopback. mlx-vlm defaults to port `8080`. |
+| `model`           | `mlx-community/GLM-OCR-bf16` | Model id as loaded by the server; must match `--model`.                           |
+| `chatTimeoutMs`   | `180000`                     | Per-page request timeout.                                                         |
+| `maxOutputTokens` | `4096`                       | Maps to OpenAI `max_tokens`.                                                      |
 
 ### GLM-OCR one-command local startup
 
@@ -171,13 +198,13 @@ Manual smoke procedure:
    review job, select `glm-ocr`, and rerun a page.
 3. Press `Ctrl-C`; the mlx-vlm and Nuxt processes should both stop.
 
-`pnpm serve:glm-ocr` remains available when only the local model server is
-needed. It reads the `glm-ocr` model, host, and port from your config (falling
-back to defaults) and refuses non-loopback binds. Options:
+`pnpm serve:mlx-vlm -- --engine glm-ocr` starts only the local model server.
+It reads the selected engine's model, host, and port from your configuration
+and refuses non-loopback binds. Options:
 
 ```bash
-pnpm serve:glm-ocr -- --model mlx-community/GLM-OCR-bf16 --port 8080
-pnpm serve:glm-ocr -- --dry-run
+pnpm serve:mlx-vlm -- --engine glm-ocr --model mlx-community/GLM-OCR-bf16 --port 8080
+pnpm serve:mlx-vlm -- --engine glm-ocr --dry-run
 ```
 
 Set `PYTHON` (or `--python`) if mlx-vlm lives in a virtualenv whose interpreter is not `python3`. Equivalent manual command: `python -m mlx_vlm.server --model mlx-community/GLM-OCR-bf16 --host 127.0.0.1 --port 8080`.
@@ -186,12 +213,12 @@ The adapter probes `GET {serverHost}/v1/models` and posts page image data URLs t
 
 ### `nuextract3-ocr` config keys
 
-| Key | Default | Notes |
-|-----|---------|-------|
-| `serverHost` | `http://127.0.0.1:8080` | Local mlx-vlm server base URL. Must be loopback. mlx-vlm defaults to port `8080`. |
-| `model` | `numind/NuExtract3-mlx-nvfp4` | Model id as loaded by the server; must match `--model`. |
-| `chatTimeoutMs` | `180000` | Per-page request timeout. |
-| `maxOutputTokens` | `4096` | Maps to OpenAI `max_tokens`. |
+| Key               | Default                       | Notes                                                                             |
+| ----------------- | ----------------------------- | --------------------------------------------------------------------------------- |
+| `serverHost`      | `http://127.0.0.1:8080`       | Local mlx-vlm server base URL. Must be loopback. mlx-vlm defaults to port `8080`. |
+| `model`           | `numind/NuExtract3-mlx-nvfp4` | Model id as loaded by the server; must match `--model`.                           |
+| `chatTimeoutMs`   | `180000`                      | Per-page request timeout.                                                         |
+| `maxOutputTokens` | `4096`                        | Maps to OpenAI `max_tokens`.                                                      |
 
 ### NuExtract3 (mlx-vlm) prerequisite
 
@@ -199,16 +226,18 @@ The `nuextract3-ocr` engine targets a local [mlx-vlm](https://github.com/Blaizzy
 
 ```bash
 pip install mlx-vlm
-pnpm serve:nuextract3
+pnpm serve:mlx-vlm -- --engine nuextract3-ocr
 ```
 
-`pnpm serve:nuextract3` reads the `nuextract3-ocr` model, host, and port from your config (falling back to defaults) and runs `python -m mlx_vlm.server` accordingly, so the server and app stay in sync. Options:
+`pnpm serve:mlx-vlm -- --engine nuextract3-ocr` reads the selected engine's
+model, host, and port from your config and runs `python -m mlx_vlm.server`
+accordingly, so the server and app stay in sync. Options:
 
 ```bash
 # Override per invocation (see all flags with --help)
-pnpm serve:nuextract3 -- --model numind/NuExtract3-mlx-nvfp4 --port 8080
+pnpm serve:mlx-vlm -- --engine nuextract3-ocr --model numind/NuExtract3-mlx-nvfp4 --port 8080
 # Print the resolved command without launching
-pnpm serve:nuextract3 -- --dry-run
+pnpm serve:mlx-vlm -- --engine nuextract3-ocr --dry-run
 ```
 
 Set `PYTHON` (or `--python`) if mlx-vlm lives in a virtualenv whose interpreter is not `python3`. The equivalent manual command is `python -m mlx_vlm.server --model numind/NuExtract3-mlx-nvfp4 --host 127.0.0.1 --port 8080`.
@@ -289,8 +318,7 @@ Server stays local-only by config. Allowed bind hosts: `127.0.0.1`, `localhost`,
 - `pnpm build:nuxt` — build the production Nuxt/Nitro server.
 - `pnpm start` — run the built Nuxt/Nitro server.
 - `pnpm start:glm-ocr` — start the configured loopback GLM-OCR mlx-vlm server, wait for it, then start local Nuxt.
-- `pnpm serve:nuextract3` — start the local mlx-vlm server for the `nuextract3-ocr` engine (`-- --help` for options).
-- `pnpm serve:glm-ocr` — start the local mlx-vlm server for the `glm-ocr` engine (`-- --help` for options).
+- `pnpm serve:mlx-vlm -- --engine <engine>` — start the local mlx-vlm server for `deepseek-ocr-vlm`, `glm-ocr`, or `nuextract3-ocr` (`-- --help` for options).
 - `pnpm test` — run Vitest and architecture checks.
 - `pnpm test:coverage` — write separate app and server V8 coverage reports to
   `coverage/app/` and `coverage/server/`.

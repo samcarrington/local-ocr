@@ -58,6 +58,7 @@ const availableOutputFormats = computed(() => page.value?.availableOutputFormats
         <select :value="selectedEngine" :disabled="busy" @change="emit('selectEngine', ($event.target as HTMLSelectElement).value)">
           <option value="tesseract">tesseract</option>
           <option value="deepseek-ocr">deepseek-ocr</option>
+          <option value="deepseek-ocr-vlm">deepseek-ocr-vlm</option>
           <option value="glm-ocr">glm-ocr</option>
           <option value="nuextract3-ocr">nuextract3-ocr</option>
         </select>

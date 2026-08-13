@@ -20,6 +20,11 @@ function makeConfig(): AppConfig {
         ollamaHost: 'http://127.0.0.1:11434',
         model: 'deepseek-ocr',
       },
+      'deepseek-ocr-vlm': {
+        kind: 'deepseek-ocr-vlm',
+        serverHost: 'http://127.0.0.1:8080',
+        model: 'mlx-community/DeepSeek-OCR-2-8bit',
+      },
       'glm-ocr': {
         kind: 'glm-ocr',
         serverHost: 'http://127.0.0.1:8080',
@@ -34,11 +39,15 @@ describe('createOcrAdapterRegistry', () => {
     const registry = createOcrAdapterRegistry(makeConfig());
 
     expect(registry.getDefaultAdapter().name).toBe('deepseek-ocr');
+    expect(registry.getAdapter('deepseek-ocr-vlm').name).toBe(
+      'deepseek-ocr-vlm',
+    );
     expect(registry.getAdapter('tesseract').name).toBe('tesseract');
     expect(registry.getAdapter('glm-ocr').name).toBe('glm-ocr');
     expect(registry.listAdapters().map((adapter) => adapter.name)).toEqual([
       'tesseract',
       'deepseek-ocr',
+      'deepseek-ocr-vlm',
       'glm-ocr',
     ]);
   });

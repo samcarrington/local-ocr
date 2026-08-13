@@ -135,6 +135,32 @@ describe('loadConfig', () => {
     });
   });
 
+  it('parses a deepseek-ocr-vlm engine and applies schema defaults', () => {
+    const dir = makeTempDir();
+    const configPath = path.join(dir, DEFAULT_CONFIG_FILE);
+
+    writeFileSync(
+      configPath,
+      [
+        'defaultEngine: deepseek-ocr-vlm',
+        'engines:',
+        '  deepseek-ocr-vlm:',
+        '    kind: deepseek-ocr-vlm',
+      ].join('\n'),
+    );
+
+    const config = loadConfig(configPath);
+
+    expect(config.defaultEngine).toBe('deepseek-ocr-vlm');
+    expect(config.engines['deepseek-ocr-vlm']).toEqual({
+      kind: 'deepseek-ocr-vlm',
+      serverHost: 'http://127.0.0.1:8080',
+      model: 'mlx-community/DeepSeek-OCR-2-8bit',
+      chatTimeoutMs: 180000,
+      maxOutputTokens: 4096,
+    });
+  });
+
   it('parses a glm-ocr engine and applies schema defaults', () => {
     const dir = makeTempDir();
     const configPath = path.join(dir, DEFAULT_CONFIG_FILE);
@@ -175,6 +201,13 @@ describe('loadConfig', () => {
     expect(config.engines['deepseek-ocr']).toMatchObject({
       kind: 'deepseek-ocr',
       model: 'deepseek-ocr',
+      chatTimeoutMs: 180000,
+      maxOutputTokens: 4096,
+    });
+    expect(config.engines['deepseek-ocr-vlm']).toMatchObject({
+      kind: 'deepseek-ocr-vlm',
+      serverHost: 'http://127.0.0.1:8080',
+      model: 'mlx-community/DeepSeek-OCR-2-8bit',
       chatTimeoutMs: 180000,
       maxOutputTokens: 4096,
     });

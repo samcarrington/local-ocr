@@ -30,6 +30,14 @@ export interface DeepseekOcrEngineConfig {
   maxOutputTokens?: number;
 }
 
+export interface DeepseekOcrVlmEngineConfig {
+  kind: 'deepseek-ocr-vlm';
+  serverHost: string;
+  model: string;
+  chatTimeoutMs?: number;
+  maxOutputTokens?: number;
+}
+
 export interface GlmOcrEngineConfig {
   kind: 'glm-ocr';
   serverHost: string;
@@ -49,6 +57,7 @@ export interface Nuextract3OcrEngineConfig {
 export type EngineConfig =
   | TesseractEngineConfig
   | DeepseekOcrEngineConfig
+  | DeepseekOcrVlmEngineConfig
   | GlmOcrEngineConfig
   | Nuextract3OcrEngineConfig;
 

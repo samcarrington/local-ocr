@@ -1,6 +1,7 @@
 export type EngineName =
   | 'tesseract'
   | 'deepseek-ocr'
+  | 'deepseek-ocr-vlm'
   | 'glm-ocr'
   | 'nuextract3-ocr';
 

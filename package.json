@@ -20,8 +20,7 @@
     "test:e2e": "playwright test",
     "check:architecture": "node scripts/check-server-boundaries.mjs",
     "setup:tesseract": "node scripts/download-tessdata.mjs eng ./tessdata",
-    "serve:nuextract3": "tsx scripts/serve-nuextract3.ts",
-    "serve:glm-ocr": "tsx scripts/serve-glm-ocr.ts",
+    "serve:mlx-vlm": "tsx scripts/serve-mlx-vlm.ts",
     "start:glm-ocr": "tsx scripts/start-glm-ocr.ts",
     "benchmark:ocr": "tsx scripts/benchmark-ocr.ts"
   },
