@@ -20,7 +20,8 @@
 | P2 DeepSeek mlx-vlm assessment | done (deferred) | `6bdf672`; model loads but image inference fails in mlx-vlm continuous batching with a GPU stream error |
 | P2 Chandra benchmark | done (deferred) | `DECISION-20260813-085330-372164`; fresh Chandra mlx-vlm server timed out on a simple OCR case |
 | P2 structured and HTML output formats | done (capability-gated) | `f0ba10a`; Markdown-only current-engine path, with JSON/HTML deferred until an engine natively supports them |
-| P3 documentation and UI polish | not-started | Depends on the engine and output-format decisions |
+| P3 documentation | done | README refresh on `feature/todo-p3-documentation` documents architecture, configuration, local-only guarantees, formats, recovery, coverage, and benchmarking |
+| P3 UI polish | not-started | Contained visual work remains separate from completed documentation |
 
 ## Active work: Chandra benchmark
 
