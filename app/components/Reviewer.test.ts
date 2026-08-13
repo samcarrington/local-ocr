@@ -8,6 +8,7 @@ describe('document reviewer layout', () => {
     const stylesheet = readFileSync(path.resolve('app/assets/css/workbench.css'), 'utf8');
 
     expect(component).toContain(`'content-grid--document': isDocument`);
+    expect(component).toContain('Only formats supported by this engine can be selected.');
     expect(stylesheet).toContain('.content-grid--document {\n  grid-template-columns: minmax(0, 1fr);');
   });
 });

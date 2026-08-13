@@ -105,16 +105,47 @@ Document-kind jobs write to `inbox/<name>--<ext>/<name>--<ext>.md`. For example,
 | `chatTimeoutMs` | `180000` | Per-page request timeout. |
 | `maxOutputTokens` | `4096` | Maps to OpenAI `max_tokens`. |
 
-### GLM-OCR (mlx-vlm) prerequisite
+### GLM-OCR one-command local startup
 
-The `glm-ocr` engine targets a local mlx-vlm OpenAI-compatible server with `mlx-community/GLM-OCR-bf16`. Install mlx-vlm, then start the server before selecting the engine:
+The supported P0 native launcher starts the local mlx-vlm GLM-OCR server,
+waits until its OpenAI-compatible `GET /v1/models` endpoint reports the model
+configured in the same OCR YAML file, and then starts Nuxt.
+
+Prerequisites:
+
+- Node `>=24 <25`, pnpm `11.9.0`, and project dependencies (`pnpm install`).
+- Python 3 with `mlx-vlm` installed in the interpreter selected by `PYTHON`
+  (or `python3` when `PYTHON` is unset).
+- An `engines.glm-ocr` block in `ocrtool.config.yaml` (or the config named by
+  `NUXT_OCRTOOL_CONFIG_PATH`) with a loopback `serverHost` and a model.
 
 ```bash
 pip install mlx-vlm
-pnpm serve:glm-ocr
+pnpm start:glm-ocr
 ```
 
-`pnpm serve:glm-ocr` reads the `glm-ocr` model, host, and port from your config (falling back to defaults) and refuses non-loopback binds. Options:
+The launcher binds Nuxt to `127.0.0.1:3000` by default. Set a different
+loopback `NITRO_HOST` or `NITRO_PORT` when needed:
+
+```bash
+NITRO_PORT=4312 pnpm start:glm-ocr
+```
+
+It fails before startup when Python/mlx-vlm is unavailable or the config is not
+valid for GLM-OCR, and it stops both child processes on `Ctrl-C` or `SIGTERM`.
+It does not download a model or make any hardware-compatibility claim; model
+availability remains the responsibility of mlx-vlm.
+
+Manual smoke procedure:
+
+1. Start the command above and wait for `GLM-OCR is ready. Starting local Nuxt server...`.
+2. Open `http://127.0.0.1:3000` (or the selected `NITRO_PORT`), create a PDF
+   review job, select `glm-ocr`, and rerun a page.
+3. Press `Ctrl-C`; the mlx-vlm and Nuxt processes should both stop.
+
+`pnpm serve:glm-ocr` remains available when only the local model server is
+needed. It reads the `glm-ocr` model, host, and port from your config (falling
+back to defaults) and refuses non-loopback binds. Options:
 
 ```bash
 pnpm serve:glm-ocr -- --model mlx-community/GLM-OCR-bf16 --port 8080
@@ -214,6 +245,7 @@ Server stays local-only by config. Allowed bind hosts: `127.0.0.1`, `localhost`,
 - `pnpm dev` — start the Nuxt development server.
 - `pnpm build:nuxt` — build the production Nuxt/Nitro server.
 - `pnpm start` — run the built Nuxt/Nitro server.
+- `pnpm start:glm-ocr` — start the configured loopback GLM-OCR mlx-vlm server, wait for it, then start local Nuxt.
 - `pnpm serve:nuextract3` — start the local mlx-vlm server for the `nuextract3-ocr` engine (`-- --help` for options).
 - `pnpm serve:glm-ocr` — start the local mlx-vlm server for the `glm-ocr` engine (`-- --help` for options).
 - `pnpm test` — run Vitest and architecture checks.

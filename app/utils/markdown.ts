@@ -1,57 +1,53 @@
-export type MarkdownBlock =
-  | { type: 'paragraph'; text: string }
-  | { type: 'heading'; text: string; level: 1 | 2 | 3 | 4 }
-  | { type: 'list'; items: string[] }
-  | { type: 'code'; text: string };
+import { marked } from 'marked';
 
-export function markdownBlocks(markdown: string | null | undefined): MarkdownBlock[] {
-  const blocks: MarkdownBlock[] = [];
-  const lines = String(markdown ?? '').replace(/\r/g, '').split('\n');
-  let paragraph: string[] = [];
-  let list: string[] = [];
-  let code: string[] | null = null;
+export const markdownSanitiseConfig = {
+  ALLOWED_TAGS: [
+    'a', 'blockquote', 'br', 'code', 'del', 'em', 'h1', 'h2', 'h3', 'h4', 'h5',
+    'h6', 'hr', 'img', 'li', 'ol', 'p', 'pre', 'strong', 'table', 'tbody', 'td',
+    'th', 'thead', 'tr', 'ul',
+  ],
+  ALLOWED_ATTR: ['alt', 'href', 'src', 'title'],
+} as const;
 
-  const flushParagraph = () => {
-    if (paragraph.length) blocks.push({ type: 'paragraph', text: paragraph.join(' ') });
-    paragraph = [];
-  };
-  const flushList = () => {
-    if (list.length) blocks.push({ type: 'list', items: list });
-    list = [];
-  };
-  const flushCode = () => {
-    if (code) blocks.push({ type: 'code', text: code.join('\n') });
-    code = null;
-  };
+export function renderMarkdown(
+  markdown: string | null | undefined,
+  sanitise: (html: string) => string,
+  document: Document,
+): string {
+  const source = String(markdown ?? '').trim();
+  const rendered = source
+    ? marked.parse(source, { async: false, gfm: true, breaks: false })
+    : '<p>(empty markdown)</p>';
+  const template = document.createElement('template');
+  template.innerHTML = sanitise(rendered);
 
-  for (const rawLine of lines) {
-    const line = rawLine.trimEnd();
-    if (line.startsWith('```')) {
-      flushParagraph();
-      flushList();
-      code ? flushCode() : (code = []);
-    } else if (code) {
-      code.push(rawLine);
-    } else if (!line.trim()) {
-      flushParagraph();
-      flushList();
-    } else {
-      const heading = /^(#{1,4})\s+(.*)$/.exec(line);
-      const item = /^[-*]\s+(.*)$/.exec(line);
-      if (heading) {
-        flushParagraph();
-        flushList();
-        blocks.push({ type: 'heading', level: heading[1].length as 1 | 2 | 3 | 4, text: heading[2] });
-      } else if (item) {
-        flushParagraph();
-        list.push(item[1]);
-      } else {
-        paragraph.push(line);
-      }
+  for (const anchor of template.content.querySelectorAll<HTMLAnchorElement>('a[href]')) {
+    if (!isLocalRelativeUrl(anchor.getAttribute('href'), true)) {
+      anchor.removeAttribute('href');
     }
   }
-  flushParagraph();
-  flushList();
-  flushCode();
-  return blocks.length ? blocks : [{ type: 'paragraph', text: '(empty markdown)' }];
+
+  for (const image of template.content.querySelectorAll<HTMLImageElement>('img[src]')) {
+    if (!isLocalRelativeUrl(image.getAttribute('src'), false)) {
+      image.remove();
+    }
+  }
+
+  return template.innerHTML;
+}
+
+function isLocalRelativeUrl(value: string | null, allowFragment: boolean): boolean {
+  if (!value) return false;
+
+  let decoded: string;
+  try {
+    decoded = decodeURIComponent(value).trim();
+  } catch {
+    return false;
+  }
+
+  if (allowFragment && decoded.startsWith('#')) return true;
+
+  return !/^(?:[a-z][a-z\d+.-]*:|[\\/]|\/\/)/i.test(decoded) &&
+    !/[\r\n]/.test(decoded);
 }

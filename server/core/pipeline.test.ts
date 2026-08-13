@@ -140,6 +140,8 @@ describe('createDraftJob', () => {
         imagePath: path.join(rootDir, 'previews', 'page-0001.png'),
         nativeText: 'This page already has enough native text to skip OCR.',
         markdown: 'This page already has enough native text to skip OCR.',
+        outputFormat: 'markdown',
+        availableOutputFormats: ['markdown'],
         accepted: false,
         status: 'pending',
         engine: 'native',
@@ -149,6 +151,8 @@ describe('createDraftJob', () => {
         imagePath: path.join(rootDir, 'previews', 'page-0002.png'),
         nativeText: 'short',
         markdown: 'OCR:page-0002.png',
+        outputFormat: 'markdown',
+        availableOutputFormats: ['markdown'],
         accepted: false,
         status: 'pending',
         engine: 'tesseract',
@@ -168,6 +172,7 @@ describe('createDraftJob', () => {
       ),
     );
     expect(stored.pages[0].engine).toBe('native');
+    expect(stored.pages[0].availableOutputFormats).toEqual(['markdown']);
   });
 
   it('can skip persistence when caller wants draft only', async () => {

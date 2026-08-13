@@ -9,6 +9,8 @@ export interface ReviewPage {
   accepted: boolean;
   status: string;
   markdown: string;
+  outputFormat?: 'markdown' | 'json' | 'html';
+  availableOutputFormats?: Array<'markdown' | 'json' | 'html'>;
   engine: string;
   confidence?: number;
   qualityWarnings?: QualityWarning[];

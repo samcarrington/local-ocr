@@ -77,6 +77,20 @@ promising Compose as the primary startup mechanism.
 **Exit criteria:** Docker has either a verified full-stack Compose path or a
 clear, evidence-backed limitation and supported native alternative.
 
+#### Recorded feasibility outcome (2026-08-12)
+
+Full-stack Compose is deferred for the existing `mlx-vlm` GLM-OCR runtime.
+Docker Desktop documents general container GPU support only for Windows with
+WSL2 and NVIDIA GPUs; it does not provide standard Metal GPU passthrough to
+Linux containers on macOS. MLX's Linux backends are CPU or CUDA, while
+`mlx-vlm` is an MLX-on-Mac runtime. Docker Model Runner's separate
+`llama.cpp`/Metal route is not compatible with the configured GLM-OCR model or
+its `mlx_vlm.server` API.
+
+The native `pnpm start:glm-ocr` launcher is therefore the supported accelerated
+path. A future Docker change may package the application alone or provide a
+CPU fallback, but must not claim equivalent local MLX/Metal OCR support.
+
 ## P1: Reliability, safe rendering, and test baseline
 
 ### 1. Make API errors clearly visible in the client
@@ -145,6 +159,18 @@ promise.
 coverage command reports both projects, critical paths have explicit tests,
 and coverage cannot regress below agreed thresholds.
 
+#### Baseline (2026-08-12)
+
+`pnpm test:coverage` writes text, LCOV, and HTML reports to `coverage/app/`
+and `coverage/server/`. The initial app baseline is 74.82% statements, 56.60%
+branches, 80.00% functions, and 79.54% lines. The server baseline is 76.61%
+statements, 66.43% branches, 73.72% functions, and 85.71% lines.
+
+No ratcheting threshold is set yet: API route, Nitro-plugin, and integration
+orchestration coverage need their explicit workflow tests before a threshold
+would be meaningful. The reports are deliberately local until CI exposes a
+durable report location, so no coverage badge is published.
+
 ## P2: OCR engine capability
 
 ### 4. Create a reusable mlx-vlm OpenAI-compatible engine path
@@ -170,24 +196,55 @@ supporting multiple expensive local models.
 - Define a representative local corpus: scanned text, native-text PDFs,
   tables, multi-column pages, figures, handwriting if relevant, and
   non-English content where required. Keep only distributable fixtures in the
-  repository.
+  repository. `pnpm benchmark:ocr` provides a loopback-only OpenAI-compatible
+  harness with a synthetic sanity corpus; use `--corpus` with paired
+  `<name>.png` and `<name>.txt` files for the distributable comparison corpus.
+  The actual comparison corpus must explicitly identify which fixture covers
+  each category and distinguish generated sanity cases from representative
+  evaluation cases.
 - Compare Chandra's supported serving interface with the existing
   mlx-vlm/OpenAI-compatible contract. Record Apple-Silicon memory, latency,
-  failure rate, and Markdown fidelity alongside Tesseract, GLM-OCR, and
-  NuExtract3.
-- If Chandra meets the agreed threshold, add its schema/type, adapter,
+  failure rate, Markdown fidelity, and a qualitative review of tables,
+  columns, figures, and handwriting alongside Tesseract, GLM-OCR, and
+  NuExtract3. Publish the inputs, prompts, model identifiers, and raw outputs
+  needed to reproduce each comparison.
+- Do not auto-adopt against an arbitrary numeric threshold. Review the
+  comparative evidence after every required corpus category has run and then
+  record a keep/defer decision. The rejected alternative is promoting Chandra
+  from a single compatibility smoke test or a synthetic-only score.
+- If the recorded decision is to keep Chandra, add its schema/type, adapter,
   registry entry, service validation, selector option, example configuration,
   local launch script, README instructions, unit tests, and an opt-in e2e
-  smoke procedure. If it does not, retain benchmark evidence and do not add a
-  maintenance burden.
+  smoke procedure. If the decision is to defer, retain benchmark evidence and
+  do not add a maintenance burden.
 
 **Exit criteria:** a clearly documented keep/defer decision, and each adopted
 engine follows the full configuration-to-UI-to-test integration path.
+
+#### Recorded evaluation outcome (revised 2026-08-13)
+
+`mlx-community/chandra-ocr-2-oQ8` is an MLX Qwen3.5 quantisation with an
+image-aware chat template, making it a viable research benchmark candidate for
+the existing local OpenAI-compatible adapter path. Research use is within the
+user's declared purpose, so the model's modified OpenRAIL-M licence is not a
+blocker for this evaluation.
+
+The local `mlx_vlm.server` compatibility smoke test loaded the model, listed it
+at `/v1/models`, and once returned structured OCR content, reporting 6.32 GB
+peak memory. A later fresh-server benchmark run timed out after 90 seconds on
+a single simple image, so Chandra is deferred as an application engine. Retain
+the loopback-only benchmark harness for a future compatible mlx-vlm release or
+MLX model; do not add its configuration, adapter, selector, or launch support.
 
 ### 6. Migrate DeepSeek OCR from Ollama to mlx-vlm
 
 Treat this as a compatibility migration, not a model-name substitution.
 
+- `mlx-community/DeepSeek-OCR-4bit` loads and is listed by local
+  `mlx_vlm.server`, but its image request currently fails in mlx-vlm continuous
+  batching with `RuntimeError: There is no Stream(gpu, 2) in current thread`.
+  Defer this migration until another server mode/version or MLX model completes
+  an image request through the local OpenAI-compatible endpoint.
 - Confirm that the target DeepSeek model exposes the required mlx-vlm
   serving/API behaviour and benchmark it using the same corpus.
 - Add a dedicated mlx-vlm configuration kind and adapter, retaining
@@ -226,6 +283,16 @@ safety rules are clear.
 
 **Exit criteria:** users can review and save only formats actually supported
 by the selected engine, while HTML and assets remain safe and local.
+
+#### Recorded implementation status (2026-08-13)
+
+The shared contract now recognises `markdown`, `json`, and `html`; each
+currently configured engine explicitly advertises Markdown only. Draft storage
+persists the selected format and supported formats, commits record
+`output_format` provenance, and the reviewer displays only an engine's
+advertised formats. JSON and HTML are deliberately not synthesised from
+Markdown and remain unavailable until an engine provides a trustworthy native
+format path with the required validation or sanitisation.
 
 ## P3: Documentation and polish
 

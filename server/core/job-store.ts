@@ -35,6 +35,8 @@ function serializeJob(job: DraftJob): string {
         imagePath: page.imagePath,
         nativeText: page.nativeText,
         markdown: page.markdown,
+        outputFormat: page.outputFormat,
+        availableOutputFormats: page.availableOutputFormats,
         accepted: page.accepted,
         status: page.status,
         engine: page.engine,
@@ -59,6 +61,17 @@ function normalizeJob(raw: unknown): DraftJob {
 
   if (!('sourceFilePath' in normalized) && 'sourcePdfPath' in normalized) {
     normalized.sourceFilePath = normalized.sourcePdfPath;
+  }
+
+  if (Array.isArray(normalized.pages)) {
+    normalized.pages = normalized.pages.map((rawPage) => {
+      const page = rawPage as Record<string, unknown>;
+      return {
+        ...page,
+        outputFormat: page.outputFormat ?? 'markdown',
+        availableOutputFormats: page.availableOutputFormats ?? ['markdown'],
+      };
+    });
   }
 
   return normalized as unknown as DraftJob;

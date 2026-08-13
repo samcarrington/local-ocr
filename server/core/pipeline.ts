@@ -75,6 +75,8 @@ export async function createDocumentDraftJob(
         pageNumber: 1,
         nativeText: '',
         markdown,
+        outputFormat: 'markdown',
+        availableOutputFormats: ['markdown'],
         accepted: false,
         status: 'pending',
         engine: 'anydoc',
@@ -121,6 +123,8 @@ async function createDraftPage(
       imagePath: extractedPage.previewImagePath,
       nativeText,
       markdown: nativeText,
+      outputFormat: 'markdown',
+      availableOutputFormats: ['markdown'],
       accepted: false,
       status: 'pending',
       engine: 'native',
@@ -140,6 +144,8 @@ async function createDraftPage(
       imagePath: extractedPage.previewImagePath,
       nativeText,
       markdown: `[[OCR FAILED: page ${extractedPage.pageNumber} - ${reason}]]`,
+      outputFormat: 'markdown',
+      availableOutputFormats: supportedOutputFormats(adapter),
       accepted: false,
       status: 'failed',
       engine: adapter.name,
@@ -161,6 +167,8 @@ async function createDraftPage(
     imagePath: extractedPage.previewImagePath,
     nativeText,
     markdown: ocrResult.markdown.trim(),
+    outputFormat: 'markdown',
+    availableOutputFormats: supportedOutputFormats(adapter),
     accepted: false,
     status: 'pending',
     engine: adapter.name,
@@ -168,4 +176,8 @@ async function createDraftPage(
     figures: ocrResult.figures ?? pageFigures,
     layoutBlocks: ocrResult.layoutBlocks,
   };
+}
+
+function supportedOutputFormats(adapter: OcrAdapter): DraftPage['availableOutputFormats'] {
+  return [...(adapter.capabilities?.outputFormats ?? ['markdown'])];
 }

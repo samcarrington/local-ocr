@@ -137,6 +137,7 @@ describe('commitJob', () => {
     expect(await readFile(result.markdownPath, 'utf8')).toBe(`---
 source_file: "report.pdf"
 ocr_engine: "mixed"
+output_format: "markdown"
 converted_at: "2026-07-13T12:34:56.000Z"
 ---
 

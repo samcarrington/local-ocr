@@ -194,6 +194,28 @@ h3 {
   text-align: right;
 }
 
+.error-panel {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-md);
+  align-items: center;
+  margin: var(--space-lg) 0 0;
+  padding: var(--space-md);
+  border: var(--rule-thin) solid var(--color-danger);
+  border-left-width: 4px;
+  border-radius: var(--radius-md);
+  background: var(--color-danger-soft);
+}
+
+.error-panel h2,
+.error-panel p {
+  margin: 0;
+}
+
+.error-panel p + p {
+  margin-top: var(--space-2xs);
+}
+
 .layout {
   display: grid;
   grid-template-columns: minmax(0, 18rem) minmax(0, 1fr);

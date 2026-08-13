@@ -4,6 +4,18 @@ export type EngineName =
   | 'glm-ocr'
   | 'nuextract3-ocr';
 
+export const OUTPUT_FORMATS = ['markdown', 'json', 'html'] as const;
+
+export type OcrOutputFormat = (typeof OUTPUT_FORMATS)[number];
+
+export interface OcrEngineCapabilities {
+  outputFormats: readonly OcrOutputFormat[];
+}
+
+export const MARKDOWN_ONLY_CAPABILITIES: OcrEngineCapabilities = {
+  outputFormats: ['markdown'],
+};
+
 export interface OcrFigure {
   bbox: [number, number, number, number];
   imagePath: string;
@@ -38,6 +50,8 @@ export interface DraftPage {
   imagePath?: string;
   nativeText: string;
   markdown: string;
+  outputFormat?: OcrOutputFormat;
+  availableOutputFormats?: OcrOutputFormat[];
   accepted: boolean;
   status?: 'accepted' | 'pending' | 'failed';
   engine: PageEngineName;

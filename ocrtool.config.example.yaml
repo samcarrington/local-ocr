@@ -17,7 +17,7 @@ engines:
     chatTimeoutMs: 180000
     maxOutputTokens: 4096
   # GLM-OCR text recognition via a local mlx-vlm OpenAI-compatible server.
-  # Prerequisite: pip install mlx-vlm && pnpm serve:glm-ocr
+  # One-command startup: pip install mlx-vlm && pnpm start:glm-ocr
   # serverHost must stay local (localhost, 127.0.0.1, or ::1). mlx-vlm defaults to port 8080.
   glm-ocr:
     kind: glm-ocr

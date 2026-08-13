@@ -6,6 +6,7 @@ import type {
   AppConfig,
   DraftJob,
   DraftPage,
+  OcrOutputFormat,
   OcrFigure,
   PageEngineName,
 } from './types.js';
@@ -50,6 +51,14 @@ function getOcrProvenance(job: DraftJob): PageEngineName | 'mixed' {
   }
 
   return 'mixed';
+}
+
+function getOutputFormatProvenance(job: DraftJob): OcrOutputFormat | 'mixed' {
+  const formats = new Set(
+    job.pages.map((page) => page.outputFormat ?? 'markdown'),
+  );
+
+  return formats.size === 1 ? [...formats][0]! : 'mixed';
 }
 
 function getPageMarkdown(page: DraftPage): string {
@@ -583,6 +592,7 @@ async function copyPageFigures(
 function renderMarkdown(job: DraftJob, convertedAt: string): string {
   const sourceFile = path.basename(job.sourceFilePath);
   const ocrEngine = getOcrProvenance(job);
+  const outputFormat = getOutputFormatProvenance(job);
   const body = job.pages
     .slice()
     .sort((left, right) => left.pageNumber - right.pageNumber)
@@ -603,6 +613,7 @@ function renderMarkdown(job: DraftJob, convertedAt: string): string {
     '---',
     `source_file: ${JSON.stringify(sourceFile)}`,
     `ocr_engine: ${JSON.stringify(ocrEngine)}`,
+    `output_format: ${JSON.stringify(outputFormat)}`,
     `converted_at: ${JSON.stringify(convertedAt)}`,
     '---',
     '',

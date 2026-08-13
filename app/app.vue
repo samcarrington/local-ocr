@@ -9,6 +9,7 @@ const {
   currentPageNumber,
   loading,
   status,
+  error,
   selectedEngine,
   loadInbox,
   startJob,
@@ -19,6 +20,7 @@ const {
   discardCurrentJob,
   movePage,
   selectPage,
+  dismissError,
 } = useOcrReview();
 
 onMounted(() => {
@@ -27,7 +29,7 @@ onMounted(() => {
 </script>
 
 <template>
-  <AppShell :status="status">
+  <AppShell :status="status" :error="error" @dismiss-error="dismissError">
     <template #inbox>
       <InboxList :pdfs="pdfs" :documents="documents" :selected-file="selectedFile" :busy="loading" @refresh="loadInbox"
         @start="startJob" />

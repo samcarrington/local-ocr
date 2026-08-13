@@ -29,6 +29,8 @@ const previewUrl = computed(() =>
     : '',
 );
 const warning = computed(() => page.value?.qualityWarnings?.find((candidate) => candidate.type === 'low-native-coverage'));
+const outputFormat = computed(() => page.value?.outputFormat ?? 'markdown');
+const availableOutputFormats = computed(() => page.value?.availableOutputFormats ?? ['markdown']);
 </script>
 
 <template>
@@ -79,8 +81,15 @@ const warning = computed(() => page.value?.qualityWarnings?.find((candidate) => 
       <section class="markdown-panel" aria-labelledby="markdown-heading">
         <div class="section-header">
           <h3 id="markdown-heading">Current markdown</h3>
-          <p class="muted">Engine {{ page.engine }}</p>
+          <p class="muted">Engine {{ page.engine }} · {{ outputFormat }}</p>
         </div>
+        <label class="field">
+          <span>Output format</span>
+          <select :value="outputFormat" disabled aria-describedby="output-format-help">
+            <option v-for="format in availableOutputFormats" :key="format" :value="format">{{ format }}</option>
+          </select>
+          <small id="output-format-help">Only formats supported by this engine can be selected.</small>
+        </label>
         <section v-if="warning" class="warning-panel" aria-live="polite">
           <h4>Possibly missing from OCR</h4>
           <p class="warning-message">{{ warning.message }}</p>
