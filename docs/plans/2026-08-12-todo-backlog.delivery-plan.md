@@ -196,7 +196,9 @@ supporting multiple expensive local models.
 - Define a representative local corpus: scanned text, native-text PDFs,
   tables, multi-column pages, figures, handwriting if relevant, and
   non-English content where required. Keep only distributable fixtures in the
-  repository.
+  repository. `pnpm benchmark:ocr` provides a loopback-only OpenAI-compatible
+  harness with a synthetic sanity corpus; use `--corpus` with paired
+  `<name>.png` and `<name>.txt` files for the distributable comparison corpus.
 - Compare Chandra's supported serving interface with the existing
   mlx-vlm/OpenAI-compatible contract. Record Apple-Silicon memory, latency,
   failure rate, and Markdown fidelity alongside Tesseract, GLM-OCR, and
