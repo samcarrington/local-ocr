@@ -17,7 +17,7 @@ const HELP = `Start local GLM-OCR and the Nuxt development server.
 Usage: pnpm start:glm-ocr
 
 The launcher reads NUXT_OCRTOOL_CONFIG_PATH (or ocrtool.config.yaml), starts
-the configured loopback mlx-vlm GLM-OCR server, waits for /v1/models to report
+the configured loopback mlx-vlm GLM-OCR server, waits for /health to report
 the configured model, then starts Nuxt on 127.0.0.1:3000 by default.
 
 Environment:
