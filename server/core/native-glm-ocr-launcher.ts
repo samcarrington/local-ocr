@@ -23,7 +23,7 @@ export interface LaunchCommand {
 export interface GlmOcrLaunchPlan {
   model: string;
   modelServerUrl: string;
-  availabilityUrl: string;
+  healthUrl: string;
   modelCommand: LaunchCommand;
   appCommand: LaunchCommand;
   appEnvironment: {
@@ -85,7 +85,7 @@ export function createGlmOcrLaunchPlan(
   return {
     model,
     modelServerUrl,
-    availabilityUrl: new URL('/v1/models', modelServerUrl).toString(),
+    healthUrl: new URL('/health', modelServerUrl).toString(),
     modelCommand: {
       command: python,
       args: [
@@ -151,7 +151,7 @@ export async function waitForGlmOcrReadiness(
   const sleep = options.sleep ?? defaultSleep;
 
   for (let attempt = 1; attempt <= attempts; attempt += 1) {
-    if (await isConfiguredModelAvailable(plan, fetcher, requestTimeoutMs)) {
+    if (await isConfiguredModelLoaded(plan, fetcher, requestTimeoutMs)) {
       return;
     }
 
@@ -210,7 +210,7 @@ function parsePort(value: string, settingName: string): number {
   return port;
 }
 
-async function isConfiguredModelAvailable(
+async function isConfiguredModelLoaded(
   plan: GlmOcrLaunchPlan,
   fetcher: ReadinessFetcher,
   requestTimeoutMs: number,
@@ -219,7 +219,7 @@ async function isConfiguredModelAvailable(
   const timeout = setTimeout(() => controller.abort(), requestTimeoutMs);
 
   try {
-    const response = await fetcher(plan.availabilityUrl, {
+    const response = await fetcher(plan.healthUrl, {
       method: 'GET',
       signal: controller.signal,
     });
@@ -228,7 +228,7 @@ async function isConfiguredModelAvailable(
       return false;
     }
 
-    return containsConfiguredModel(await response.json(), plan.model);
+    return isConfiguredModelLoadedByHealthCheck(await response.json(), plan.model);
   } catch {
     return false;
   } finally {
@@ -236,18 +236,15 @@ async function isConfiguredModelAvailable(
   }
 }
 
-function containsConfiguredModel(payload: unknown, model: string): boolean {
-  if (!isObject(payload) || !Array.isArray(payload.data)) {
+function isConfiguredModelLoadedByHealthCheck(
+  payload: unknown,
+  model: string,
+): boolean {
+  if (!isObject(payload) || typeof payload.loaded_model !== 'string') {
     return false;
   }
 
-  const normalizedModel = model.toLowerCase();
-  return payload.data.some(
-    (candidate) =>
-      isObject(candidate) &&
-      typeof candidate.id === 'string' &&
-      candidate.id.trim().toLowerCase() === normalizedModel,
-  );
+  return payload.loaded_model.trim().toLowerCase() === model.toLowerCase();
 }
 
 function isObject(value: unknown): value is Record<string, unknown> {

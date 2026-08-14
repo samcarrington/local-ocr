@@ -32,7 +32,7 @@ describe('native GLM-OCR launcher', () => {
     });
 
     expect(plan.modelServerUrl).toBe('http://127.0.0.1:8181');
-    expect(plan.availabilityUrl).toBe('http://127.0.0.1:8181/v1/models');
+    expect(plan.healthUrl).toBe('http://127.0.0.1:8181/health');
     expect(plan.modelCommand).toEqual({
       command: 'python-from-venv',
       args: [
@@ -96,16 +96,16 @@ describe('native GLM-OCR launcher', () => {
     ).rejects.toThrow(/Install Python 3 and mlx-vlm/);
   });
 
-  it('waits for the configured model before starting Nuxt', async () => {
+  it('waits for the configured model health check before starting Nuxt', async () => {
     const fetcher = vi
       .fn()
       .mockResolvedValueOnce(
-        new Response(JSON.stringify({ data: [{ id: 'other/model' }] }), {
+        new Response(JSON.stringify({ loaded_model: 'other/model' }), {
           status: 200,
         }),
       )
       .mockResolvedValueOnce(
-        new Response(JSON.stringify({ data: [{ id: 'local/glm-ocr' }] }), {
+        new Response(JSON.stringify({ loaded_model: 'local/glm-ocr' }), {
           status: 200,
         }),
       );
@@ -120,7 +120,7 @@ describe('native GLM-OCR launcher', () => {
 
     expect(fetcher).toHaveBeenCalledTimes(2);
     expect(fetcher).toHaveBeenCalledWith(
-      'http://127.0.0.1:8181/v1/models',
+      'http://127.0.0.1:8181/health',
       expect.objectContaining({ method: 'GET' }),
     );
     expect(sleep).toHaveBeenCalledWith(1_000);
