@@ -51,6 +51,40 @@ function job(imagePath: string): DraftJob {
 }
 
 describe('OCR service', () => {
+  it('rejects collapsed DeepSeek OCR without overwriting the pending page', async () => {
+    const config = await testConfig();
+    const draft = job('/tmp/page.png');
+    draft.pages[0].nativeText = Array.from(
+      { length: 80 },
+      (_, index) => `nativeword${index}`,
+    ).join(' ');
+    draft.pages[0].markdown = 'Existing review text';
+    const saveJob = vi.fn();
+    const adapter = {
+      name: 'deepseek-ocr-vlm' as const,
+      isAvailable: vi.fn(),
+      processPage: vi.fn(async () => ({
+        markdown: draft.pages[0].nativeText.replaceAll(' ', ''),
+      })),
+    };
+    const service = createOcrService(config, {
+      loadJob: vi.fn(async () => draft),
+      saveJob,
+      createAdapterRegistry: () => ({
+        getAdapter: () => adapter,
+      }) as never,
+    });
+
+    await expect(service.rerun('test/job', '1', {
+      engine: 'deepseek-ocr-vlm',
+    })).rejects.toMatchObject({
+      statusCode: 502,
+      message: 'DeepSeek OCR returned text without word boundaries; the page was not changed.',
+    });
+    expect(draft.pages[0].markdown).toBe('Existing review text');
+    expect(saveJob).not.toHaveBeenCalled();
+  });
+
   it('lists only PDF filenames in stable order', async () => {
     const config = await testConfig();
     await mkdir(config.inboxPath);

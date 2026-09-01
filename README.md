@@ -119,7 +119,12 @@ when calling mlx-vlm from Python. The reproducible investigation, script, and
 after-action report are in
 [`docs/deepseek-ocr-investigation/`](docs/deepseek-ocr-investigation/).
 The protocol-fallback path passed the IDE end-to-end review flow. The legacy
-Ollama adapter remains available for comparison and recovery.
+Ollama adapter remains available for comparison and recovery. The bundled
+launcher also applies a DeepSeek-only host-memory tensor handoff before
+mlx-vlm's continuous-batching GPU thread, preventing MLX's cross-thread stream
+failure while leaving other models on the upstream server path. The shared
+server has been smoke-tested with DeepSeek, NuExtract3, and a subsequent
+DeepSeek reload.
 
 ```bash
 pip install -U mlx-vlm
@@ -128,7 +133,9 @@ pnpm serve:mlx-vlm -- --engine deepseek-ocr-vlm
 
 The launcher reads the `deepseek-ocr-vlm` model, host, and port from the OCR
 configuration, refuses non-loopback binds, and supports the same overrides as
-the other MLX launchers:
+the other MLX launchers. One running mlx-vlm process can serve DeepSeek and
+NuExtract3 requests on the same port; upstream mlx-vlm keeps one
+text-generation model active at a time and switches it on demand.
 
 ```bash
 pnpm serve:mlx-vlm -- --engine deepseek-ocr-vlm --model mlx-community/DeepSeek-OCR-2-8bit --port 8080

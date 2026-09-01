@@ -154,8 +154,7 @@ function main(): void {
   }
 
   const serverArgs = [
-    '-m',
-    'mlx_vlm.server',
+    'scripts/mlx-vlm-server.py',
     '--host',
     host,
     '--port',

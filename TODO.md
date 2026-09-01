@@ -6,7 +6,7 @@
 - [x] Migrate the application to Nuxt/Nitro and Vue
 - [ ] [BLOCKED] Add Chandra OCR <https://github.com/datalab-to/chandra> and/or <https://huggingface.co/mlx-community/chandra-ocr-2-oQ8>
 - [x] Visual overhaul to improve UI/UX
-- [x] Validate DeepSeek-OCR-2 mlx-vlm adapter - <https://huggingface.co/mlx-community/DeepSeek-OCR-2-8bit>
+- [ ] [IN PROGRESS] Validate DeepSeek-OCR-2 mlx-vlm tokenizer and stream fixes in the frontend - <https://huggingface.co/mlx-community/DeepSeek-OCR-2-8bit>
 - [ ] If models support JSON, HTML, add options to review and save these as well as markdown
 - [x] Add test coverage reporting
 - [ ] Add a coverage badge to the README after selecting a CI-accessible report location
@@ -32,7 +32,16 @@
   and HTML, but neither is fabricated from Markdown; an engine must advertise
   native support before JSON validation or HTML sanitisation/review is added.
 - **DeepSeek-OCR-2 mlx-vlm:** `deepseek-ocr-vlm` passed the IDE end-to-end
-  review flow. The adapter supports both mlx-vlm API
+  review flow but later exposed an upstream mlx-vlm continuous-batching
+  cross-thread GPU-stream failure. The launcher applies a DeepSeek-only
+  host-memory tensor handoff; live DeepSeek → NuExtract3 → DeepSeek smoke
+  requests succeeded through one process on port 8080. The launcher also uses
+  the model's bundled fast-tokenizer metadata for DeepSeek response decoding,
+  preserving word boundaries that the Transformers wrapper drops. A frontend
+  rerun must still clear the native-coverage quality gate. Collapsed DeepSeek
+  output is rejected without changing the pending review page rather than
+  being silently replaced with native text. The adapter supports both mlx-vlm
+  API
   generations: `/v1/models` and `/v1/chat/completions` with OpenAI image
   payloads, plus legacy `/models` and `/chat/completions` endpoints with
   `input_image` payloads. The legacy Ollama-backed `deepseek-ocr` engine
@@ -48,9 +57,8 @@
   batching path failed with a GPU stream error. The current
   `DeepSeek-OCR-2-8bit` investigation is in
   [`docs/deepseek-ocr-investigation/`](docs/deepseek-ocr-investigation/);
-  it records the model-family-specific processor initialisation required by
-  mlx-vlm and records the supported model-family-specific processor
-  initialisation path.
+  it records the model-family-specific processor initialisation and
+  cross-thread tensor-handoff workaround required by mlx-vlm.
 - **Dockerised MLX runtime:** Docker Desktop does not provide an equivalent
   Apple Metal runtime for the Linux container path. The native launcher is the
   supported accelerated route; Docker remains a future application-only or CPU
